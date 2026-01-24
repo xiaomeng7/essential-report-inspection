@@ -76,10 +76,19 @@ export function validateSection(
   const errors: Record<string, string> = {};
 
   for (const f of section.fields) {
+    // Skip fields that are not visible due to required_when
+    if (f.required_when) {
+      const requiredWhenMet = evalRequiredWhen(f.required_when, flat);
+      if (!requiredWhenMet && !f.required) continue;
+    }
+
     const v = getValue(flat, f.key);
     const required = f.required === true;
     const requiredWhen = f.required_when;
     const isReq = required || (!!requiredWhen && evalRequiredWhen(requiredWhen, flat));
+
+    // Skip validation for fields that are not required and don't have required_when
+    if (!isReq) continue;
 
     if (f.key.endsWith(".no_exceptions") || f.key.endsWith(".exceptions")) {
       const noEx = getValue(flat, f.key.replace(".exceptions", ".no_exceptions").replace(".no_exceptions", ".no_exceptions"));
@@ -103,11 +112,34 @@ export function validateSection(
     }
 
     if (isReq) {
-      if (v === undefined || v === null || v === "") {
+      // Check for empty values (but allow false for boolean and empty array for array_enum to be checked separately)
+      if (v === undefined || v === null || (typeof v === "string" && v === "")) {
         errors[f.key] = "Required.";
-      } else if (f.type === "number" && (typeof v !== "number" || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
+      } 
+      // For boolean types, false is a valid value, only check if it's not a boolean
+      else if (f.type === "boolean") {
+        if (typeof v !== "boolean") {
+          errors[f.key] = "Required.";
+        }
+        // boolean value (true or false) is valid, no error
+      }
+      // For array_enum types, empty array is invalid if required
+      else if (f.type === "array_enum") {
+        if (!Array.isArray(v) || v.length === 0) {
+          errors[f.key] = "Required.";
+        }
+        // non-empty array is valid, no error
+      }
+      // For enum types (radio/select), check if value is in enum
+      else if (f.type === "enum" && (v === null || v === "" || v === undefined)) {
+        errors[f.key] = "Required.";
+      }
+      // For number types
+      else if (f.type === "number" && (typeof v !== "number" || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
         errors[f.key] = f.min != null && f.max != null ? `Must be between ${f.min} and ${f.max}.` : "Invalid number.";
-      } else if (f.type === "integer" && (typeof v !== "number" || !Number.isInteger(v) || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
+      }
+      // For integer types
+      else if (f.type === "integer" && (typeof v !== "number" || !Number.isInteger(v) || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
         errors[f.key] = "Invalid integer.";
       }
     }
