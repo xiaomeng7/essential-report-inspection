@@ -79,7 +79,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           onChange={(e) => {
             const inputVal = e.target.value;
             const numVal = inputVal === "" ? null : (inputVal === "0" ? 0 : Number(inputVal));
-            console.log(`Number input: field=${field.key}, input="${inputVal}", parsed=`, numVal, "isNaN=", isNaN(numVal));
+            console.log(`Number input: field=${field.key}, input="${inputVal}", parsed=`, numVal, "isNaN=", numVal !== null && isNaN(numVal));
             handleChange(numVal);
           }}
           disabled={skipped}
