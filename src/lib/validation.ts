@@ -25,6 +25,7 @@ function evalSimple(expr: string, data: Record<string, unknown>): boolean {
   const key = left.trim();
   const val = right.trim();
   const v = getValue(data, key);
+  console.log(`evalSimple: expr="${expr}", key="${key}", val="${val}", v=`, v, "type=", typeof v);
   if (val === "true") return v === true;
   if (val === "false") return v === false;
   if (/^\d+$/.test(val)) return Number(v) === Number(val);
@@ -60,14 +61,20 @@ function flattenAnswers(state: InspectionState): Record<string, unknown> {
       for (const [k, v] of Object.entries(o)) {
         const path = prefix ? `${prefix}.${k}` : k;
         if (typeof v === "object" && v !== null && "value" in (v as object)) {
+          // This is an Answer object, extract the value
           out[path] = (v as { value: unknown }).value;
-        } else {
+        } else if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+          // This is a nested object (like summary), continue walking
           walk(v, path);
+        } else {
+          // Primitive value or array
+          out[path] = v;
         }
       }
     }
   };
   walk(state, "");
+  console.log("flattenAnswers output:", out);
   return out;
 }
 
@@ -89,7 +96,11 @@ export function validateSection(
     // Skip fields that are not visible due to required_when
     if (f.required_when) {
       const requiredWhenMet = evalRequiredWhen(f.required_when, flat);
-      if (!requiredWhenMet && !f.required) continue;
+      console.log(`Field ${f.key}: required_when="${f.required_when}", met=${requiredWhenMet}, required=${f.required}`);
+      if (!requiredWhenMet && !f.required) {
+        console.log(`Field ${f.key}: skipping (required_when not met and not required)`);
+        continue;
+      }
     }
 
     const v = getValue(flat, f.key);
@@ -98,9 +109,7 @@ export function validateSection(
     const isReq = required || (!!requiredWhen && evalRequiredWhen(requiredWhen, flat));
 
     // Debug: log field validation
-    if (isReq) {
-      console.log(`Field ${f.key}: value=`, v, "type=", typeof v, "isArray=", Array.isArray(v), "required=", isReq);
-    }
+    console.log(`Field ${f.key}: value=`, v, "type=", typeof v, "isArray=", Array.isArray(v), "required=", required, "required_when=", requiredWhen, "isReq=", isReq);
 
     // Skip validation for fields that are not required and don't have required_when
     if (!isReq) continue;
@@ -127,7 +136,7 @@ export function validateSection(
     }
 
     if (isReq) {
-      // Check for empty values (but allow false for boolean and empty array for array_enum to be checked separately)
+      // Check for empty values first (but allow false for boolean and empty array for array_enum to be checked separately)
       if (v === undefined || v === null || (typeof v === "string" && v === "")) {
         console.log(`Field ${f.key} is empty: v=`, v);
         errors[f.key] = "Required.";
@@ -158,13 +167,26 @@ export function validateSection(
         console.log(`Field ${f.key} (string) is empty: v=`, v);
         errors[f.key] = "Required.";
       }
-      // For number types
-      else if (f.type === "number" && (typeof v !== "number" || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
-        errors[f.key] = f.min != null && f.max != null ? `Must be between ${f.min} and ${f.max}.` : "Invalid number.";
+      // For integer types - check if it's a valid integer
+      else if (f.type === "integer") {
+        if (typeof v !== "number" || !Number.isInteger(v)) {
+          console.log(`Field ${f.key} (integer) is invalid: v=`, v, "type=", typeof v);
+          errors[f.key] = "Required.";
+        } else if (f.min != null && v < f.min) {
+          errors[f.key] = `Must be at least ${f.min}.`;
+        } else if (f.max != null && v > f.max) {
+          errors[f.key] = `Must be at most ${f.max}.`;
+        }
       }
-      // For integer types
-      else if (f.type === "integer" && (typeof v !== "number" || !Number.isInteger(v) || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
-        errors[f.key] = "Invalid integer.";
+      // For number types
+      else if (f.type === "number") {
+        if (typeof v !== "number") {
+          errors[f.key] = "Required.";
+        } else if (f.min != null && v < f.min) {
+          errors[f.key] = `Must be at least ${f.min}.`;
+        } else if (f.max != null && v > f.max) {
+          errors[f.key] = `Must be at most ${f.max}.`;
+        }
       }
     }
   }
