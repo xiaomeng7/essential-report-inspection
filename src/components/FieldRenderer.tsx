@@ -21,7 +21,17 @@ function normalizeVal(v: unknown, type: string): string | number | boolean | str
     if (type === "integer" || type === "number") return "";
     return "";
   }
-  if (typeof v === "object" && "value" in (v as object)) return (v as Answer).value as string | number | boolean | string[];
+  if (typeof v === "object" && "value" in (v as object)) {
+    const answerValue = (v as Answer).value;
+    // If the answer value is null/undefined, normalize it based on type
+    if (answerValue == null) {
+      if (type === "boolean") return false;
+      if (type === "array_enum") return [];
+      if (type === "integer" || type === "number") return "";
+      return "";
+    }
+    return answerValue as string | number | boolean | string[];
+  }
   return v as string | number | boolean | string[];
 }
 
@@ -66,7 +76,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
   }
 
   if (field.ui === "number") {
-    console.log(`FieldRenderer: rendering number field ${field.key}, val=`, val, "type=", typeof val, "raw=", raw);
+    console.log(`FieldRenderer: rendering number field ${field.key}, val=`, val, "type=", typeof val, "raw=", raw, "skipped=", skipped);
     return (
       <div className="field">
         <label htmlFor={id}>{field.label}</label>
@@ -77,10 +87,14 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           max={field.max}
           value={val === null || val === "" || val === undefined ? "" : String(val as number)}
           onChange={(e) => {
+            console.log(`Number input onChange triggered: field=${field.key}, event.target.value=`, e.target.value);
             const inputVal = e.target.value;
             const numVal = inputVal === "" ? null : (inputVal === "0" ? 0 : Number(inputVal));
             console.log(`Number input: field=${field.key}, input="${inputVal}", parsed=`, numVal, "isNaN=", numVal !== null && isNaN(numVal));
             handleChange(numVal);
+          }}
+          onBlur={(e) => {
+            console.log(`Number input onBlur: field=${field.key}, value=`, e.target.value);
           }}
           disabled={skipped}
         />
