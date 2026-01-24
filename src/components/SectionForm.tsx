@@ -125,17 +125,25 @@ export function SectionForm({
   return (
     <div className="section">
       <h2>{section.title}</h2>
-      {visibleFields.map((f) => (
-        <FieldRenderer
-          key={f.key}
-          field={f}
-          value={getAnswer(f.key) ?? getValue(f.key)}
-          onChange={setAnswer}
-          error={errors[f.key]}
-          isGate={gateKeys.has(f.key)}
-          onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
-        />
-      ))}
+      {visibleFields.map((f) => {
+        const answer = getAnswer(f.key);
+        const value = answer ?? getValue(f.key);
+        // Debug: log field value
+        if (f.required) {
+          console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
+        }
+        return (
+          <FieldRenderer
+            key={f.key}
+            field={f}
+            value={value}
+            onChange={setAnswer}
+            error={errors[f.key]}
+            isGate={gateKeys.has(f.key)}
+            onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
+          />
+        );
+      })}
     </div>
   );
 }

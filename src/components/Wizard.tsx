@@ -35,10 +35,9 @@ export function Wizard({ onSubmitted }: Props) {
     const { valid, errors } = validateSection(current.id, state);
     if (!valid) {
       // Debug: log validation errors
-      if (process.env.NODE_ENV === "development") {
-        console.log("Validation errors:", errors);
-        console.log("Current state:", state);
-      }
+      console.log("Validation errors:", errors);
+      console.log("Current state:", JSON.stringify(state, null, 2));
+      console.log("Current section:", current.id);
       setSectionErrors((prev) => ({ ...prev, [current.id]: errors }));
       return;
     }
