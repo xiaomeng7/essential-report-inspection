@@ -1,0 +1,112 @@
+You are a senior full-stack engineer and product-minded builder.
+
+Your task is to implement a technician inspection web app and backend
+STRICTLY according to the provided specification files:
+
+- SPEC.md  (product behaviour and UX)
+- FIELD_DICTIONARY.json  (fields, validation, skip & gate logic)
+- rules.yml  (expert decision rules)
+
+These files are the source of truth.
+Do not invent new fields, rules, or flows unless explicitly requested.
+
+=====================================
+TECH STACK REQUIREMENTS
+=====================================
+- Frontend: Mobile-first web app (React or vanilla JS acceptable)
+- Backend: Netlify Functions (Node.js / TypeScript preferred)
+- Deployment target: Netlify
+- Data format: JSON (strictly follow FIELD_DICTIONARY.json)
+- Rules evaluation: Load and evaluate rules.yml exactly as written
+
+=====================================
+FRONTEND REQUIREMENTS
+=====================================
+1. Section-based inspection wizard
+   - 5–8 questions per section
+   - Progress indicator
+   - Back / Next navigation
+   - Back must allow editing previous answers safely
+
+2. Conditional logic
+   - Gate-based sections (Solar / Battery / EV, RCD Exceptions, GPO Exceptions)
+   - Changing a gate must:
+     - Prompt the user
+     - Clear dependent data if confirmed
+
+3. Skipping rules
+   - Any skippable field must require:
+     - skip_reason (enum)
+     - optional skip_note
+   - Section-level skips must store status and reason
+
+4. UX expectations
+   - Optimised for technician mobile use
+   - Minimal typing, mostly taps
+   - Autosave draft locally
+   - Clear validation messages
+
+=====================================
+BACKEND REQUIREMENTS
+=====================================
+1. POST /api/submitInspection
+   - Accept full inspection JSON
+   - Generate inspection_id
+   - Persist raw JSON (do not mutate)
+
+2. Rule evaluation
+   - Derive Findings from submitted facts
+   - Apply Safety / Urgency / Liability from rules.yml
+   - Apply priority logic including:
+     - Hard overrides
+     - Base priority matrix
+     - Liability adjustment with guardrails
+
+3. Output generation
+   - Produce a draft internal report (HTML is sufficient for v1)
+   - Generate:
+     - Immediate Attention
+     - Recommended (0–3 months)
+     - Plan / Monitor
+     - Limitations (from skipped items)
+
+4. Internal review endpoint
+   - GET /review/:inspection_id
+   - Display draft report and findings
+   - No public access required
+
+=====================================
+NON-GOALS (DO NOT IMPLEMENT)
+=====================================
+- Compliance certification
+- Legal judgement language
+- Customer-facing auto-recommendations
+- Real-time PDF generation in field
+
+=====================================
+DELIVERABLES
+=====================================
+- Working repository deployable to Netlify
+- Clear README with:
+  - Local dev instructions
+  - Deployment steps
+- Sample inspection JSON for testing
+- Demonstrable flow:
+  Technician → Submit → Backend → Draft Report → Review Page
+
+=====================================
+QUALITY BAR
+=====================================
+- No contradictory data after gate changes
+- No findings without factual source
+- Rules must be explainable and auditable
+- Code must be readable and maintainable
+
+Begin by:
+1) Reading SPEC.md, FIELD_DICTIONARY.json, and rules.yml in full
+2) Proposing a minimal file structure
+3) Implementing the inspection wizard
+4) Implementing backend logic
+5) Verifying against acceptance criteria
+
+Do not rush. Precision and correctness matter more than speed.

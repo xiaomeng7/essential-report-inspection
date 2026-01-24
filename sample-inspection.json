@@ -1,0 +1,74 @@
+{
+  "created_at": "2026-01-24T12:00:00.000Z",
+  "job": {
+    "address": { "value": "123 Example St", "status": "answered" },
+    "client_type": { "value": "owner", "status": "answered" },
+    "occupancy": { "value": "owner_occupied", "status": "answered" },
+    "property_type": { "value": "house", "status": "answered" },
+    "vulnerable_occupants": { "value": ["none"], "status": "answered" },
+    "reported_issues": { "value": ["none"], "status": "answered" }
+  },
+  "access": {
+    "switchboard_accessible": { "value": true, "status": "answered" },
+    "roof_accessible": { "value": true, "status": "answered" },
+    "underfloor_accessible": { "value": false, "status": "answered" },
+    "no_access_reason": { "value": "locked", "status": "answered" },
+    "mains_power_available": { "value": true, "status": "answered" },
+    "photos_allowed": { "value": true, "status": "answered" },
+    "notes": { "value": "", "status": "answered" }
+  },
+  "switchboard": {
+    "overall_condition": { "value": "fair", "status": "answered" },
+    "signs_of_overheating": { "value": "no", "status": "answered" },
+    "burn_marks_or_carbon": { "value": "no", "status": "answered" },
+    "water_ingress": { "value": "no", "status": "answered" },
+    "asbestos_suspected": { "value": "unsure", "status": "answered" },
+    "protection_types_present": { "value": ["rcd", "rcbo"], "status": "answered" },
+    "photo_ids": { "value": [], "status": "answered" }
+  },
+  "rcd_tests": {
+    "performed": { "value": true, "status": "answered" },
+    "summary": {
+      "total_tested": { "value": 4, "status": "answered" },
+      "total_pass": { "value": 3, "status": "answered" },
+      "total_fail": { "value": 1, "status": "answered" }
+    },
+    "no_exceptions": { "value": false, "status": "answered" },
+    "exceptions": {
+      "value": [
+        { "location": "Kitchen", "result": "fail", "notes": "Trip >300ms" }
+      ],
+      "status": "answered"
+    },
+    "notes": { "value": "", "status": "answered" }
+  },
+  "gpo_tests": {
+    "performed": { "value": true, "status": "answered" },
+    "summary": {
+      "total_gpo_tested": { "value": 12, "status": "answered" },
+      "polarity_pass": { "value": 12, "status": "answered" },
+      "earth_present_pass": { "value": 11, "status": "answered" },
+      "rcd_protection_confirmed": { "value": 12, "status": "answered" }
+    },
+    "any_warm_loose_damaged": { "value": false, "status": "answered" },
+    "no_exceptions": { "value": true, "status": "answered" },
+    "notes": { "value": "", "status": "answered" }
+  },
+  "lighting": {
+    "issues_observed": { "value": "none", "status": "answered" }
+  },
+  "assets": {
+    "has_solar_pv": { "value": false, "status": "answered" },
+    "has_battery": { "value": false, "status": "answered" },
+    "has_ev_charger": { "value": false, "status": "answered" }
+  },
+  "signoff": {
+    "technician_name": { "value": "Jane Tech", "status": "answered" },
+    "licence_no": { "value": "L12345", "status": "answered" },
+    "inspection_completed": { "value": true, "status": "answered" },
+    "customer_informed_immediate": { "value": true, "status": "answered" },
+    "office_notes_internal": { "value": "", "status": "answered" },
+    "ready_for_report_generation": { "value": true, "status": "answered" },
+    "submit_confirm": { "value": true, "status": "answered" }
+  }
+}

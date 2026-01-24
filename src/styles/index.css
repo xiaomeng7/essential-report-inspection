@@ -1,0 +1,220 @@
+:root {
+  --bg: #f5f5f5;
+  --surface: #fff;
+  --text: #1a1a1a;
+  --text-muted: #666;
+  --primary: #0d47a1;
+  --primary-hover: #1565c0;
+  --danger: #c62828;
+  --success: #2e7d32;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --tap: 44px;
+}
+
+* { box-sizing: border-box; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, select, textarea, button {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.progress-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.section {
+  padding: 16px;
+  background: var(--surface);
+  margin: 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.section h2 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.9375rem;
+}
+
+.field input[type="text"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: var(--radius);
+  min-height: var(--tap);
+}
+
+.field textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.radio-group, .checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radio-opt, .checkbox-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  min-height: var(--tap);
+  border: 1px solid #ddd;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.radio-opt:has(input:checked),
+.checkbox-opt:has(input:checked) {
+  border-color: var(--primary);
+  background: #e3f2fd;
+}
+
+.radio-opt input, .checkbox-opt input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  margin: 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.actions button {
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  min-height: var(--tap);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: var(--text);
+}
+
+.btn-secondary:hover { background: #d0d0d0; }
+
+.validation-msg {
+  font-size: 0.875rem;
+  color: var(--danger);
+  margin-top: 6px;
+}
+
+.skip-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.skip-row select { flex: 1; }
+.skip-row .note { flex: 1; }
+
+.review-page {
+  padding: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.review-page h1 { font-size: 1.25rem; margin: 0 0 16px; }
+.report-html {
+  background: var(--surface);
+  padding: 16px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+
+.report-html h2 { font-size: 1rem; margin: 12px 0 6px; }
+.report-html ul { margin: 0; padding-left: 20px; }
+.report-html li { margin: 4px 0; }
+
+.review-actions { margin-top: 16px; }
+
+.review-actions button {
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  background: var(--primary);
+  color: #fff;
+}
+
+.review-actions button:hover { background: var(--primary-hover); }
