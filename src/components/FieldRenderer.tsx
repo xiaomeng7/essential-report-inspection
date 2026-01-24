@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { FieldDef } from "../lib/fieldDictionary";
 import { getEnum, getSkipReasons } from "../lib/fieldDictionary";
-import type { Answer } from "../hooks/useInspection";
+import type { Answer, AnswerValue } from "../hooks/useInspection";
 
 type Props = {
   field: FieldDef;
   value: unknown;
-  onChange: (key: string, payload: { value: unknown; status: "answered" | "skipped"; skip_reason?: string; skip_note?: string }) => void;
+  onChange: (key: string, payload: Answer | AnswerValue) => void;
   error?: string;
   isGate?: boolean;
   onGateChange?: (key: string, newVal: unknown, prevVal: unknown) => void;
@@ -31,7 +31,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
       onGateChange(field.key, v, raw.value);
       return;
     }
-    onChange(field.key, { value: v, status: "answered" });
+    onChange(field.key, { value: v as AnswerValue, status: "answered" });
   };
 
   const handleSkip = (reason: string, note?: string) => {

@@ -133,7 +133,7 @@ export function SectionForm({
           onChange={setAnswer}
           error={errors[f.key]}
           isGate={gateKeys.has(f.key)}
-          onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal, prevVal)}
+          onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
         />
       ))}
     </div>
