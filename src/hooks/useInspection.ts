@@ -101,13 +101,17 @@ export function useInspection() {
   }, [state]);
 
   const setAnswer = useCallback((key: string, payload: Answer | AnswerValue) => {
+    console.log(`useInspection.setAnswer: key="${key}", payload=`, payload);
     setState((prev) => {
       const next = deepClone(prev) as Record<string, unknown>;
       const ans: Answer =
         typeof payload === "object" && payload !== null && "status" in payload
           ? (payload as Answer)
           : { value: payload as AnswerValue, status: "answered" };
+      console.log(`useInspection.setAnswer: setting key="${key}", answer=`, ans);
       setNested(next, key, ans);
+      const check = getNested(next, key);
+      console.log(`useInspection.setAnswer: after setNested, getNested("${key}")=`, check);
       return next;
     });
   }, []);

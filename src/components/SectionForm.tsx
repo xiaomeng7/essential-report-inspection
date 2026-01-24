@@ -16,6 +16,13 @@ type Props = {
 };
 
 function getNested(obj: unknown, path: string): unknown {
+  if (obj == null || typeof obj !== "object") return undefined;
+  const flat = obj as Record<string, unknown>;
+  // First try flat key (e.g., "job.address" or "rcd_tests.performed")
+  if (path in flat) {
+    return flat[path];
+  }
+  // Fallback to nested structure (e.g., obj.job.address)
   const parts = path.split(".");
   let v: unknown = obj;
   for (const p of parts) {

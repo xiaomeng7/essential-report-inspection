@@ -4,17 +4,23 @@ import { getSections } from "./fieldDictionary";
 function getValue(obj: unknown, path: string): unknown {
   if (obj == null || typeof obj !== "object") return undefined;
   const flat = obj as Record<string, unknown>;
-  // First try flat key (e.g., "job.address")
+  // First try flat key (e.g., "job.address" or "rcd_tests.summary.total_tested")
   if (path in flat) {
-    return flat[path];
+    const val = flat[path];
+    console.log(`getValue: path="${path}", found in flat, value=`, val, "type=", typeof val);
+    return val;
   }
   // Fallback to nested structure (e.g., obj.job.address)
   const parts = path.split(".");
   let v: unknown = obj;
   for (const p of parts) {
-    if (v == null || typeof v !== "object") return undefined;
+    if (v == null || typeof v !== "object") {
+      console.log(`getValue: path="${path}", nested access failed at "${p}", v=`, v);
+      return undefined;
+    }
     v = (v as Record<string, unknown>)[p];
   }
+  console.log(`getValue: path="${path}", nested access result=`, v);
   return v;
 }
 
@@ -74,7 +80,10 @@ function flattenAnswers(state: InspectionState): Record<string, unknown> {
     }
   };
   walk(state, "");
-  console.log("flattenAnswers output:", out);
+  // Log all keys to see what was extracted
+  const keys = Object.keys(out).filter(k => k.includes("rcd_tests") || k.includes("summary"));
+  console.log("flattenAnswers - RCD/summary keys:", keys);
+  keys.forEach(k => console.log(`  ${k}:`, out[k]));
   return out;
 }
 
