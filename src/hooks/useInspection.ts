@@ -94,7 +94,8 @@ function saveDraft(state: InspectionState): void {
 }
 
 export function useInspection() {
-  const [state, setState] = useState<InspectionState>(() => loadDraft() ?? buildEmptyState());
+  // Always start with empty state on page load/refresh
+  const [state, setState] = useState<InspectionState>(() => buildEmptyState());
 
   useEffect(() => {
     saveDraft(state);

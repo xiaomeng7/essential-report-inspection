@@ -15,28 +15,41 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   let raw: Record<string, unknown>;
   try {
     raw = JSON.parse(event.body ?? "{}") as Record<string, unknown>;
-  } catch {
+  } catch (e) {
+    console.error("JSON parse error:", e);
     return { statusCode: 400, body: "Invalid JSON" };
   }
-  const inspection_id = genId();
-  const facts = flattenFacts(raw);
-  const findings = evaluateFindings(facts);
-  const limitations = collectLimitations(raw);
-  const report_html = buildReportHtml(findings, limitations);
-  save(inspection_id, {
-    inspection_id,
-    raw,
-    report_html,
-    findings,
-    limitations,
-  });
-  return {
-    statusCode: 200,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  try {
+    const inspection_id = genId();
+    const facts = flattenFacts(raw);
+    const findings = evaluateFindings(facts);
+    const limitations = collectLimitations(raw);
+    const report_html = buildReportHtml(findings, limitations);
+    save(inspection_id, {
       inspection_id,
-      status: "accepted",
-      review_url: `/review/${inspection_id}`,
-    }),
-  };
+      raw,
+      report_html,
+      findings,
+      limitations,
+    });
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inspection_id,
+        status: "accepted",
+        review_url: `/review/${inspection_id}`,
+      }),
+    };
+  } catch (e) {
+    console.error("Error processing inspection:", e);
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error: "Internal server error",
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    };
+  }
 };

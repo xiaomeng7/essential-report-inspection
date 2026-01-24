@@ -40,8 +40,20 @@ function evalSimple(expr: string, data: Record<string, unknown>): boolean {
 
 function evalRequiredWhen(expr: string, data: Record<string, unknown>): boolean {
   if (expr.startsWith("any(")) {
-    const inner = expr.slice(4, -1);
+    const rest = expr.slice(4);
+    const close = rest.indexOf(")");
+    const inner = rest.slice(0, close).trim();
+    const suffix = rest.slice(close + 1).trim();
     const preds = inner.split(",").map((s) => s.trim());
+    if (suffix.startsWith("==")) {
+      const right = suffix.slice(2).trim();
+      const target = right === "true";
+      for (const p of preds) {
+        const v = getValue(data, p);
+        if (v === target) return true;
+      }
+      return false;
+    }
     for (const p of preds) {
       if (p.includes("==")) {
         if (evalSimple(p, data)) return true;
