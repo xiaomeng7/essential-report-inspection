@@ -76,17 +76,6 @@ export function buildEmptyState(): InspectionState {
   return state;
 }
 
-function loadDraft(): InspectionState | null {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as InspectionState;
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 function saveDraft(state: InspectionState): void {
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
