@@ -2,6 +2,13 @@ import type { InspectionState } from "../hooks/useInspection";
 import { getSections } from "./fieldDictionary";
 
 function getValue(obj: unknown, path: string): unknown {
+  if (obj == null || typeof obj !== "object") return undefined;
+  const flat = obj as Record<string, unknown>;
+  // First try flat key (e.g., "job.address")
+  if (path in flat) {
+    return flat[path];
+  }
+  // Fallback to nested structure (e.g., obj.job.address)
   const parts = path.split(".");
   let v: unknown = obj;
   for (const p of parts) {
