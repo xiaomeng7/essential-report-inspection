@@ -52,7 +52,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           disabled={skipped}
         />
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange("")} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange("")} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -73,7 +73,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           disabled={skipped}
         />
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(null)} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(null)} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -91,7 +91,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           disabled={skipped}
         />
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange("")} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange("")} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -119,7 +119,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           ))}
         </div>
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(field.type === "boolean" ? false : null)} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(field.type === "boolean" ? false : null)} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -144,7 +144,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           ))}
         </div>
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange([])} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange([])} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -167,7 +167,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
           ))}
         </select>
         {field.skippable && (
-          <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(null)} />
+          <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange(null)} />
         )}
         {error && <p className="validation-msg">{error}</p>}
       </div>
@@ -206,12 +206,19 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
   }
 
   if (field.ui === "repeatable_card" && field.item_schema) {
-    const arr = (Array.isArray(val) ? val : []) as Record<string, unknown>[];
+    let arr: Record<string, unknown>[] = [];
+    if (Array.isArray(val)) {
+      // Ensure all items are objects, not strings
+      arr = val.map((item) => 
+        typeof item === "object" && item !== null 
+          ? (item as Record<string, unknown>)
+          : {}
+      );
+    }
     return (
       <div className="field">
         <label>{field.label}</label>
         <RepeatableCards
-          fieldKey={field.key}
           itemSchema={field.item_schema}
           items={arr}
           onChange={(next) => handleChange(next)}
@@ -231,13 +238,11 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
 }
 
 function SkipRow({
-  fieldKey,
   skipped,
   raw,
   onSkip,
   onUnskip,
 }: {
-  fieldKey: string;
   skipped: boolean;
   raw: Answer | null;
   onSkip: (reason: string, note?: string) => void;
@@ -329,7 +334,7 @@ function TagsField({
         </div>
       )}
       {field.skippable && (
-        <SkipRow fieldKey={field.key} skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange([])} />
+        <SkipRow skipped={skipped} raw={raw} onSkip={handleSkip} onUnskip={() => handleChange([])} />
       )}
       {error && <p className="validation-msg">{error}</p>}
     </div>
@@ -339,13 +344,11 @@ function TagsField({
 type ItemSchema = Record<string, { type: string; enum?: string; enum_values?: string[]; required?: boolean; min?: number; max?: number }>;
 
 function RepeatableCards({
-  fieldKey,
   itemSchema,
   items,
   onChange,
   skipped,
 }: {
-  fieldKey: string;
   itemSchema: ItemSchema;
   items: Record<string, unknown>[];
   onChange: (next: Record<string, unknown>[]) => void;

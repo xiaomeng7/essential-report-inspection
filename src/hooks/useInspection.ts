@@ -114,7 +114,9 @@ export function useInspection() {
 
   const setAnswerWithGateCheck = useCallback(
     (key: string, payload: Answer | AnswerValue, prevValue?: unknown) => {
-      const newVal = typeof payload === "object" && "value" in (payload as Answer) ? (payload as Answer).value : payload;
+      const newVal: AnswerValue = typeof payload === "object" && payload !== null && "status" in payload 
+        ? (payload as Answer).value 
+        : (payload as AnswerValue);
       const paths = getClearPathsForGateChange(key, prevValue === true, newVal === false);
       if (paths.length) {
         const ok = window.confirm(

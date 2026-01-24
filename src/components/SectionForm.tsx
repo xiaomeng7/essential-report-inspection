@@ -7,8 +7,8 @@ import { FieldRenderer } from "./FieldRenderer";
 type Props = {
   section: SectionDef;
   state: InspectionState;
-  setAnswer: (key: string, payload: { value: unknown; status: "answered" | "skipped"; skip_reason?: string; skip_note?: string }) => void;
-  setAnswerWithGateCheck: (key: string, payload: unknown, prev?: unknown) => void;
+  setAnswer: (key: string, payload: import("../hooks/useInspection").Answer | import("../hooks/useInspection").AnswerValue) => void;
+  setAnswerWithGateCheck: (key: string, payload: import("../hooks/useInspection").Answer | import("../hooks/useInspection").AnswerValue, prev?: unknown) => void;
   getValue: (key: string) => unknown;
   getAnswer: (key: string) => import("../hooks/useInspection").Answer | undefined;
   errors: Record<string, string>;
