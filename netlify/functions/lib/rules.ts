@@ -19,9 +19,19 @@ let rulesCache: Rules | null = null;
 
 function loadRules(): Rules {
   if (rulesCache) return rulesCache;
-  const raw = fs.readFileSync(RULES_PATH, "utf8");
-  rulesCache = yaml.load(raw) as Rules;
-  return rulesCache!;
+  try {
+    console.log("Loading rules from:", RULES_PATH);
+    console.log("Current working directory:", ROOT);
+    const raw = fs.readFileSync(RULES_PATH, "utf8");
+    rulesCache = yaml.load(raw) as Rules;
+    console.log("Rules loaded successfully");
+    return rulesCache!;
+  } catch (e) {
+    console.error("Error loading rules.yml:", e);
+    console.error("RULES_PATH:", RULES_PATH);
+    console.error("ROOT:", ROOT);
+    throw new Error(`Failed to load rules.yml: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 function getAt(obj: unknown, path: string): unknown {

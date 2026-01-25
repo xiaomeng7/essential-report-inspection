@@ -1,6 +1,7 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { save } from "./lib/store";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
+import { sendEmailNotification } from "./lib/email";
 
 function genId(): string {
   const y = new Date().getFullYear();
@@ -20,11 +21,27 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     return { statusCode: 400, body: "Invalid JSON" };
   }
   try {
+    console.log("Starting inspection processing...");
     const inspection_id = genId();
+    console.log("Generated inspection_id:", inspection_id);
+    
+    console.log("Flattening facts...");
     const facts = flattenFacts(raw);
+    console.log("Facts flattened, keys:", Object.keys(facts).length);
+    
+    console.log("Evaluating findings...");
     const findings = evaluateFindings(facts);
+    console.log("Findings evaluated, count:", findings.length);
+    
+    console.log("Collecting limitations...");
     const limitations = collectLimitations(raw);
+    console.log("Limitations collected, count:", limitations.length);
+    
+    console.log("Building report HTML...");
     const report_html = buildReportHtml(findings, limitations);
+    console.log("Report HTML built, length:", report_html.length);
+    
+    console.log("Saving inspection...");
     save(inspection_id, {
       inspection_id,
       raw,
@@ -32,6 +49,38 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       findings,
       limitations,
     });
+    console.log("Inspection saved successfully");
+    
+    // Extract address and technician name for email
+    const address = (raw.job as Record<string, unknown>)?.address as 
+      | { value: string; status: string } 
+      | string 
+      | undefined;
+    const addressValue = address && typeof address === "object" && "value" in address
+      ? address.value as string
+      : typeof address === "string" ? address : undefined;
+    
+    const technicianName = (raw.signoff as Record<string, unknown>)?.technician_name as 
+      | { value: string; status: string } 
+      | undefined;
+    const technicianNameValue = technicianName && typeof technicianName === "object" && "value" in technicianName
+      ? technicianName.value as string
+      : undefined;
+    
+    // Send email notification (async, don't wait for it)
+    const reviewUrl = `${process.env.URL || "https://inspeti.netlify.app"}/review/${inspection_id}`;
+    sendEmailNotification({
+      inspection_id,
+      address: addressValue || "N/A",
+      technician_name: technicianNameValue || "N/A",
+      findings,
+      limitations,
+      review_url: reviewUrl,
+      created_at: (raw.created_at as string) || new Date().toISOString(),
+    }).catch((err) => {
+      console.error("Failed to send email (non-blocking):", err);
+    });
+    
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -43,12 +92,16 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   } catch (e) {
     console.error("Error processing inspection:", e);
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    const errorStack = e instanceof Error ? e.stack : undefined;
+    console.error("Error stack:", errorStack);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         error: "Internal server error",
-        message: e instanceof Error ? e.message : String(e),
+        message: errorMessage,
+        ...(process.env.NETLIFY_DEV && { stack: errorStack }),
       }),
     };
   }

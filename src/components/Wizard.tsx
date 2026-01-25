@@ -13,7 +13,7 @@ const GATE_KEYS = new Set([
   "assets.has_ev_charger",
 ]);
 
-type Props = { onSubmitted: (inspectionId: string) => void };
+type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
 
 export function Wizard({ onSubmitted }: Props) {
   const { state, setAnswer, setAnswerWithGateCheck, getValue, getAnswer, clearDraft } = useInspection();
@@ -71,7 +71,12 @@ export function Wizard({ onSubmitted }: Props) {
       }
       const data = (await res.json()) as { inspection_id: string; status: string; review_url: string };
       clearDraft();
-      onSubmitted(data.inspection_id);
+      
+      // Extract address and technician name for success page
+      const address = getValue("job.address") as string | undefined;
+      const technicianName = getValue("signoff.technician_name") as string | undefined;
+      
+      onSubmitted(data.inspection_id, address, technicianName);
     } catch (e) {
       setSectionErrors((prev) => ({
         ...prev,
