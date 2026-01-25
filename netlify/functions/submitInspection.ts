@@ -67,24 +67,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       ? technicianName.value as string
       : undefined;
     
-    // Send email notification (async, don't wait for it)
+    // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
     const reviewUrl = `${process.env.URL || "https://inspeti.netlify.app"}/review/${inspection_id}`;
     console.log("Preparing to send email notification...");
-    sendEmailNotification({
-      inspection_id,
-      address: addressValue || "N/A",
-      technician_name: technicianNameValue || "N/A",
-      findings,
-      limitations,
-      review_url: reviewUrl,
-      created_at: (raw.created_at as string) || new Date().toISOString(),
-    }).catch((err) => {
-      console.error("Failed to send email (non-blocking):", {
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
+    try {
+      await sendEmailNotification({
+        inspection_id,
+        address: addressValue || "N/A",
+        technician_name: technicianNameValue || "N/A",
+        findings,
+        limitations,
+        review_url: reviewUrl,
+        created_at: (raw.created_at as string) || new Date().toISOString(),
       });
-    });
-    
+      console.log("Email notification sent successfully (handler complete)");
+    } catch (emailErr) {
+      console.error("Failed to send email (inspection still saved):", {
+        error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+        stack: emailErr instanceof Error ? emailErr.stack : undefined,
+      });
+      // Don't fail the request — inspection was saved; email is best-effort
+    }
+
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
