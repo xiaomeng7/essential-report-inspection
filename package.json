@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run copy-rules && tsc -b && vite build",
+    "copy-rules": "cp rules.yml netlify/functions/rules.yml || true",
     "preview": "vite preview",
     "netlify:dev": "netlify dev"
   },

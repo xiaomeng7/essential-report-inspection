@@ -1,11 +1,50 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
-// In Netlify Functions, process.cwd() is the site root
-// rules.yml should be at the project root
-const ROOT = process.cwd();
-const RULES_PATH = path.join(ROOT, "rules.yml");
+// In Netlify Functions, we need to find rules.yml
+// Try multiple possible locations
+function findRulesPath(): string {
+  // Get the directory of this file (ES modules compatible)
+  let currentDir: string;
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    currentDir = path.dirname(__filename);
+  } catch {
+    // Fallback if import.meta.url is not available
+    currentDir = process.cwd();
+  }
+  
+  // In Netlify Functions, files are in /var/task
+  // We copy rules.yml to netlify/functions/ during build
+  // Try different possible locations
+  const possiblePaths = [
+    path.join(currentDir, "rules.yml"),              // Same directory as this file
+    path.join(currentDir, "..", "rules.yml"),        // Parent directory (functions/)
+    path.join(currentDir, "../..", "rules.yml"),     // Two levels up (project root)
+    path.join(process.cwd(), "rules.yml"),            // Current working directory (usually /var/task in Netlify)
+    "/var/task/rules.yml",                           // Netlify Functions default location
+    path.join(process.cwd(), "..", "rules.yml"),      // One level up from cwd
+    path.join(process.cwd(), "../..", "rules.yml"),  // Two levels up from cwd
+  ];
+  
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        console.log("Found rules.yml at:", p);
+        return p;
+      }
+    } catch {
+      // Continue searching
+    }
+  }
+  
+  // If not found, return the most likely path for error message
+  console.error("Could not find rules.yml in any of these locations:", possiblePaths);
+  console.error("Current file directory:", currentDir);
+  return possiblePaths[0];
+}
 
 type Rules = {
   hard_overrides?: { findings: string[] };
@@ -20,16 +59,33 @@ let rulesCache: Rules | null = null;
 function loadRules(): Rules {
   if (rulesCache) return rulesCache;
   try {
-    console.log("Loading rules from:", RULES_PATH);
-    console.log("Current working directory:", ROOT);
-    const raw = fs.readFileSync(RULES_PATH, "utf8");
+    const actualPath = findRulesPath();
+    console.log("Loading rules from:", actualPath);
+    console.log("Current working directory:", process.cwd());
+    
+    if (!fs.existsSync(actualPath)) {
+      // List files in possible directories for debugging
+      try {
+        console.log("Files in current directory:", fs.readdirSync(process.cwd()));
+      } catch (e) {
+        console.error("Cannot read current directory:", e);
+      }
+      try {
+        const parentDir = path.join(process.cwd(), "..");
+        console.log("Files in parent directory:", fs.readdirSync(parentDir));
+      } catch (e) {
+        console.error("Cannot read parent directory:", e);
+      }
+      
+      throw new Error(`rules.yml not found at ${actualPath}`);
+    }
+    
+    const raw = fs.readFileSync(actualPath, "utf8");
     rulesCache = yaml.load(raw) as Rules;
     console.log("Rules loaded successfully");
     return rulesCache!;
   } catch (e) {
     console.error("Error loading rules.yml:", e);
-    console.error("RULES_PATH:", RULES_PATH);
-    console.error("ROOT:", ROOT);
     throw new Error(`Failed to load rules.yml: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
