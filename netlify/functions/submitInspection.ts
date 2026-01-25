@@ -69,6 +69,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Send email notification (async, don't wait for it)
     const reviewUrl = `${process.env.URL || "https://inspeti.netlify.app"}/review/${inspection_id}`;
+    console.log("Preparing to send email notification...");
     sendEmailNotification({
       inspection_id,
       address: addressValue || "N/A",
@@ -78,7 +79,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       review_url: reviewUrl,
       created_at: (raw.created_at as string) || new Date().toISOString(),
     }).catch((err) => {
-      console.error("Failed to send email (non-blocking):", err);
+      console.error("Failed to send email (non-blocking):", {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
     });
     
     return {

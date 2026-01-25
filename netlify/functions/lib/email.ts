@@ -174,20 +174,49 @@ View Full Report: ${data.review_url}
 This is an automated notification from the Electrical Inspection System.
     `.trim();
 
-    // Log email details (in production, integrate with actual email service)
-    console.log("Email notification prepared:", {
-      to: RECIPIENT_EMAIL,
-      subject: `New Inspection Report: ${data.inspection_id} - ${data.address}`,
-      htmlLength: emailHtml.length,
-      textLength: emailText.length,
+    const subject = `New Inspection Report: ${data.inspection_id} - ${data.address}`;
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM || "Electrical Inspection <onboarding@resend.dev>";
+
+    // Debug logging
+    console.log("Email sending - Environment check:", {
+      hasApiKey: !!apiKey,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 5) + "..." : "none",
+      from,
+      recipient: RECIPIENT_EMAIL,
     });
 
-    // TODO: Integrate with actual email service (SendGrid, Mailgun, AWS SES, etc.)
-    // For now, this is a placeholder that logs the email
-    // In production, you would call an email service API here
-    
+    if (apiKey) {
+      console.log("Attempting to send email via Resend...");
+      const { Resend } = await import("resend");
+      const resend = new Resend(apiKey);
+      const { data: sendData, error } = await resend.emails.send({
+        from,
+        to: [RECIPIENT_EMAIL],
+        subject,
+        html: emailHtml,
+        text: emailText,
+      });
+      if (error) {
+        console.error("Resend send error:", JSON.stringify(error, null, 2));
+        throw new Error(`Email send failed: ${error.message}`);
+      }
+      console.log("Email sent via Resend successfully:", {
+        emailId: sendData?.id,
+        to: RECIPIENT_EMAIL,
+        from,
+      });
+    } else {
+      console.log("Email notification prepared (RESEND_API_KEY not set, skipping send):", {
+        to: RECIPIENT_EMAIL,
+        subject,
+        htmlLength: emailHtml.length,
+        textLength: emailText.length,
+        note: "Check Netlify environment variables: RESEND_API_KEY must be set",
+      });
+    }
   } catch (error) {
-    console.error("Error preparing email:", error);
+    console.error("Error sending email:", error);
     throw error;
   }
 }

@@ -13,7 +13,8 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "resend": "^4.0.0"
   },
   "devDependencies": {
     "@netlify/blobs": "^6.0.0",
