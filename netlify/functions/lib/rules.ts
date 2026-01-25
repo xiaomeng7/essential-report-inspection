@@ -3,46 +3,122 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
-// In Netlify Functions, we need to find rules.yml
-// Try multiple possible locations
+/** Embedded rules.yml – used when file is not found (e.g. Netlify Functions bundle). */
+const EMBEDDED_RULES_YAML = `
+version: 1.0
+description: >
+  Essential Report decision rules.
+
+enums:
+  safety: [HIGH, MODERATE, LOW]
+  urgency: [IMMEDIATE, SHORT_TERM, LONG_TERM]
+  liability: [HIGH, MEDIUM, LOW]
+  priority_bucket:
+    - IMMEDIATE
+    - RECOMMENDED_0_3_MONTHS
+    - PLAN_MONITOR
+
+hard_overrides:
+  priority_bucket: IMMEDIATE
+  findings:
+    - MEN_NOT_VERIFIED
+    - SUPPLY_NO_MAIN_ISOLATION
+    - THERMAL_STRESS_ACTIVE
+    - MATERIAL_DEGRADATION
+    - ARCING_EVIDENCE_PRESENT
+    - ASBESTOS_RISK
+    - NO_RCD_PROTECTION
+    - GPO_EARTH_FAULT
+    - EXPOSED_CONDUCTOR
+    - SMOKE_ALARM_FAILURE
+    - BATTERY_THERMAL
+    - EV_UNSEGREGATED_LOAD
+
+base_priority_matrix:
+  - when: { safety: HIGH }
+    then: IMMEDIATE
+  - when: { safety: MODERATE, urgency: IMMEDIATE }
+    then: IMMEDIATE
+  - when: { safety: MODERATE, urgency: SHORT_TERM }
+    then: RECOMMENDED_0_3_MONTHS
+  - when: { safety: MODERATE, urgency: LONG_TERM }
+    then: PLAN_MONITOR
+  - when: { safety: LOW }
+    then: PLAN_MONITOR
+
+liability_adjustment:
+  rules:
+    - when: { liability: HIGH }
+      action: { shift: UP, max_priority: RECOMMENDED_0_3_MONTHS }
+    - when: { liability: MEDIUM }
+      action: { shift: NONE }
+    - when: { liability: LOW }
+      action: { shift: DOWN, min_priority: PLAN_MONITOR }
+
+liability_guardrails:
+  rules:
+    - if: { safety: HIGH }
+      then: { allow_downgrade: false }
+    - if: { urgency: IMMEDIATE }
+      then: { allow_liability_adjustment: false }
+
+findings:
+  MEN_NOT_VERIFIED: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  SUPPLY_NO_MAIN_ISOLATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  THERMAL_STRESS_ACTIVE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  MATERIAL_DEGRADATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  ARCING_EVIDENCE_PRESENT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  ASBESTOS_RISK: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  NO_RCD_PROTECTION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  GPO_EARTH_FAULT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  EXPOSED_CONDUCTOR: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  SMOKE_ALARM_FAILURE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  BATTERY_THERMAL: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  EV_UNSEGREGATED_LOAD: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  PARTIAL_RCD_COVERAGE: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  EARTH_DEGRADED: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  LEGACY_SUPPLY_FUSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  BOARD_AT_CAPACITY: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  NO_EXPANSION_MARGIN: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  MECHANICAL_EXPOSURE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  GPO_MECHANICAL_LOOSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  SWITCH_ARCING: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  FITTING_OVERHEAT: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  NON_STANDARD_WORK: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  BATTERY_INSTALL_UNVERIFIED: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  EV_LOAD_AGGREGATION: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  LEGACY_EARTHING: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
+  LEGACY_DEVICES: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
+  IP_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  LABELING_POOR: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  SURGE_PROTECTION_ABSENT: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  HYBRID_UPGRADE_STAGE: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  ALARM_AGEING: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
+  PV_ISOLATION_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
+`.trim();
+
 function findRulesPath(): string {
-  // Get the directory of this file (ES modules compatible)
   let currentDir: string;
   try {
     const __filename = fileURLToPath(import.meta.url);
     currentDir = path.dirname(__filename);
   } catch {
-    // Fallback if import.meta.url is not available
     currentDir = process.cwd();
   }
-  
-  // In Netlify Functions, files are in /var/task
-  // We copy rules.yml to netlify/functions/ during build
-  // Try different possible locations
   const possiblePaths = [
-    path.join(currentDir, "rules.yml"),              // Same directory as this file
-    path.join(currentDir, "..", "rules.yml"),        // Parent directory (functions/)
-    path.join(currentDir, "../..", "rules.yml"),     // Two levels up (project root)
-    path.join(process.cwd(), "rules.yml"),            // Current working directory (usually /var/task in Netlify)
-    "/var/task/rules.yml",                           // Netlify Functions default location
-    path.join(process.cwd(), "..", "rules.yml"),      // One level up from cwd
-    path.join(process.cwd(), "../..", "rules.yml"),  // Two levels up from cwd
+    path.join(currentDir, "rules.yml"),
+    path.join(currentDir, "..", "rules.yml"),
+    path.join(currentDir, "../..", "rules.yml"),
+    path.join(process.cwd(), "rules.yml"),
+    "/var/task/rules.yml",
   ];
-  
   for (const p of possiblePaths) {
     try {
-      if (fs.existsSync(p)) {
-        console.log("Found rules.yml at:", p);
-        return p;
-      }
+      if (fs.existsSync(p)) return p;
     } catch {
-      // Continue searching
+      /* continue */
     }
   }
-  
-  // If not found, return the most likely path for error message
-  console.error("Could not find rules.yml in any of these locations:", possiblePaths);
-  console.error("Current file directory:", currentDir);
   return possiblePaths[0];
 }
 
@@ -58,36 +134,22 @@ let rulesCache: Rules | null = null;
 
 function loadRules(): Rules {
   if (rulesCache) return rulesCache;
-  try {
-    const actualPath = findRulesPath();
-    console.log("Loading rules from:", actualPath);
-    console.log("Current working directory:", process.cwd());
-    
-    if (!fs.existsSync(actualPath)) {
-      // List files in possible directories for debugging
-      try {
-        console.log("Files in current directory:", fs.readdirSync(process.cwd()));
-      } catch (e) {
-        console.error("Cannot read current directory:", e);
-      }
-      try {
-        const parentDir = path.join(process.cwd(), "..");
-        console.log("Files in parent directory:", fs.readdirSync(parentDir));
-      } catch (e) {
-        console.error("Cannot read parent directory:", e);
-      }
-      
-      throw new Error(`rules.yml not found at ${actualPath}`);
+  const actualPath = findRulesPath();
+  let raw: string;
+  if (fs.existsSync(actualPath)) {
+    try {
+      raw = fs.readFileSync(actualPath, "utf8");
+      console.log("Rules loaded from file:", actualPath);
+    } catch (e) {
+      console.warn("Could not read rules.yml, using embedded:", e);
+      raw = EMBEDDED_RULES_YAML;
     }
-    
-    const raw = fs.readFileSync(actualPath, "utf8");
-    rulesCache = yaml.load(raw) as Rules;
-    console.log("Rules loaded successfully");
-    return rulesCache!;
-  } catch (e) {
-    console.error("Error loading rules.yml:", e);
-    throw new Error(`Failed to load rules.yml: ${e instanceof Error ? e.message : String(e)}`);
+  } else {
+    console.warn("rules.yml not found at", actualPath, ", using embedded rules");
+    raw = EMBEDDED_RULES_YAML;
   }
+  rulesCache = yaml.load(raw) as Rules;
+  return rulesCache!;
 }
 
 function getAt(obj: unknown, path: string): unknown {

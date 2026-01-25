@@ -65,17 +65,22 @@ export function Wizard({ onSubmitted }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const text = await res.text();
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
+        let msg = text || `HTTP ${res.status}`;
+        try {
+          const j = JSON.parse(text) as { message?: string; error?: string };
+          if (j.message) msg = j.message;
+          else if (j.error) msg = j.error;
+        } catch {
+          /* use raw text */
+        }
+        throw new Error(msg);
       }
-      const data = (await res.json()) as { inspection_id: string; status: string; review_url: string };
+      const data = JSON.parse(text) as { inspection_id: string; status: string; review_url: string };
       clearDraft();
-      
-      // Extract address and technician name for success page
       const address = getValue("job.address") as string | undefined;
       const technicianName = getValue("signoff.technician_name") as string | undefined;
-      
       onSubmitted(data.inspection_id, address, technicianName);
     } catch (e) {
       setSectionErrors((prev) => ({
