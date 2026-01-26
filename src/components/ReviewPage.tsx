@@ -177,13 +177,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     if (enhancedHtml) {
       console.log("ReviewPage - Enhanced HTML set:", {
         has_enhancedHtml: !!enhancedHtml,
-        enhancedHtml_length: enhancedHtml.length,
-        displayHtml_length: displayHtml.length,
-        isEnhanced,
-        original_length: data?.report_html?.length || 0
+        enhancedHtml_length: enhancedHtml.length
       });
     }
-  }, [enhancedHtml]); // Only depend on enhancedHtml, not computed values
+  }, [enhancedHtml]); // Only depend on enhancedHtml
 
   return (
     <div className="review-page">
