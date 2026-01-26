@@ -206,15 +206,24 @@ REMEMBER: Return the COMPLETE document. Do not truncate or shorten. Every tag mu
     console.log("Original template HTML length:", templateBasedHtml.length);
     console.log("HTML changed:", enhancedHtml !== templateBasedHtml);
     
-    // Validate AI response
-    if (enhancedHtml.length < templateBasedHtml.length * 0.5) {
-      console.warn(`AI response too short: ${enhancedHtml.length} vs expected ~${templateBasedHtml.length}, using template-based HTML`);
+    // Validate AI response - if it's significantly shorter than template, use template instead
+    const lengthRatio = enhancedHtml.length / templateBasedHtml.length;
+    console.log(`AI response validation:`, {
+      enhanced_length: enhancedHtml.length,
+      template_length: templateBasedHtml.length,
+      ratio: `${(lengthRatio * 100).toFixed(1)}%`,
+      has_doctype: enhancedHtml.includes("<!DOCTYPE"),
+      has_html_tag: enhancedHtml.includes("<html")
+    });
+    
+    if (lengthRatio < 0.7) {
+      console.warn(`AI response too short (${(lengthRatio * 100).toFixed(1)}% of template), using template-based HTML instead`);
       enhancedHtml = templateBasedHtml;
     } else if (!enhancedHtml.includes("<!DOCTYPE") && !enhancedHtml.includes("<html")) {
       console.warn("AI response missing HTML structure, using template-based HTML");
       enhancedHtml = templateBasedHtml;
-    } else {
-      console.log(`AI response length: ${enhancedHtml.length}, Template length: ${templateBasedHtml.length}, Ratio: ${(enhancedHtml.length / templateBasedHtml.length * 100).toFixed(1)}%`);
+    } else if (lengthRatio < 0.9) {
+      console.warn(`AI response shorter than expected (${(lengthRatio * 100).toFixed(1)}%), but using it anyway`);
     }
 
     return {
