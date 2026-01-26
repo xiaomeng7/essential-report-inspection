@@ -108,28 +108,25 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log(`Template length: ${templateLength}, Using ${templateForPrompt.length} characters for prompt`);
 
-    const prompt = `You are a professional electrical inspection report writer. Your task is to enhance the TEXT CONTENT of an existing HTML report while PRESERVING THE EXACT HTML STRUCTURE.
+    console.log("Template-based HTML length:", templateBasedHtml.length);
+    console.log("Template-based HTML preview (first 1000 chars):", templateBasedHtml.substring(0, 1000));
+    
+    const prompt = `You are a professional electrical inspection report writer. Your task is CRITICAL: You must return the COMPLETE HTML document I provide, with ONLY the text content enhanced. Do NOT shorten, truncate, or omit any part of the HTML.
 
-CRITICAL INSTRUCTIONS:
-1. You MUST return the EXACT same HTML structure, tags, classes, IDs, and CSS that you receive
-2. ONLY enhance the text content (words, sentences, paragraphs) - make them more professional and polished
-3. DO NOT add, remove, or modify any HTML tags, attributes, or structure
-4. DO NOT change the document structure or layout
-5. Maintain all technical accuracy and factual information
-6. Use professional, clear, and concise language
-7. Follow Australian electrical inspection report standards
-8. Keep the same inspection ID: ${inspection_id}
+CRITICAL REQUIREMENTS:
+1. Return the ENTIRE HTML document from <!DOCTYPE html> to </html> - DO NOT OMIT ANY PART
+2. Preserve EVERY HTML tag, attribute, class, ID, and CSS style EXACTLY as provided
+3. ONLY enhance text content (words within tags) to be more professional
+4. DO NOT change structure, remove sections, or shorten the document
+5. The output must be the SAME LENGTH or LONGER than the input (never shorter)
+6. Maintain all technical accuracy
+7. Keep inspection ID: ${inspection_id}
 
-Here is the complete HTML report to enhance (preserve structure, enhance text only):
+Complete HTML to enhance (return ALL of it with enhanced text):
 
 ${templateBasedHtml}
 
-IMPORTANT: 
-- Return the COMPLETE HTML document exactly as provided, but with enhanced text content
-- Start with <!DOCTYPE html> and end with </html>
-- Preserve ALL HTML tags, classes, IDs, attributes, and structure
-- Only improve the readability and professionalism of the text content
-- Do not add explanations or markdown formatting`;
+REMEMBER: Return the COMPLETE document. Do not truncate or shorten. Every tag must be preserved.`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -151,7 +148,7 @@ IMPORTANT:
           }
         ],
         temperature: 0.2, // Lower temperature for more consistent output and better template adherence
-        max_tokens: 12000 // Increased to handle larger templates and ensure complete HTML output
+        max_tokens: 16000 // Increased significantly to ensure complete HTML output (template is ~20KB)
       })
     });
 
@@ -209,10 +206,15 @@ IMPORTANT:
     console.log("Original template HTML length:", templateBasedHtml.length);
     console.log("HTML changed:", enhancedHtml !== templateBasedHtml);
     
-    // If AI didn't change anything meaningful, use the template-based HTML
-    if (enhancedHtml.length < 100 || !enhancedHtml.includes("<!DOCTYPE") && !enhancedHtml.includes("<html")) {
-      console.warn("AI response seems invalid, using template-based HTML");
+    // Validate AI response
+    if (enhancedHtml.length < templateBasedHtml.length * 0.5) {
+      console.warn(`AI response too short: ${enhancedHtml.length} vs expected ~${templateBasedHtml.length}, using template-based HTML`);
       enhancedHtml = templateBasedHtml;
+    } else if (!enhancedHtml.includes("<!DOCTYPE") && !enhancedHtml.includes("<html")) {
+      console.warn("AI response missing HTML structure, using template-based HTML");
+      enhancedHtml = templateBasedHtml;
+    } else {
+      console.log(`AI response length: ${enhancedHtml.length}, Template length: ${templateBasedHtml.length}, Ratio: ${(enhancedHtml.length / templateBasedHtml.length * 100).toFixed(1)}%`);
     }
 
     return {
