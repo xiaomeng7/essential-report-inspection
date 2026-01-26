@@ -418,6 +418,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         /* ignore */
       }
 
+      // 解析更新后的规则，返回给前端以便立即更新 UI
+      const updatedRules = yaml.load(finalYaml);
+
       return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
@@ -426,6 +429,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           message: "Rules updated successfully on GitHub! Netlify will auto-deploy.",
           commitSha: updateResult.commit.sha,
           repoUrl: `https://github.com/${repoOwner}/${repoName}`,
+          // 返回更新后的规则数据，前端可以直接使用
+          rules: updatedRules,
+          yaml: finalYaml,
         }),
       };
     } catch (e) {

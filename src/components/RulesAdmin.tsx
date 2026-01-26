@@ -32,6 +32,7 @@ export function RulesAdmin({ onBack }: Props) {
   const [githubToken, setGithubToken] = useState("");
   const [showGithubDialog, setShowGithubDialog] = useState(false);
 
+
   const loadRules = useCallback(async (token: string) => {
     try {
       setLoading(true);
@@ -273,7 +274,14 @@ export function RulesAdmin({ onBack }: Props) {
         throw new Error(errorData.message || errorData.error || `HTTP ${res.status}`);
       }
 
-      const result = (await res.json()) as { success: boolean; message?: string; commitSha?: string; repoUrl?: string };
+      const result = (await res.json()) as { 
+        success: boolean; 
+        message?: string; 
+        commitSha?: string; 
+        repoUrl?: string;
+        rules?: any;
+        yaml?: string;
+      };
       
       // 保存 token 到 localStorage
       localStorage.setItem("github_token", token);
@@ -283,8 +291,24 @@ export function RulesAdmin({ onBack }: Props) {
       setTimeout(() => setSuccess(false), 5000);
       setShowGithubDialog(false);
       
-      // 重新加载规则
-      await loadRules(authToken);
+      // 如果后端返回了更新后的规则数据，直接使用（避免再次请求，立即更新 UI）
+      if (result.rules && result.yaml) {
+        console.log("Using updated rules from GitHub API response");
+        setRulesData({ rules: result.rules, yaml: result.yaml });
+        setYamlContent(result.yaml);
+        
+        // 更新编辑状态
+        if (result.rules.findings && typeof result.rules.findings === "object") {
+          console.log("Updating editedFindings from response, count:", Object.keys(result.rules.findings).length);
+          setEditedFindings(result.rules.findings as Record<string, FindingValue>);
+        }
+      } else {
+        // 如果没有返回规则数据，等待几秒后从 Netlify 重新加载（给 Netlify 一些时间重新部署）
+        console.log("No rules in response, will reload from Netlify after delay");
+        setTimeout(async () => {
+          await loadRules(authToken);
+        }, 3000);
+      }
     } catch (e) {
       setError((e as Error).message);
       if ((e as Error).message.includes("Bad credentials") || (e as Error).message.includes("401")) {
