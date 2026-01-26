@@ -111,22 +111,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Template-based HTML length:", templateBasedHtml.length);
     console.log("Template-based HTML preview (first 1000 chars):", templateBasedHtml.substring(0, 1000));
     
-    const prompt = `You are a professional electrical inspection report writer. Your task is CRITICAL: You must return the COMPLETE HTML document I provide, with ONLY the text content enhanced. Do NOT shorten, truncate, or omit any part of the HTML.
+    // Split the prompt to avoid token limits - put critical instructions first
+    const prompt = `CRITICAL TASK: Return the COMPLETE HTML document below with ONLY text content enhanced. DO NOT shorten or truncate.
 
-CRITICAL REQUIREMENTS:
-1. Return the ENTIRE HTML document from <!DOCTYPE html> to </html> - DO NOT OMIT ANY PART
-2. Preserve EVERY HTML tag, attribute, class, ID, and CSS style EXACTLY as provided
-3. ONLY enhance text content (words within tags) to be more professional
-4. DO NOT change structure, remove sections, or shorten the document
-5. The output must be the SAME LENGTH or LONGER than the input (never shorter)
-6. Maintain all technical accuracy
-7. Keep inspection ID: ${inspection_id}
+REQUIREMENTS:
+1. Return EVERY character from <!DOCTYPE html> to </html> - COMPLETE document
+2. Preserve ALL HTML tags, attributes, classes, IDs, CSS EXACTLY
+3. ONLY enhance text within tags (make it more professional)
+4. Output length MUST be >= input length (never shorter)
+5. Keep inspection ID: ${inspection_id}
+6. Maintain technical accuracy
 
-Complete HTML to enhance (return ALL of it with enhanced text):
+COMPLETE HTML DOCUMENT (return ALL of it):
 
 ${templateBasedHtml}
 
-REMEMBER: Return the COMPLETE document. Do not truncate or shorten. Every tag must be preserved.`;
+FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every style must be included.`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -136,7 +136,7 @@ REMEMBER: Return the COMPLETE document. Do not truncate or shorten. Every tag mu
         "Authorization": `Bearer ${openaiApiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini", // Using a cost-effective model
+        model: "gpt-4o", // Using gpt-4o for better HTML structure preservation (can switch back to gpt-4o-mini if needed)
         messages: [
           {
             role: "system",
