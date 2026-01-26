@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -169,18 +169,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
-  const displayHtml = enhancedHtml || data.report_html;
-  const isEnhanced = enhancedHtml !== null;
-  
-  // Debug logging - only log when enhancedHtml changes
-  useEffect(() => {
-    if (enhancedHtml) {
-      console.log("ReviewPage - Enhanced HTML set:", {
-        has_enhancedHtml: !!enhancedHtml,
-        enhancedHtml_length: enhancedHtml.length
-      });
-    }
-  }, [enhancedHtml]); // Only depend on enhancedHtml
+  const displayHtml = useMemo(() => enhancedHtml || data.report_html, [enhancedHtml, data.report_html]);
+  const isEnhanced = useMemo(() => enhancedHtml !== null, [enhancedHtml]);
 
   return (
     <div className="review-page">
