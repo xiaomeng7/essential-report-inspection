@@ -145,14 +145,19 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         backgroundColor: "#f5f7fb" // Match the template background
       });
 
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // Convert canvas dimensions to mm (assuming 96 DPI)
-      const imgWidthMM = (canvas.width / 96) * 25.4; // Convert pixels to mm
-      const imgHeightMM = (canvas.height / 96) * 25.4;
+      // Calculate dimensions
+      // html2canvas uses device pixels, we need to convert to mm
+      // Assuming scale 2 means 2x device pixels, and 96 DPI base
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Convert pixels to mm (at scale 2, 1px = 0.264583mm at 96 DPI)
+      const imgWidthMM = imgWidth * 0.264583;
+      const imgHeightMM = imgHeight * 0.264583;
       
       // Scale to fit page width
       const widthRatio = pdfWidth / imgWidthMM;
@@ -163,37 +168,41 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
       
       // Add image to PDF with proper pagination
-      let position = 0;
-      for (let i = 0; i < pagesNeeded; i++) {
-        if (i > 0) {
+      let sourceY = 0;
+      for (let page = 0; page < pagesNeeded; page++) {
+        if (page > 0) {
           pdf.addPage();
         }
         
-        // Calculate source Y position for this page (in pixels)
-        const sourceY = (position / widthRatio) * (96 / 25.4);
-        const sourceHeight = (pdfHeight / widthRatio) * (96 / 25.4);
+        // Calculate how much of the image fits on this page
+        const remainingHeight = imgHeight - sourceY;
+        const pageHeightPx = Math.min(
+          remainingHeight,
+          pdfHeight / widthRatio / 0.264583 // Convert back to pixels
+        );
         
-        // Create a temporary canvas for this page
+        // Create a canvas for this page
         const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = Math.min(sourceHeight, canvas.height - sourceY);
+        pageCanvas.width = imgWidth;
+        pageCanvas.height = pageHeightPx;
         const pageCtx = pageCanvas.getContext("2d");
         
         if (pageCtx) {
           // Draw the portion of the image for this page
           pageCtx.drawImage(
             canvas,
-            0, sourceY, canvas.width, pageCanvas.height,
-            0, 0, canvas.width, pageCanvas.height
+            0, sourceY, imgWidth, pageHeightPx,
+            0, 0, imgWidth, pageHeightPx
           );
           
           const pageImgData = pageCanvas.toDataURL("image/png");
-          const pageImgHeightMM = (pageCanvas.height / 96) * 25.4 * widthRatio;
+          const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
           
-          pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageImgHeightMM);
+          // Add to PDF
+          pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
         }
         
-        position += pdfHeight;
+        sourceY += pageHeightPx;
       }
 
       const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
