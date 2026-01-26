@@ -17,7 +17,7 @@ function getInspectionStore(event?: HandlerEvent) {
   }
   return getStore({
     name: "inspections",
-    consistency: "strong", // Ensure strong consistency for reads
+    consistency: "eventual", // Eventual consistency is sufficient for inspection reports
   });
 }
 
