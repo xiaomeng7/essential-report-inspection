@@ -141,32 +141,59 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
-        logging: false
+        logging: false,
+        backgroundColor: "#f5f7fb" // Match the template background
       });
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 0;
-
-      // Calculate how many pages we need
-      const pageHeight = imgHeight * ratio;
-      let heightLeft = pageHeight;
+      
+      // Convert canvas dimensions to mm (assuming 96 DPI)
+      const imgWidthMM = (canvas.width / 96) * 25.4; // Convert pixels to mm
+      const imgHeightMM = (canvas.height / 96) * 25.4;
+      
+      // Scale to fit page width
+      const widthRatio = pdfWidth / imgWidthMM;
+      const scaledWidth = pdfWidth;
+      const scaledHeight = imgHeightMM * widthRatio;
+      
+      // Calculate number of pages needed
+      const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
+      
+      // Add image to PDF with proper pagination
       let position = 0;
-
-      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
-        heightLeft -= pdfHeight;
+      for (let i = 0; i < pagesNeeded; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+        
+        // Calculate source Y position for this page (in pixels)
+        const sourceY = (position / widthRatio) * (96 / 25.4);
+        const sourceHeight = (pdfHeight / widthRatio) * (96 / 25.4);
+        
+        // Create a temporary canvas for this page
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = Math.min(sourceHeight, canvas.height - sourceY);
+        const pageCtx = pageCanvas.getContext("2d");
+        
+        if (pageCtx) {
+          // Draw the portion of the image for this page
+          pageCtx.drawImage(
+            canvas,
+            0, sourceY, canvas.width, pageCanvas.height,
+            0, 0, canvas.width, pageCanvas.height
+          );
+          
+          const pageImgData = pageCanvas.toDataURL("image/png");
+          const pageImgHeightMM = (pageCanvas.height / 96) * 25.4 * widthRatio;
+          
+          pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageImgHeightMM);
+        }
+        
+        position += pdfHeight;
       }
 
       const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
