@@ -368,20 +368,35 @@ const DEFAULT_REPORT_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 function loadReportTemplate(): string {
-  try {
-    // Try to load from netlify/functions directory (for Netlify deployment)
-    const templatePath1 = path.join(process.cwd(), "netlify", "functions", "report-template.html");
-    if (fs.existsSync(templatePath1)) {
-      return fs.readFileSync(templatePath1, "utf-8");
+  const possiblePaths = [
+    // Netlify deployment path
+    path.join(process.cwd(), "netlify", "functions", "report-template.html"),
+    // Local development path
+    path.join(process.cwd(), "report-template.html"),
+    // Alternative path
+    path.join(__dirname, "..", "report-template.html"),
+    // Another alternative
+    path.join(__dirname, "report-template.html"),
+  ];
+  
+  for (const templatePath of possiblePaths) {
+    try {
+      console.log("Trying to load template from:", templatePath);
+      if (fs.existsSync(templatePath)) {
+        const content = fs.readFileSync(templatePath, "utf-8");
+        console.log("Successfully loaded template from:", templatePath, "length:", content.length);
+        return content;
+      }
+    } catch (e) {
+      console.warn(`Failed to load template from ${templatePath}:`, e);
+      continue;
     }
-    // Try to load from project root (for local development)
-    const templatePath2 = path.join(process.cwd(), "report-template.html");
-    if (fs.existsSync(templatePath2)) {
-      return fs.readFileSync(templatePath2, "utf-8");
-    }
-  } catch (e) {
-    console.warn("Could not load report template, using default:", e);
   }
+  
+  console.warn("Could not load report template from any path, using default template");
+  console.warn("Tried paths:", possiblePaths);
+  console.warn("Current working directory:", process.cwd());
+  console.warn("__dirname:", __dirname);
   return DEFAULT_REPORT_TEMPLATE;
 }
 
