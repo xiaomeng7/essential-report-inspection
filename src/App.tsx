@@ -46,7 +46,8 @@ function App() {
       window.history.replaceState = originalReplaceState;
       window.history.pushState = originalPushState;
     };
-  }, [setPathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // setPathname is stable from useState, doesn't need to be in deps
 
   const handleSubmitted = useCallback((inspectionId: string, address?: string, technicianName?: string) => {
     setSuccessData({ inspectionId, address, technicianName });
