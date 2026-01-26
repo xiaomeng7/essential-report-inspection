@@ -215,6 +215,16 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const body = JSON.parse(event.body ?? "{}");
       const { yaml: yamlContent, githubToken, findings } = body;
       
+      console.log("GitHub update request:", {
+        hasYaml: !!yamlContent,
+        yamlType: typeof yamlContent,
+        yamlLength: yamlContent && typeof yamlContent === "string" ? yamlContent.length : 0,
+        hasFindings: !!findings,
+        findingsType: typeof findings,
+        findingsKeys: findings && typeof findings === "object" ? Object.keys(findings).length : 0,
+        hasToken: !!githubToken,
+      });
+      
       if (!githubToken || typeof githubToken !== "string") {
         return {
           statusCode: 400,
@@ -258,9 +268,20 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       // 2. 解析当前 YAML，更新 findings（如果提供了 findings 对象）
       let finalYaml: string;
       
-      if (findings && typeof findings === "object" && !yamlContent) {
+      // 优先使用 findings 对象（更可靠，保留所有其他字段）
+      // 检查 findings 是否为有效对象且不为空
+      const hasValidFindings = findings && 
+        typeof findings === "object" && 
+        !Array.isArray(findings) &&
+        Object.keys(findings).length > 0;
+      
+      if (hasValidFindings) {
+        console.log("Updating findings via findings object, count:", Object.keys(findings).length);
         // 如果提供了 findings 对象，更新 findings 部分
         const currentRules = yaml.load(currentYaml) as any;
+        if (!currentRules) {
+          throw new Error("Failed to parse current YAML from GitHub");
+        }
         currentRules.findings = findings;
         
         // 重新转换为 YAML
@@ -303,12 +324,14 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         } else {
           finalYaml = dumpedYaml;
         }
-      } else if (yamlContent && typeof yamlContent === "string") {
+      } else if (yamlContent && typeof yamlContent === "string" && yamlContent.trim().length > 0) {
+        console.log("Updating via full YAML content, length:", yamlContent.length);
         // 如果提供了完整的 YAML，验证后使用
         try {
           yaml.load(yamlContent); // 验证 YAML
           finalYaml = yamlContent;
         } catch (yamlError) {
+          console.error("YAML validation error:", yamlError);
           return {
             statusCode: 400,
             headers: { "Content-Type": "application/json" },
@@ -316,10 +339,31 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           };
         }
       } else {
+        console.error("Missing both findings and yamlContent.", {
+          hasFindings: !!findings,
+          findingsType: typeof findings,
+          findingsIsArray: Array.isArray(findings),
+          findingsKeys: findings && typeof findings === "object" && !Array.isArray(findings) ? Object.keys(findings).length : 0,
+          hasYaml: !!yamlContent,
+          yamlType: typeof yamlContent,
+          yamlLength: yamlContent && typeof yamlContent === "string" ? yamlContent.length : 0,
+        });
         return {
           statusCode: 400,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "Missing yaml content or findings object" }),
+          body: JSON.stringify({ 
+            error: "Missing yaml content or findings object",
+            message: "必须提供以下之一：1) findings 对象（可视化编辑），或 2) yaml 字符串（YAML 编辑）",
+            debug: {
+              hasFindings: !!findings,
+              findingsType: typeof findings,
+              findingsIsArray: Array.isArray(findings),
+              findingsKeys: findings && typeof findings === "object" && !Array.isArray(findings) ? Object.keys(findings).length : 0,
+              hasYaml: !!yamlContent,
+              yamlType: typeof yamlContent,
+              yamlLength: yamlContent && typeof yamlContent === "string" ? yamlContent.length : 0,
+            }
+          }),
         };
       }
       

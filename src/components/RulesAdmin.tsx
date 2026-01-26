@@ -56,8 +56,12 @@ export function RulesAdmin({ onBack }: Props) {
       setAuthToken(token);
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
       // 初始化编辑状态
-      if (data.rules?.findings) {
-        setEditedFindings(data.rules.findings);
+      if (data.rules?.findings && typeof data.rules.findings === "object") {
+        console.log("Initializing editedFindings, count:", Object.keys(data.rules.findings).length);
+        setEditedFindings(data.rules.findings as Record<string, FindingValue>);
+      } else {
+        console.warn("No findings in rules data or invalid format");
+        setEditedFindings({});
       }
     } catch (e) {
       setError((e as Error).message);
@@ -132,39 +136,18 @@ export function RulesAdmin({ onBack }: Props) {
         if (savedGithubToken) {
           // 尝试使用 GitHub API 直接更新
           try {
-            const githubRes = await fetch("/api/rulesAdmin/github-update", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({
-                yaml: result.yaml,
-                githubToken: savedGithubToken,
-              }),
-            });
-
-            if (githubRes.ok) {
-              const githubResult = (await githubRes.json()) as { success: boolean; message?: string; commitSha?: string; repoUrl?: string };
-              alert(`✅ 成功！\n\n${githubResult.message}\n\nNetlify 将自动重新部署。`);
-              setSuccess(true);
-              setTimeout(() => setSuccess(false), 5000);
-              // 重新加载规则
-              await loadRules(authToken);
-              return;
-            } else {
-              const errorData = (await githubRes.json()) as { error?: string; message?: string };
-              // Token 可能失效，清除并提示重新输入
-              if (errorData.message?.includes("Bad credentials") || errorData.message?.includes("401")) {
-                localStorage.removeItem("github_token");
-                setGithubToken("");
-                setShowGithubDialog(true);
-                return;
-              }
-              throw new Error(errorData.message || errorData.error || "GitHub API 更新失败");
-            }
+            // handleSave 是从 YAML 编辑器来的，传递 YAML 内容
+            await handleGithubUpdate(result.yaml, savedGithubToken);
+            return;
           } catch (githubError) {
-            // GitHub API 失败，回退到手动复制
+            // GitHub API 失败，清除 token 并提示重新输入
+            if ((githubError as Error).message?.includes("Bad credentials") || (githubError as Error).message?.includes("401")) {
+              localStorage.removeItem("github_token");
+              setGithubToken("");
+              setShowGithubDialog(true);
+              return;
+            }
+            // 其他错误，回退到手动复制
             console.error("GitHub API error:", githubError);
           }
         }
@@ -260,13 +243,21 @@ export function RulesAdmin({ onBack }: Props) {
       };
 
       // 如果提供了 findings 对象，优先使用（更可靠）
-      if (findingsToUpdate) {
+      // 注意：不要同时传递 findings 和 yaml，后端会优先使用 findings
+      if (findingsToUpdate && typeof findingsToUpdate === "object" && Object.keys(findingsToUpdate).length > 0) {
+        console.log("Using findings object, count:", Object.keys(findingsToUpdate).length);
         payload.findings = findingsToUpdate;
-      } else if (yamlToUpdate) {
+        // 明确不传递 yaml，让后端使用 findings
+      } else if (yamlToUpdate && typeof yamlToUpdate === "string" && yamlToUpdate.trim().length > 0) {
+        console.log("Using YAML content, length:", yamlToUpdate.length);
         payload.yaml = yamlToUpdate;
+        // 明确不传递 findings
       } else {
+        console.error("Missing both findings and yaml. findings:", !!findingsToUpdate, "findings keys:", findingsToUpdate && typeof findingsToUpdate === "object" ? Object.keys(findingsToUpdate).length : 0, "yaml:", !!yamlToUpdate, "yaml length:", yamlToUpdate && typeof yamlToUpdate === "string" ? yamlToUpdate.length : 0);
         throw new Error("Missing yaml content or findings");
       }
+      
+      console.log("Sending payload with keys:", Object.keys(payload), "hasFindings:", !!payload.findings, "findingsCount:", payload.findings ? Object.keys(payload.findings).length : 0, "hasYaml:", !!payload.yaml, "yamlLength:", payload.yaml ? payload.yaml.length : 0);
 
       const res = await fetch("/api/rulesAdmin/github-update", {
         method: "POST",
@@ -365,7 +356,15 @@ export function RulesAdmin({ onBack }: Props) {
         if (savedGithubToken) {
           // 尝试使用 GitHub API 直接更新（传递 findings 对象更可靠）
           try {
-            await handleGithubUpdate(result.yaml, savedGithubToken, editedFindings);
+            // 优先传递 findings 对象（如果是从可视化编辑来的）
+            if (activeTab === "visual" && editedFindings && typeof editedFindings === "object" && Object.keys(editedFindings).length > 0) {
+              console.log("handleUpdateFindings: Using findings object, count:", Object.keys(editedFindings).length);
+              await handleGithubUpdate(null, savedGithubToken, editedFindings);
+            } else {
+              // 否则使用 YAML 内容
+              console.log("handleUpdateFindings: Using YAML content, length:", result.yaml?.length || 0);
+              await handleGithubUpdate(result.yaml, savedGithubToken);
+            }
             return;
           } catch (githubError) {
             // GitHub API 失败，清除 token 并提示重新输入
