@@ -71,17 +71,26 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       console.log("AI enhancement result:", {
         has_enhanced_html: !!result.enhanced_html,
         enhanced_html_length: result.enhanced_html?.length || 0,
+        original_html_length: result.original_html?.length || 0,
         model_used: result.model_used,
-        usage: result.usage
+        usage: result.usage,
+        full_response_keys: Object.keys(result)
       });
       
       if (result.enhanced_html && result.enhanced_html.length > 100) {
         console.log("Setting enhanced HTML, length:", result.enhanced_html.length);
         console.log("Enhanced HTML preview (first 500 chars):", result.enhanced_html.substring(0, 500));
+        console.log("Original HTML preview (first 500 chars):", (result.original_html || data.report_html)?.substring(0, 500));
+        
+        // Check if enhanced HTML is different from original
+        const isDifferent = result.enhanced_html !== (result.original_html || data.report_html);
+        console.log("Enhanced HTML is different from original:", isDifferent);
+        
         setEnhancedHtml(result.enhanced_html);
-        // Force a re-render by updating a dummy state
+        
+        // Force a re-render check
         setTimeout(() => {
-          console.log("State should be updated now");
+          console.log("State check - enhancedHtml should be set now");
         }, 100);
       } else {
         console.warn("No valid enhanced_html in response:", {
@@ -171,6 +180,17 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   const displayHtml = enhancedHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log("ReviewPage render state:", {
+      has_enhancedHtml: !!enhancedHtml,
+      enhancedHtml_length: enhancedHtml?.length || 0,
+      displayHtml_length: displayHtml?.length || 0,
+      isEnhanced,
+      original_html_length: data.report_html?.length || 0
+    });
+  }, [enhancedHtml, displayHtml, isEnhanced, data.report_html]);
 
   return (
     <div className="review-page">

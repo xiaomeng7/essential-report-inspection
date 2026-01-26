@@ -194,10 +194,25 @@ Maintain all technical accuracy and use professional Australian electrical inspe
     let enhancedTexts;
     try {
       const aiResponse = data.choices?.[0]?.message?.content || "{}";
+      console.log("Raw AI response:", aiResponse.substring(0, 500));
       enhancedTexts = JSON.parse(aiResponse);
-      console.log("AI enhanced texts parsed successfully:", Object.keys(enhancedTexts));
+      console.log("AI enhanced texts parsed successfully:", {
+        has_executiveSummary: !!enhancedTexts.executiveSummary,
+        has_riskRatingFactors: !!enhancedTexts.riskRatingFactors,
+        has_findings: !!enhancedTexts.findings,
+        findings_keys: enhancedTexts.findings ? Object.keys(enhancedTexts.findings) : [],
+        has_limitations: !!enhancedTexts.limitations,
+        executiveSummary_preview: enhancedTexts.executiveSummary?.substring(0, 100)
+      });
+      
+      // Validate that we got enhanced content
+      if (!enhancedTexts.executiveSummary && !enhancedTexts.findings) {
+        console.warn("AI response missing expected fields, using original texts");
+        enhancedTexts = textToEnhance;
+      }
     } catch (e) {
       console.error("Failed to parse AI response as JSON:", e);
+      console.error("Raw response was:", data.choices?.[0]?.message?.content?.substring(0, 500));
       // Fallback: use original texts
       enhancedTexts = textToEnhance;
     }
@@ -212,6 +227,7 @@ Maintain all technical accuracy and use professional Australian electrical inspe
     );
     
     console.log("Final HTML generated with AI-enhanced texts, length:", templateBasedHtml.length);
+    console.log("HTML preview (first 500 chars):", templateBasedHtml.substring(0, 500));
 
     return {
       statusCode: 200,
