@@ -20,6 +20,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enhancedHtml, setEnhancedHtml] = useState<string | null>(null);
+  const [templateHtml, setTemplateHtml] = useState<string | null>(null); // Template HTML with placeholders filled
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null);
@@ -58,6 +59,14 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     setIsEnhancing(true);
     setEnhanceError(null);
     
+    // Step 1: Immediately show template HTML (with original data filled)
+    // This gives immediate feedback to the user
+    const initialTemplateHtml = data.report_html; // This is already template-filled HTML
+    setTemplateHtml(initialTemplateHtml);
+    setEnhancedHtml(null); // Reset enhanced HTML
+    
+    console.log("Template HTML set, showing template with original data");
+    
     try {
       const requestBody = {
         inspection_id: data.inspection_id,
@@ -80,8 +89,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
       console.log("Response received:", {
         status: res.status,
-        ok: res.ok,
-        headers: Object.fromEntries(res.headers.entries())
+        ok: res.ok
       });
 
       if (!res.ok) {
@@ -95,41 +103,18 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       console.log("AI enhancement result:", {
         has_enhanced_html: !!result.enhanced_html,
         enhanced_html_length: result.enhanced_html?.length || 0,
-        original_html_length: result.original_html?.length || 0,
-        model_used: result.model_used,
-        usage: result.usage,
-        full_response_keys: Object.keys(result)
+        model_used: result.model_used
       });
       
       if (result.enhanced_html && result.enhanced_html.length > 100) {
-        console.log("Setting enhanced HTML, length:", result.enhanced_html.length);
-        console.log("Enhanced HTML preview (first 500 chars):", result.enhanced_html.substring(0, 500));
-        console.log("Original HTML preview (first 500 chars):", (result.original_html || data.report_html)?.substring(0, 500));
-        
-        // Check if enhanced HTML is different from original
-        const isDifferent = result.enhanced_html !== (result.original_html || data.report_html);
-        console.log("Enhanced HTML is different from original:", isDifferent);
-        
-        // Update state - use functional update to ensure state change is detected
-        setEnhancedHtml(() => {
-          console.log("setEnhancedHtml called with new HTML, length:", result.enhanced_html.length);
-          return result.enhanced_html;
-        });
-        
-        // Force a re-render by updating a dummy state if needed
-        // This ensures React detects the change
-        setTimeout(() => {
-          console.log("State verification - enhancedHtml should be set now");
-          // Trigger a state update to force re-render
-          setModelInfo((prev) => prev ? { ...prev } : null);
-        }, 50);
+        // Step 2: Replace template HTML with AI-enhanced HTML
+        console.log("Replacing template HTML with AI-enhanced HTML");
+        setEnhancedHtml(result.enhanced_html);
+        setTemplateHtml(null); // Clear template HTML since we now have enhanced version
       } else {
-        console.warn("No valid enhanced_html in response:", {
-          has_enhanced_html: !!result.enhanced_html,
-          length: result.enhanced_html?.length || 0,
-          response: result
-        });
+        console.warn("No valid enhanced_html in response");
         setEnhanceError("AI返回了无效内容，请重试");
+        setTemplateHtml(null); // Clear template on error
       }
       
       if (result.model_used) {
@@ -142,9 +127,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setEnhanceError(errorMessage);
       console.error("Error enhancing report:", e);
-      if (e instanceof Error) {
-        console.error("Error stack:", e.stack);
-      }
+      setTemplateHtml(null); // Clear template on error
     } finally {
       setIsEnhancing(false);
       console.log("Enhancement process completed");
@@ -213,8 +196,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
-  const displayHtml = enhancedHtml || data.report_html;
+  // Display priority: enhanced HTML > template HTML > original report HTML
+  const displayHtml = enhancedHtml || templateHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
+  const isShowingTemplate = templateHtml !== null && enhancedHtml === null;
   
   // Log state changes for debugging
   if (typeof window !== "undefined" && window.location.search.includes("debug")) {
@@ -232,9 +217,9 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       <div style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
           <h1 style={{ margin: 0, flex: 1 }}>
-            {isEnhanced ? "Enhanced Report" : "Draft Report"} — {data.inspection_id}
+            {isEnhanced ? "Enhanced Report" : isShowingTemplate ? "Generating Report..." : "Draft Report"} — {data.inspection_id}
           </h1>
-          {!isEnhanced && (
+          {!isEnhanced && !isShowingTemplate && (
             <button 
               type="button" 
               className="btn-primary" 
@@ -244,11 +229,12 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
               {isEnhancing ? "AI生成中..." : "AI生成report"}
             </button>
           )}
-          {isEnhanced && (
+          {(isEnhanced || isShowingTemplate) && (
             <button 
               type="button" 
               className="btn-primary" 
               onClick={handleGeneratePDF}
+              disabled={isShowingTemplate}
             >
               生成PDF
             </button>
@@ -305,7 +291,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           </ul>
         </div>
       )}
-      {isEnhancing && (
+      {(isEnhancing || isShowingTemplate) && (
         <div style={{ 
           padding: "20px", 
           textAlign: "center", 
@@ -313,16 +299,16 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           borderRadius: "8px",
           marginBottom: "20px"
         }}>
-          <p>AI正在生成报告，请稍候...</p>
+          <p>{isShowingTemplate ? "正在使用AI增强报告内容..." : "AI正在生成报告，请稍候..."}</p>
         </div>
       )}
       <div 
         ref={reportRef}
         className="report-html" 
-        key={enhancedHtml ? "enhanced" : "original"} // Force re-render when enhancedHtml changes
+        key={enhancedHtml ? "enhanced" : templateHtml ? "template" : "original"} // Force re-render when HTML changes
         dangerouslySetInnerHTML={{ __html: displayHtml || "<p>No report content.</p>" }} 
         style={{ 
-          opacity: isEnhancing ? 0.5 : 1,
+          opacity: (isEnhancing && !templateHtml) ? 0.5 : 1, // Don't fade if showing template
           transition: "opacity 0.3s"
         }}
       />
