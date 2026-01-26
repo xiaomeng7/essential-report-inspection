@@ -87,76 +87,43 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("OpenAI API key found, length:", openaiApiKey.length);
 
-    // Build the prompt for OpenAI
-    const findingsText = findings && findings.length > 0
-      ? `\n\nFindings:\n${findings.map((f: { id: string; priority: string; title?: string }) => 
-          `- ${f.priority}: ${f.title || f.id}`
-        ).join("\n")}`
-      : "";
+    const prompt = `You are a professional electrical inspection report writer. Enhance the following text content to be more professional and polished, while maintaining all technical accuracy.
 
-    const limitationsText = limitations && limitations.length > 0
-      ? `\n\nLimitations:\n${limitations.map((l: string) => `- ${l}`).join("\n")}`
-      : "";
+Inspection ID: ${inspection_id}
 
-    // Load report template for reference
-    // Note: In Netlify Functions, files are bundled, so we try multiple possible locations
-    let templateContent = "";
-    const possiblePaths = [
-      path.join(process.cwd(), "netlify", "functions", "report-template.html"),
-      path.join(process.cwd(), "report-template.html"),
-    ];
-    
-    for (const templatePath of possiblePaths) {
-      try {
-        console.log("Trying to load template from:", templatePath);
-        if (fs.existsSync(templatePath)) {
-          templateContent = fs.readFileSync(templatePath, "utf-8");
-          console.log("Template loaded successfully from:", templatePath, "length:", templateContent.length);
-          break;
-        }
-      } catch (e) {
-        // Silently continue to next path
-        console.log(`Template not found at ${templatePath}`);
-      }
-    }
-    
-    if (!templateContent) {
-      console.warn("Template file not found at any location, AI will use default template structure");
-      console.log("Tried paths:", possiblePaths);
-      console.log("Current working directory:", process.cwd());
-    }
+Text content to enhance:
 
-    // Use the full template if available, or at least a substantial portion
-    const templateToUse = templateContent || "";
-    const templateLength = templateToUse.length;
-    // Increase to 15000 to capture most of the template (template is ~20KB)
-    // This ensures AI sees the full structure, CSS, and key sections
-    const maxTemplateLength = 15000;
-    const templateForPrompt = templateToUse.length > maxTemplateLength 
-      ? templateToUse.substring(0, maxTemplateLength) + "\n\n[... remaining template structure continues with same pattern ...]"
-      : templateToUse;
-    
-    console.log(`Template length: ${templateLength}, Using ${templateForPrompt.length} characters for prompt`);
+EXECUTIVE SUMMARY:
+${textToEnhance.executiveSummary}
 
-    console.log("Template-based HTML length:", templateBasedHtml.length);
-    console.log("Template-based HTML preview (first 1000 chars):", templateBasedHtml.substring(0, 1000));
-    
-    // Split the prompt to avoid token limits - put critical instructions first
-    const prompt = `CRITICAL TASK: Return the COMPLETE HTML document below with ONLY text content enhanced. DO NOT shorten or truncate.
+RISK RATING FACTORS:
+${textToEnhance.riskRatingFactors}
 
-REQUIREMENTS:
-1. Return EVERY character from <!DOCTYPE html> to </html> - COMPLETE document
-2. Preserve ALL HTML tags, attributes, classes, IDs, CSS EXACTLY
-3. ONLY enhance text within tags (make it more professional)
-4. Output length MUST be >= input length (never shorter)
-5. Keep inspection ID: ${inspection_id}
-6. Maintain technical accuracy
+IMMEDIATE FINDINGS:
+${textToEnhance.findings.immediate.length > 0 ? textToEnhance.findings.immediate.join("\n") : "None"}
 
-COMPLETE HTML DOCUMENT (return ALL of it):
+RECOMMENDED FINDINGS:
+${textToEnhance.findings.recommended.length > 0 ? textToEnhance.findings.recommended.join("\n") : "None"}
 
-${templateBasedHtml}
+PLAN/MONITOR FINDINGS:
+${textToEnhance.findings.plan.length > 0 ? textToEnhance.findings.plan.join("\n") : "None"}
 
-FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every style must be included.`;
+LIMITATIONS:
+${textToEnhance.limitations.length > 0 ? textToEnhance.limitations.join("\n") : "None"}
+
+Please return ONLY the enhanced text content in JSON format:
+{
+  "executiveSummary": "enhanced executive summary text",
+  "riskRatingFactors": "enhanced risk rating factors text",
+  "findings": {
+    "immediate": ["enhanced finding 1", "enhanced finding 2", ...],
+    "recommended": ["enhanced finding 1", ...],
+    "plan": ["enhanced finding 1", ...]
+  },
+  "limitations": ["enhanced limitation 1", ...]
+}
+
+Maintain all technical accuracy and use professional Australian electrical inspection report language.`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -251,7 +218,7 @@ FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every styl
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         inspection_id,
-        enhanced_html: enhancedHtml,
+        enhanced_html: templateBasedHtml, // Return the final HTML with AI-enhanced texts
         original_html: report_html, // Return the original report HTML
         model_used: data.model || "gpt-4o-mini",
         usage: data.usage ? {
