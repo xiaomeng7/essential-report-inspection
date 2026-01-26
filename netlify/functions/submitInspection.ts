@@ -75,8 +75,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
     // Ensure review URL uses the correct format (without /api prefix for frontend route)
-    const baseUrl = process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspeti.netlify.app";
-    const reviewUrl = `${baseUrl}/review/${inspection_id}`;
+    // Use URL (production) or DEPLOY_PRIME_URL (preview), fallback to actual site domain
+    const baseUrl = process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspetionreport.netlify.app";
+    // Remove trailing slash if present, ensure clean URL
+    const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+    const reviewUrl = `${cleanBaseUrl}/review/${inspection_id}`;
+    console.log("Generated review URL:", reviewUrl, "from baseUrl:", baseUrl);
     console.log("Preparing to send email notification...");
     try {
       await sendEmailNotification({
