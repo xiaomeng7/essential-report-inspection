@@ -21,6 +21,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [enhancedHtml, setEnhancedHtml] = useState<string | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,6 +67,12 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
       const result = await res.json();
       setEnhancedHtml(result.enhanced_html);
+      if (result.model_used) {
+        setModelInfo({
+          model: result.model_used,
+          usage: result.usage
+        });
+      }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setEnhanceError(errorMessage);
@@ -142,28 +149,47 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   return (
     <div className="review-page">
-      <div style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center" }}>
-        <h1 style={{ margin: 0, flex: 1 }}>
-          {isEnhanced ? "Enhanced Report" : "Draft Report"} — {data.inspection_id}
-        </h1>
-        {!isEnhanced && (
-          <button 
-            type="button" 
-            className="btn-primary" 
-            onClick={handleEnhanceReport}
-            disabled={isEnhancing}
-          >
-            {isEnhancing ? "AI生成中..." : "AI生成report"}
-          </button>
-        )}
-        {isEnhanced && (
-          <button 
-            type="button" 
-            className="btn-primary" 
-            onClick={handleGeneratePDF}
-          >
-            生成PDF
-          </button>
+      <div style={{ marginBottom: "20px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
+          <h1 style={{ margin: 0, flex: 1 }}>
+            {isEnhanced ? "Enhanced Report" : "Draft Report"} — {data.inspection_id}
+          </h1>
+          {!isEnhanced && (
+            <button 
+              type="button" 
+              className="btn-primary" 
+              onClick={handleEnhanceReport}
+              disabled={isEnhancing}
+            >
+              {isEnhancing ? "AI生成中..." : "AI生成report"}
+            </button>
+          )}
+          {isEnhanced && (
+            <button 
+              type="button" 
+              className="btn-primary" 
+              onClick={handleGeneratePDF}
+            >
+              生成PDF
+            </button>
+          )}
+        </div>
+        {modelInfo && (
+          <div style={{ 
+            fontSize: "12px", 
+            color: "#666", 
+            padding: "8px 12px", 
+            backgroundColor: "#f5f5f5", 
+            borderRadius: "4px",
+            display: "inline-block"
+          }}>
+            <strong>AI模型:</strong> {modelInfo.model}
+            {modelInfo.usage && (
+              <span style={{ marginLeft: "12px" }}>
+                • Tokens: {modelInfo.usage.total_tokens} (输入: {modelInfo.usage.prompt_tokens}, 输出: {modelInfo.usage.completion_tokens})
+              </span>
+            )}
+          </div>
         )}
       </div>
 

@@ -89,27 +89,48 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       console.log("Current working directory:", process.cwd());
     }
 
-    const templateInstruction = templateContent 
-      ? `\n\nPlease follow this report template structure and style:\n${templateContent.substring(0, 2000)}...`
+    // Use the full template if available, or at least a substantial portion
+    const templateToUse = templateContent || "";
+    const templateLength = templateToUse.length;
+    // Increase to 15000 to capture most of the template (template is ~20KB)
+    // This ensures AI sees the full structure, CSS, and key sections
+    const maxTemplateLength = 15000;
+    const templateForPrompt = templateToUse.length > maxTemplateLength 
+      ? templateToUse.substring(0, maxTemplateLength) + "\n\n[... remaining template structure continues with same pattern ...]"
+      : templateToUse;
+    
+    console.log(`Template length: ${templateLength}, Using ${templateForPrompt.length} characters for prompt`);
+
+    const templateInstruction = templateToUse
+      ? `\n\nCRITICAL: You MUST strictly follow this exact HTML template structure. Do not change the HTML structure, CSS classes, or layout. Only enhance the text content while preserving all HTML tags, classes, and structure exactly as shown:\n\n${templateForPrompt}`
       : "";
 
-    const prompt = `You are a professional electrical inspection report writer. Please enhance and polish the following draft inspection report. 
+    const prompt = `You are a professional electrical inspection report writer. Your task is to enhance the draft report by improving the text content while STRICTLY preserving the exact HTML template structure provided below.
 
-Requirements:
-1. Maintain all technical accuracy and factual information
-2. Use professional, clear, and concise language
-3. Follow Australian electrical inspection report standards
-4. Ensure proper formatting and structure matching the template style
-5. Keep the same inspection ID: ${inspection_id}
-6. Preserve all findings and limitations exactly as provided
+CRITICAL REQUIREMENTS:
+1. You MUST use the exact HTML template structure provided (if available). Do NOT create your own structure.
+2. Preserve ALL HTML tags, CSS classes, IDs, and structure exactly as in the template
+3. Only enhance the TEXT CONTENT within the template - do not modify HTML structure
+4. Maintain all technical accuracy and factual information
+5. Use professional, clear, and concise language
+6. Follow Australian electrical inspection report standards
+7. Keep the same inspection ID: ${inspection_id}
+8. Preserve all findings and limitations exactly as provided
+9. Replace template placeholders (like {{INSPECTION_ID}}) with actual values from the draft report
+10. If no template is provided, create a professional HTML report structure
+
 ${templateInstruction}
 
-Draft Report:
+Draft Report HTML:
 ${report_html}
-${findingsText}
-${limitationsText}
 
-Please return the enhanced report in HTML format, maintaining professional structure and readability while following the template style.`;
+Findings:
+${findingsText || "None"}
+
+Limitations:
+${limitationsText || "None"}
+
+IMPORTANT: Return ONLY the complete HTML document. Do not include any explanations or markdown formatting. Return the full HTML starting with <!DOCTYPE html> and ending with </html>.`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -123,15 +144,15 @@ Please return the enhanced report in HTML format, maintaining professional struc
         messages: [
           {
             role: "system",
-            content: "You are a professional electrical inspection report writer specializing in Australian electrical safety standards. You enhance reports while maintaining technical accuracy."
+            content: "You are a professional electrical inspection report writer specializing in Australian electrical safety standards. You enhance reports while maintaining technical accuracy. You MUST preserve HTML structure exactly as provided in templates."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.3, // Lower temperature for more consistent, professional output
-        max_tokens: 4000
+        temperature: 0.2, // Lower temperature for more consistent output and better template adherence
+        max_tokens: 12000 // Increased to handle larger templates and ensure complete HTML output
       })
     });
 
@@ -173,6 +194,9 @@ Please return the enhanced report in HTML format, maintaining professional struc
 
     const data = await response.json();
     console.log("OpenAI API response received, choices count:", data.choices?.length || 0);
+    console.log("Model used:", data.model);
+    console.log("Usage:", JSON.stringify(data.usage));
+    
     const enhancedHtml = data.choices?.[0]?.message?.content || report_html;
     console.log("Enhanced HTML length:", enhancedHtml.length);
 
@@ -182,7 +206,13 @@ Please return the enhanced report in HTML format, maintaining professional struc
       body: JSON.stringify({
         inspection_id,
         enhanced_html: enhancedHtml,
-        original_html: report_html
+        original_html: report_html,
+        model_used: data.model || "gpt-4o-mini",
+        usage: data.usage ? {
+          prompt_tokens: data.usage.prompt_tokens,
+          completion_tokens: data.usage.completion_tokens,
+          total_tokens: data.usage.total_tokens
+        } : undefined
       })
     };
   } catch (error) {
