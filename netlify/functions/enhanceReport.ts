@@ -214,6 +214,22 @@ IMPORTANT:
       if (!enhancedTexts.executiveSummary && !enhancedTexts.findings) {
         console.warn("AI response missing expected fields, using original texts");
         enhancedTexts = textToEnhance;
+      } else {
+        // Check if AI actually enhanced the content (not just returned original)
+        const executiveChanged = enhancedTexts.executiveSummary !== textToEnhance.executiveSummary;
+        const riskChanged = enhancedTexts.riskRatingFactors !== textToEnhance.riskRatingFactors;
+        console.log("Content enhancement check:", {
+          executiveChanged,
+          riskChanged,
+          findings_enhanced: enhancedTexts.findings ? "yes" : "no",
+          limitations_enhanced: enhancedTexts.limitations ? "yes" : "no"
+        });
+        
+        // If nothing changed, AI might have just returned original content
+        if (!executiveChanged && !riskChanged && 
+            JSON.stringify(enhancedTexts.findings) === JSON.stringify(textToEnhance.findings)) {
+          console.warn("AI returned content identical to input - enhancement may have failed");
+        }
       }
     } catch (e) {
       console.error("Failed to parse AI response as JSON:", e);
