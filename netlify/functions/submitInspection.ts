@@ -74,7 +74,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const technicianNameValue = extractValue(technicianName) as string | undefined;
     
     // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
-    const reviewUrl = `${process.env.URL || "https://inspeti.netlify.app"}/review/${inspection_id}`;
+    // Ensure review URL uses the correct format (without /api prefix for frontend route)
+    const baseUrl = process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspeti.netlify.app";
+    const reviewUrl = `${baseUrl}/review/${inspection_id}`;
     console.log("Preparing to send email notification...");
     try {
       await sendEmailNotification({

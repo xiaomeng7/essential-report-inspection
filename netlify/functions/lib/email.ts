@@ -21,6 +21,141 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+// Helper function to format value for display
+function formatValue(value: unknown): string {
+  if (value == null) return "<em>Not provided</em>";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object" && "value" in (value as object)) {
+    return formatValue((value as { value: unknown }).value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "<em>None</em>";
+    return value.map((item, i) => {
+      if (typeof item === "object" && item !== null) {
+        const objStr = Object.entries(item)
+          .map(([k, v]) => `${k}: ${formatValue(v)}`)
+          .join(", ");
+        return `${i + 1}. {${objStr}}`;
+      }
+      return `${i + 1}. ${String(item)}`;
+    }).join("<br>");
+  }
+  return String(value);
+}
+
+// Helper function to get field label from key
+function getFieldLabel(key: string): string {
+  // Convert keys like "job.address" to "Job - Address"
+  const parts = key.split(".");
+  const section = parts[0]?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "";
+  const field = parts.slice(1).join(" ").replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "";
+  return section && field ? `${section} - ${field}` : key;
+}
+
+// Format inspection data as a readable table
+function formatInspectionDataAsTable(rawData: Record<string, unknown>): string {
+  // Flatten the data structure
+  const flattened: Array<{ key: string; value: unknown }> = [];
+  
+  const walk = (obj: unknown, prefix: string = "") => {
+    if (obj == null) return;
+    if (Array.isArray(obj)) {
+      if (obj.length > 0 && typeof obj[0] === "object" && obj[0] !== null) {
+        obj.forEach((item, i) => {
+          if (typeof item === "object" && item !== null) {
+            walk(item, prefix ? `${prefix}[${i}]` : `[${i}]`);
+          } else {
+            flattened.push({ key: prefix ? `${prefix}[${i}]` : `[${i}]`, value: item });
+          }
+        });
+      } else {
+        flattened.push({ key: prefix, value: obj });
+      }
+      return;
+    }
+    if (typeof obj === "object") {
+      for (const [k, v] of Object.entries(obj)) {
+        const path = prefix ? `${prefix}.${k}` : k;
+        if (typeof v === "object" && v !== null && "value" in (v as object)) {
+          // This is an Answer object
+          const answer = v as { value: unknown; status?: string; skip_reason?: string };
+          if (answer.status === "skipped") {
+            flattened.push({ 
+              key: path, 
+              value: `<em>Skipped${answer.skip_reason ? ` (${answer.skip_reason})` : ""}</em>` 
+            });
+          } else {
+            flattened.push({ key: path, value: answer.value });
+          }
+        } else {
+          walk(v, path);
+        }
+      }
+    }
+  };
+  
+  walk(rawData);
+  
+  // Filter out empty or null values for cleaner display
+  const meaningful = flattened.filter(item => {
+    const val = item.value;
+    if (val == null) return false;
+    if (typeof val === "string" && val.trim() === "") return false;
+    if (typeof val === "boolean" && val === false) return true; // Include false booleans
+    if (Array.isArray(val) && val.length === 0) return false;
+    return true;
+  });
+  
+  if (meaningful.length === 0) {
+    return "<p><em>No data provided</em></p>";
+  }
+  
+  // Group by section
+  const bySection: Record<string, Array<{ key: string; value: unknown }>> = {};
+  meaningful.forEach(item => {
+    const section = item.key.split(".")[0] || "other";
+    if (!bySection[section]) bySection[section] = [];
+    bySection[section].push(item);
+  });
+  
+  let html = '<div style="overflow-x: auto;">';
+  Object.entries(bySection).forEach(([section, items]) => {
+    const sectionName = section.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    html += `
+      <div style="margin-bottom: 25px;">
+        <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 5px;">
+          ${sectionName}
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6; font-weight: 600; width: 40%;">Field</th>
+              <th style="padding: 10px; text-align: left; border: 1px solid #dee2e6; font-weight: 600;">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    items.forEach((item, idx) => {
+      const fieldName = item.key.includes(".") ? item.key.split(".").slice(1).join(" ").replace(/_/g, " ") : item.key;
+      const formattedField = fieldName.replace(/\b\w/g, l => l.toUpperCase());
+      const rowColor = idx % 2 === 0 ? "#ffffff" : "#f8f9fa";
+      html += `
+            <tr style="background-color: ${rowColor};">
+              <td style="padding: 10px; border: 1px solid #dee2e6; vertical-align: top; font-weight: 500;">${escapeHtml(formattedField)}</td>
+              <td style="padding: 10px; border: 1px solid #dee2e6; vertical-align: top;">${formatValue(item.value)}</td>
+            </tr>
+      `;
+    });
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+  });
+  html += '</div>';
+  return html;
+}
+
 export async function sendEmailNotification(data: EmailData): Promise<void> {
   try {
     const inspectionDate = new Date(data.created_at).toLocaleDateString("en-AU", { 
@@ -138,10 +273,8 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
 
     ${data.raw_data ? `
     <div class="section" style="margin-top: 30px;">
-      <h2>📋 Complete Inspection Data (For Manual Review)</h2>
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; max-height: 600px; overflow-y: auto;">
-        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(JSON.stringify(data.raw_data, null, 2))}</pre>
-      </div>
+      <h2>📋 Complete Inspection Data</h2>
+      ${formatInspectionDataAsTable(data.raw_data)}
     </div>
     ` : ""}
 

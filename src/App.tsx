@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
+import { RulesAdmin } from "./components/RulesAdmin";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -24,6 +25,7 @@ function App() {
 
   const isReviewRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/review/");
   const isSuccessRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/success/");
+  const isAdminRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/admin/rules");
   const idFromRoute = isReviewRoute ? window.location.pathname.replace(/^\/review\//, "") : null;
   const successIdFromRoute = isSuccessRoute ? window.location.pathname.replace(/^\/success\//, "") : null;
 
@@ -34,6 +36,16 @@ function App() {
         address={successData?.address}
         technicianName={successData?.technicianName}
         onNewInspection={handleNewInspection}
+      />
+    );
+  }
+
+  if (isAdminRoute) {
+    return (
+      <RulesAdmin
+        onBack={() => {
+          window.history.replaceState(null, "", "/");
+        }}
       />
     );
   }

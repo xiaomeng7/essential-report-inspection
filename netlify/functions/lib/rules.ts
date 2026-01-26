@@ -132,6 +132,10 @@ type Rules = {
 
 let rulesCache: Rules | null = null;
 
+export function clearRulesCache(): void {
+  rulesCache = null;
+}
+
 function loadRules(): Rules {
   if (rulesCache) return rulesCache;
   const actualPath = findRulesPath();
