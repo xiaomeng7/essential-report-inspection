@@ -110,14 +110,19 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         const isDifferent = result.enhanced_html !== (result.original_html || data.report_html);
         console.log("Enhanced HTML is different from original:", isDifferent);
         
-        // Update state
-        setEnhancedHtml(result.enhanced_html);
-        console.log("setEnhancedHtml called, state should update");
+        // Update state - use functional update to ensure state change is detected
+        setEnhancedHtml(() => {
+          console.log("setEnhancedHtml called with new HTML, length:", result.enhanced_html.length);
+          return result.enhanced_html;
+        });
         
-        // Verify state update
+        // Force a re-render by updating a dummy state if needed
+        // This ensures React detects the change
         setTimeout(() => {
-          console.log("State verification - checking if enhancedHtml was set");
-        }, 100);
+          console.log("State verification - enhancedHtml should be set now");
+          // Trigger a state update to force re-render
+          setModelInfo((prev) => prev ? { ...prev } : null);
+        }, 50);
       } else {
         console.warn("No valid enhanced_html in response:", {
           has_enhanced_html: !!result.enhanced_html,
@@ -314,6 +319,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       <div 
         ref={reportRef}
         className="report-html" 
+        key={enhancedHtml ? "enhanced" : "original"} // Force re-render when enhancedHtml changes
         dangerouslySetInnerHTML={{ __html: displayHtml || "<p>No report content.</p>" }} 
         style={{ 
           opacity: isEnhancing ? 0.5 : 1,
