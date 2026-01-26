@@ -172,16 +172,18 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const displayHtml = enhancedHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
   
-  // Debug logging
+  // Debug logging - only log when enhancedHtml changes
   useEffect(() => {
-    console.log("ReviewPage render state:", {
-      has_enhancedHtml: !!enhancedHtml,
-      enhancedHtml_length: enhancedHtml?.length || 0,
-      displayHtml_length: displayHtml?.length || 0,
-      isEnhanced,
-      original_length: data.report_html?.length || 0
-    });
-  }, [enhancedHtml, displayHtml, isEnhanced, data.report_html]);
+    if (enhancedHtml) {
+      console.log("ReviewPage - Enhanced HTML set:", {
+        has_enhancedHtml: !!enhancedHtml,
+        enhancedHtml_length: enhancedHtml.length,
+        displayHtml_length: displayHtml.length,
+        isEnhanced,
+        original_length: data?.report_html?.length || 0
+      });
+    }
+  }, [enhancedHtml]); // Only depend on enhancedHtml, not computed values
 
   return (
     <div className="review-page">
