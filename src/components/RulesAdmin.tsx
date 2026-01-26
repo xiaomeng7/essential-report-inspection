@@ -249,11 +249,24 @@ export function RulesAdmin({ onBack }: Props) {
   };
 
   // 使用 GitHub API 更新
-  const handleGithubUpdate = async (yamlToUpdate: string, token: string) => {
+  const handleGithubUpdate = async (yamlToUpdate: string | null, token: string, findingsToUpdate?: Record<string, FindingValue>) => {
     try {
       setSaving(true);
       setError(null);
       setSuccess(false);
+
+      const payload: { yaml?: string; findings?: Record<string, FindingValue>; githubToken: string } = {
+        githubToken: token,
+      };
+
+      // 如果提供了 findings 对象，优先使用（更可靠）
+      if (findingsToUpdate) {
+        payload.findings = findingsToUpdate;
+      } else if (yamlToUpdate) {
+        payload.yaml = yamlToUpdate;
+      } else {
+        throw new Error("Missing yaml content or findings");
+      }
 
       const res = await fetch("/api/rulesAdmin/github-update", {
         method: "POST",
@@ -261,10 +274,7 @@ export function RulesAdmin({ onBack }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({
-          yaml: yamlToUpdate,
-          githubToken: token,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -353,9 +363,9 @@ export function RulesAdmin({ onBack }: Props) {
         // 检查是否有保存的 GitHub token
         const savedGithubToken = localStorage.getItem("github_token") || "";
         if (savedGithubToken) {
-          // 尝试使用 GitHub API 直接更新
+          // 尝试使用 GitHub API 直接更新（传递 findings 对象更可靠）
           try {
-            await handleGithubUpdate(result.yaml, savedGithubToken);
+            await handleGithubUpdate(result.yaml, savedGithubToken, editedFindings);
             return;
           } catch (githubError) {
             // GitHub API 失败，清除 token 并提示重新输入
@@ -568,35 +578,13 @@ export function RulesAdmin({ onBack }: Props) {
                     return;
                   }
                   try {
-                    let yamlToUpdate: string;
-                    
-                    // 如果是从可视化编辑来的，需要转换
-                    if (activeTab === "visual" && rulesData) {
-                      const resConvert = await fetch("/api/rulesAdmin/json-to-yaml", {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${authToken}`,
-                        },
-                        body: JSON.stringify({
-                          rules: {
-                            ...rulesData.rules,
-                            findings: editedFindings,
-                          },
-                        }),
-                      });
-                      if (!resConvert.ok) {
-                        setError("无法生成 YAML");
-                        return;
-                      }
-                      const { yaml: updatedYaml } = (await resConvert.json()) as { yaml: string };
-                      yamlToUpdate = updatedYaml;
+                    // 优先传递 findings 对象（可视化编辑），更可靠
+                    if (activeTab === "visual" && editedFindings && Object.keys(editedFindings).length > 0) {
+                      await handleGithubUpdate(null, githubToken, editedFindings);
                     } else {
                       // 从 YAML 编辑器来的，直接使用当前内容
-                      yamlToUpdate = yamlContent;
+                      await handleGithubUpdate(yamlContent, githubToken);
                     }
-                    
-                    await handleGithubUpdate(yamlToUpdate, githubToken);
                   } catch (e) {
                     setError((e as Error).message);
                   }

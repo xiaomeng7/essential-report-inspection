@@ -72,13 +72,23 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           body: JSON.stringify({ error: "Missing or invalid rules object" }),
         };
       }
-      const yamlContent = yaml.dump(rules, { indent: 2, lineWidth: 120, quotingType: '"' });
+      
+      // 使用更好的 YAML 格式选项
+      const yamlContent = yaml.dump(rules, { 
+        indent: 2, 
+        lineWidth: 120, 
+        quotingType: '"',
+        noRefs: true,
+        sortKeys: false, // 保持原始顺序
+      });
+      
       return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ yaml: yamlContent }),
       };
     } catch (e) {
+      console.error("Error converting to YAML:", e);
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json" },
@@ -203,32 +213,13 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   if (event.httpMethod === "POST" && (pathRaw.endsWith("/github-update") || pathRaw.includes("/github-update"))) {
     try {
       const body = JSON.parse(event.body ?? "{}");
-      const { yaml: yamlContent, githubToken } = body;
+      const { yaml: yamlContent, githubToken, findings } = body;
       
-      if (!yamlContent || typeof yamlContent !== "string") {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "Missing or invalid yaml content" }),
-        };
-      }
-
       if (!githubToken || typeof githubToken !== "string") {
         return {
           statusCode: 400,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ error: "Missing GitHub token" }),
-        };
-      }
-
-      // 验证 YAML
-      try {
-        yaml.load(yamlContent);
-      } catch (yamlError) {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "Invalid YAML", message: yamlError instanceof Error ? yamlError.message : String(yamlError) }),
         };
       }
 
@@ -238,7 +229,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const filePath = "rules.yml";
       const branch = "main";
 
-      // 1. 获取文件的当前 SHA
+      // 1. 获取文件的当前内容和 SHA
       const getFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`;
       const getFileRes = await fetch(getFileUrl, {
         headers: {
@@ -247,18 +238,107 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         },
       });
 
+      let currentYaml: string;
       let sha: string | undefined;
+      
       if (getFileRes.ok) {
-        const fileData = await getFileRes.json() as { sha: string };
+        const fileData = await getFileRes.json() as { sha: string; content: string; encoding: string };
         sha = fileData.sha;
-      } else if (getFileRes.status !== 404) {
+        // GitHub API 返回的 content 是 base64 编码的
+        currentYaml = Buffer.from(fileData.content, "base64").toString("utf8");
+      } else if (getFileRes.status === 404) {
+        // 文件不存在，使用内嵌规则作为基础
+        const { EMBEDDED_RULES_YAML } = await import("./lib/rules");
+        currentYaml = EMBEDDED_RULES_YAML;
+      } else {
         const errorData = await getFileRes.json() as { message?: string };
         throw new Error(`Failed to get file: ${errorData.message || getFileRes.statusText}`);
       }
 
-      // 2. 更新文件
+      // 2. 解析当前 YAML，更新 findings（如果提供了 findings 对象）
+      let finalYaml: string;
+      
+      if (findings && typeof findings === "object" && !yamlContent) {
+        // 如果提供了 findings 对象，更新 findings 部分
+        const currentRules = yaml.load(currentYaml) as any;
+        currentRules.findings = findings;
+        
+        // 重新转换为 YAML
+        let dumpedYaml = yaml.dump(currentRules, { 
+          indent: 2, 
+          lineWidth: 120, 
+          quotingType: '"',
+          noRefs: true,
+          sortKeys: false,
+        });
+        
+        // 手动格式化 findings 部分，确保格式与原始文件一致
+        const lines = dumpedYaml.split('\n');
+        const findingsIndex = lines.findIndex(line => line.trim() === 'findings:');
+        if (findingsIndex >= 0) {
+          const beforeFindings = lines.slice(0, findingsIndex + 1).join('\n');
+          const afterFindings = lines.slice(findingsIndex + 1);
+          
+          // 找到 findings 部分结束的位置（下一个顶级键，即不缩进的行）
+          let afterIndex = afterFindings.length;
+          for (let i = 0; i < afterFindings.length; i++) {
+            const line = afterFindings[i];
+            if (line.trim() && !line.startsWith(' ') && !line.startsWith('\t')) {
+              afterIndex = i;
+              break;
+            }
+          }
+          const afterSection = afterFindings.slice(afterIndex).join('\n');
+          
+          // 格式化 findings：每个 finding 一行，格式为 "  KEY: { safety: X, urgency: Y, liability: Z }"
+          const findingsLines: string[] = [];
+          for (const [key, value] of Object.entries(findings)) {
+            if (value && typeof value === 'object' && 'safety' in value && 'urgency' in value && 'liability' in value) {
+              const v = value as { safety: string; urgency: string; liability: string };
+              findingsLines.push(`  ${key}: { safety: ${v.safety}, urgency: ${v.urgency}, liability: ${v.liability} }`);
+            }
+          }
+          
+          finalYaml = beforeFindings + '\n' + findingsLines.join('\n') + (afterSection ? '\n' + afterSection : '');
+        } else {
+          finalYaml = dumpedYaml;
+        }
+      } else if (yamlContent && typeof yamlContent === "string") {
+        // 如果提供了完整的 YAML，验证后使用
+        try {
+          yaml.load(yamlContent); // 验证 YAML
+          finalYaml = yamlContent;
+        } catch (yamlError) {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Invalid YAML", message: yamlError instanceof Error ? yamlError.message : String(yamlError) }),
+          };
+        }
+      } else {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing yaml content or findings object" }),
+        };
+      }
+      
+      // 验证最终 YAML
+      try {
+        const parsed = yaml.load(finalYaml);
+        console.log("Final YAML parsed successfully, findings count:", Object.keys((parsed as any).findings || {}).length);
+      } catch (e) {
+        console.error("Final YAML validation failed:", e);
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Generated invalid YAML", message: e instanceof Error ? e.message : String(e) }),
+        };
+      }
+
+      // 3. 更新文件
       const updateFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
-      const contentBase64 = Buffer.from(yamlContent, "utf8").toString("base64");
+      const contentBase64 = Buffer.from(finalYaml, "utf8").toString("base64");
       
       const updatePayload = {
         message: `Update rules.yml via admin panel - ${new Date().toISOString()}`,
