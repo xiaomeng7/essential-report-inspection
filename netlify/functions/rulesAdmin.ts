@@ -59,8 +59,35 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
   }
 
-  // Format YAML endpoint（必须在 POST 保存之前判断 path）
+  // Convert JSON rules to YAML endpoint
   const pathRaw = event.path ?? "";
+  if (event.httpMethod === "POST" && (pathRaw.endsWith("/json-to-yaml") || pathRaw.includes("/json-to-yaml"))) {
+    try {
+      const body = JSON.parse(event.body ?? "{}");
+      const { rules } = body;
+      if (!rules || typeof rules !== "object") {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing or invalid rules object" }),
+        };
+      }
+      const yamlContent = yaml.dump(rules, { indent: 2, lineWidth: 120, quotingType: '"' });
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yaml: yamlContent }),
+      };
+    } catch (e) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Failed to convert to YAML", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
+
+  // Format YAML endpoint（必须在 POST 保存之前判断 path）
   if (event.httpMethod === "POST" && (pathRaw.endsWith("/format") || pathRaw.includes("/format"))) {
     try {
       const body = JSON.parse(event.body ?? "{}");
