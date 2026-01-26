@@ -68,7 +68,30 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       }
 
       const result = await res.json();
-      setEnhancedHtml(result.enhanced_html);
+      console.log("AI enhancement result:", {
+        has_enhanced_html: !!result.enhanced_html,
+        enhanced_html_length: result.enhanced_html?.length || 0,
+        model_used: result.model_used,
+        usage: result.usage
+      });
+      
+      if (result.enhanced_html && result.enhanced_html.length > 100) {
+        console.log("Setting enhanced HTML, length:", result.enhanced_html.length);
+        console.log("Enhanced HTML preview (first 500 chars):", result.enhanced_html.substring(0, 500));
+        setEnhancedHtml(result.enhanced_html);
+        // Force a re-render by updating a dummy state
+        setTimeout(() => {
+          console.log("State should be updated now");
+        }, 100);
+      } else {
+        console.warn("No valid enhanced_html in response:", {
+          has_enhanced_html: !!result.enhanced_html,
+          length: result.enhanced_html?.length || 0,
+          response: result
+        });
+        setEnhanceError("AI返回了无效内容，请重试");
+      }
+      
       if (result.model_used) {
         setModelInfo({
           model: result.model_used,
@@ -148,6 +171,17 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   const displayHtml = enhancedHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log("ReviewPage render state:", {
+      has_enhancedHtml: !!enhancedHtml,
+      enhancedHtml_length: enhancedHtml?.length || 0,
+      displayHtml_length: displayHtml?.length || 0,
+      isEnhanced,
+      original_length: data.report_html?.length || 0
+    });
+  }, [enhancedHtml, displayHtml, isEnhanced, data.report_html]);
 
   return (
     <div className="review-page">
@@ -227,10 +261,25 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           </ul>
         </div>
       )}
+      {isEnhancing && (
+        <div style={{ 
+          padding: "20px", 
+          textAlign: "center", 
+          backgroundColor: "#f5f5f5", 
+          borderRadius: "8px",
+          marginBottom: "20px"
+        }}>
+          <p>AI正在生成报告，请稍候...</p>
+        </div>
+      )}
       <div 
         ref={reportRef}
         className="report-html" 
         dangerouslySetInnerHTML={{ __html: displayHtml || "<p>No report content.</p>" }} 
+        style={{ 
+          opacity: isEnhancing ? 0.5 : 1,
+          transition: "opacity 0.3s"
+        }}
       />
     </div>
   );

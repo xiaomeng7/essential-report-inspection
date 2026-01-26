@@ -196,8 +196,24 @@ IMPORTANT:
     console.log("Model used:", data.model);
     console.log("Usage:", JSON.stringify(data.usage));
     
-    const enhancedHtml = data.choices?.[0]?.message?.content || report_html;
+    let enhancedHtml = data.choices?.[0]?.message?.content || templateBasedHtml;
+    
+    // Clean up the response - remove markdown code blocks if present
+    if (enhancedHtml.includes("```html")) {
+      enhancedHtml = enhancedHtml.replace(/```html\n?/g, "").replace(/```\n?/g, "").trim();
+    } else if (enhancedHtml.includes("```")) {
+      enhancedHtml = enhancedHtml.replace(/```\n?/g, "").trim();
+    }
+    
     console.log("Enhanced HTML length:", enhancedHtml.length);
+    console.log("Original template HTML length:", templateBasedHtml.length);
+    console.log("HTML changed:", enhancedHtml !== templateBasedHtml);
+    
+    // If AI didn't change anything meaningful, use the template-based HTML
+    if (enhancedHtml.length < 100 || !enhancedHtml.includes("<!DOCTYPE") && !enhancedHtml.includes("<html")) {
+      console.warn("AI response seems invalid, using template-based HTML");
+      enhancedHtml = templateBasedHtml;
+    }
 
     return {
       statusCode: 200,
@@ -205,7 +221,7 @@ IMPORTANT:
       body: JSON.stringify({
         inspection_id,
         enhanced_html: enhancedHtml,
-        original_html: report_html,
+        original_html: templateBasedHtml, // Return the template-based HTML as original
         model_used: data.model || "gpt-4o-mini",
         usage: data.usage ? {
           prompt_tokens: data.usage.prompt_tokens,
