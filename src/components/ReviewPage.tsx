@@ -43,27 +43,51 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }, [inspectionId]);
 
   const handleEnhanceReport = async () => {
-    if (!data) return;
+    if (!data) {
+      console.error("Cannot enhance: data is null");
+      return;
+    }
+    
+    console.log("Starting AI enhancement...", {
+      inspection_id: data.inspection_id,
+      has_findings: !!data.findings,
+      findings_count: data.findings?.length || 0,
+      has_raw_data: !!data.raw_data
+    });
     
     setIsEnhancing(true);
     setEnhanceError(null);
     
     try {
+      const requestBody = {
+        inspection_id: data.inspection_id,
+        report_html: data.report_html,
+        findings: data.findings,
+        limitations: data.limitations,
+        raw_data: data.raw_data
+      };
+      
+      console.log("Sending request to /api/enhanceReport", {
+        body_size: JSON.stringify(requestBody).length,
+        has_raw_data: !!requestBody.raw_data
+      });
+      
       const res = await fetch("/api/enhanceReport", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inspection_id: data.inspection_id,
-          report_html: data.report_html,
-          findings: data.findings,
-          limitations: data.limitations,
-          raw_data: data.raw_data // Include raw data for template rebuilding
-        })
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log("Response received:", {
+        status: res.status,
+        ok: res.ok,
+        headers: Object.fromEntries(res.headers.entries())
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
+        console.error("API error:", errorMessage, errorData);
         throw new Error(errorMessage);
       }
 
@@ -86,11 +110,13 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         const isDifferent = result.enhanced_html !== (result.original_html || data.report_html);
         console.log("Enhanced HTML is different from original:", isDifferent);
         
+        // Update state
         setEnhancedHtml(result.enhanced_html);
+        console.log("setEnhancedHtml called, state should update");
         
-        // Force a re-render check
+        // Verify state update
         setTimeout(() => {
-          console.log("State check - enhancedHtml should be set now");
+          console.log("State verification - checking if enhancedHtml was set");
         }, 100);
       } else {
         console.warn("No valid enhanced_html in response:", {
@@ -111,8 +137,12 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setEnhanceError(errorMessage);
       console.error("Error enhancing report:", e);
+      if (e instanceof Error) {
+        console.error("Error stack:", e.stack);
+      }
     } finally {
       setIsEnhancing(false);
+      console.log("Enhancement process completed");
     }
   };
 
@@ -180,6 +210,17 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   const displayHtml = enhancedHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
+  
+  // Log state changes for debugging
+  if (typeof window !== "undefined" && window.location.search.includes("debug")) {
+    console.log("ReviewPage render:", {
+      has_enhancedHtml: !!enhancedHtml,
+      enhancedHtml_length: enhancedHtml?.length || 0,
+      displayHtml_length: displayHtml?.length || 0,
+      isEnhanced,
+      isEnhancing
+    });
+  }
 
   return (
     <div className="review-page">
