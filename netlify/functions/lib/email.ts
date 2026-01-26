@@ -8,7 +8,18 @@ export type EmailData = {
   limitations: string[];
   review_url: string;
   created_at: string;
+  raw_data?: Record<string, unknown>; // Full inspection data for manual review
 };
+
+// Helper function to escape HTML
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export async function sendEmailNotification(data: EmailData): Promise<void> {
   try {
@@ -125,6 +136,15 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     </div>
     ` : ""}
 
+    ${data.raw_data ? `
+    <div class="section" style="margin-top: 30px;">
+      <h2>📋 Complete Inspection Data (For Manual Review)</h2>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; max-height: 600px; overflow-y: auto;">
+        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(JSON.stringify(data.raw_data, null, 2))}</pre>
+      </div>
+    </div>
+    ` : ""}
+
     <div style="margin-top: 30px; text-align: center;">
       <a href="${data.review_url}" class="button">View Full Report</a>
     </div>
@@ -169,12 +189,22 @@ ${data.limitations && data.limitations.length > 0 ? `
 ${data.limitations.map(l => `  - ${l}`).join("\n")}
 ` : ""}
 
+${data.raw_data ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPLETE INSPECTION DATA (For Manual Review)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${JSON.stringify(data.raw_data, null, 2)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ""}
+
 View Full Report: ${data.review_url}
 
 This is an automated notification from the Electrical Inspection System.
     `.trim();
 
-    const subject = `New Inspection Report: ${data.inspection_id} - ${data.address}`;
+    const subject = `Inspection ${data.inspection_id} - ${data.address}`;
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM || "Electrical Inspection <onboarding@resend.dev>";
 

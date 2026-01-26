@@ -79,6 +79,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         limitations,
         review_url: reviewUrl,
         created_at: (raw.created_at as string) || new Date().toISOString(),
+        raw_data: raw, // Include full inspection data for manual review
       });
       console.log("Email notification sent successfully (handler complete)");
     } catch (emailErr) {

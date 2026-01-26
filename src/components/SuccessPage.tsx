@@ -60,6 +60,30 @@ export function SuccessPage({ inspectionId, address, technicianName, onNewInspec
         </div>
       </div>
 
+      <div style={{
+        backgroundColor: "#e8f4f8",
+        padding: "20px",
+        borderRadius: "8px",
+        marginBottom: "20px",
+        borderLeft: "4px solid #3498db",
+      }}>
+        <h3 style={{ marginTop: 0, color: "#2c3e50" }}>📧 Email Notification</h3>
+        <p style={{ margin: "10px 0", color: "#555" }}>
+          An email notification has been sent to <strong>info@bhtechnology.com.au</strong> with:
+        </p>
+        <ul style={{ margin: "10px 0", paddingLeft: "20px", color: "#555" }}>
+          <li>Inspection ID and details</li>
+          <li>Property address and technician information</li>
+          <li>Key findings and priorities</li>
+          <li>Limitations (if any)</li>
+          <li><strong>Complete inspection data</strong> (all form responses for manual review)</li>
+          <li>Link to view the full report</li>
+        </ul>
+        <p style={{ margin: "10px 0 0 0", fontSize: "13px", color: "#666" }}>
+          The email includes all inspection responses in JSON format for office review and verification.
+        </p>
+      </div>
+
       <div style={{ textAlign: "center", marginTop: "30px" }}>
         <button
           type="button"
