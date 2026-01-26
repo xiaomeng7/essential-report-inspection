@@ -29,21 +29,24 @@ function App() {
     const originalReplaceState = window.history.replaceState;
     const originalPushState = window.history.pushState;
     
-    window.history.replaceState = function(...args) {
+    const handleReplaceState = function(...args: Parameters<typeof window.history.replaceState>) {
       originalReplaceState.apply(window.history, args);
       setPathname(window.location.pathname);
     };
     
-    window.history.pushState = function(...args) {
+    const handlePushState = function(...args: Parameters<typeof window.history.pushState>) {
       originalPushState.apply(window.history, args);
       setPathname(window.location.pathname);
     };
+    
+    window.history.replaceState = handleReplaceState;
+    window.history.pushState = handlePushState;
     
     return () => {
       window.history.replaceState = originalReplaceState;
       window.history.pushState = originalPushState;
     };
-  }, []);
+  }, [setPathname]);
 
   const handleSubmitted = useCallback((inspectionId: string, address?: string, technicianName?: string) => {
     setSuccessData({ inspectionId, address, technicianName });
