@@ -138,116 +138,95 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     if (!reportRef.current) return;
 
     try {
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      // Find all sections in the report
-      const sections = reportRef.current.querySelectorAll("section.section, header.cover, footer.footer");
-      
-      if (sections.length === 0) {
-        // Fallback: convert entire content as before
-        const canvas = await html2canvas(reportRef.current, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: "#f5f7fb"
-        });
-        
-        const imgData = canvas.toDataURL("image/png");
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const imgWidthMM = imgWidth * 0.264583;
-        const imgHeightMM = imgHeight * 0.264583;
-        const widthRatio = pdfWidth / imgWidthMM;
-        const scaledWidth = pdfWidth;
-        const scaledHeight = imgHeightMM * widthRatio;
-        const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
-        
-        let sourceY = 0;
-        for (let page = 0; page < pagesNeeded; page++) {
-          if (page > 0) pdf.addPage();
-          
-          const remainingHeight = imgHeight - sourceY;
-          const pageHeightPx = Math.min(remainingHeight, pdfHeight / widthRatio / 0.264583);
-          
-          const pageCanvas = document.createElement("canvas");
-          pageCanvas.width = imgWidth;
-          pageCanvas.height = pageHeightPx;
-          const pageCtx = pageCanvas.getContext("2d");
-          
-          if (pageCtx) {
-            pageCtx.drawImage(canvas, 0, sourceY, imgWidth, pageHeightPx, 0, 0, imgWidth, pageHeightPx);
-            const pageImgData = pageCanvas.toDataURL("image/png");
-            const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
-            pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
-          }
-          
-          sourceY += pageHeightPx;
-        }
-      } else {
-        // Process each section separately
-        for (let i = 0; i < sections.length; i++) {
-          const section = sections[i] as HTMLElement;
-          
-          // Convert section to canvas
-          const sectionCanvas = await html2canvas(section, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: "#f5f7fb",
-            windowWidth: section.scrollWidth,
-            windowHeight: section.scrollHeight
-          });
-          
-          const imgData = sectionCanvas.toDataURL("image/png");
-          const imgWidth = sectionCanvas.width;
-          const imgHeight = sectionCanvas.height;
-          
-          // Convert to mm
-          const imgWidthMM = imgWidth * 0.264583;
-          const imgHeightMM = imgHeight * 0.264583;
-          
-          // Scale to fit page width
-          const widthRatio = pdfWidth / imgWidthMM;
-          const scaledWidth = pdfWidth;
-          const scaledHeight = imgHeightMM * widthRatio;
-          
-          // If section fits on one page, add it directly
-          if (scaledHeight <= pdfHeight) {
-            if (i > 0) pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, 0, scaledWidth, scaledHeight);
-          } else {
-            // Section is too tall, split it across multiple pages
-            const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
-            let sourceY = 0;
-            
-            for (let page = 0; page < pagesNeeded; page++) {
-              if (i > 0 || page > 0) pdf.addPage();
-              
-              const remainingHeight = imgHeight - sourceY;
-              const pageHeightPx = Math.min(remainingHeight, pdfHeight / widthRatio / 0.264583);
-              
-              const pageCanvas = document.createElement("canvas");
-              pageCanvas.width = imgWidth;
-              pageCanvas.height = pageHeightPx;
-              const pageCtx = pageCanvas.getContext("2d");
-              
-              if (pageCtx) {
-                pageCtx.drawImage(sectionCanvas, 0, sourceY, imgWidth, pageHeightPx, 0, 0, imgWidth, pageHeightPx);
-                const pageImgData = pageCanvas.toDataURL("image/png");
-                const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
-                pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
-              }
-              
-              sourceY += pageHeightPx;
-            }
-          }
-        }
+      // Use browser's print API which respects CSS page-break rules
+      // Create a new window with the report content
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("无法打开打印窗口，请检查浏览器弹窗设置");
+        return;
       }
 
-      const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
-      pdf.save(fileName);
+      // Get the report HTML content
+      const reportContent = reportRef.current.innerHTML;
+      
+      // Create a complete HTML document with print styles
+      const printDocument = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Electrical Property Health Assessment – ${data?.inspection_id || inspectionId}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    /* Ensure print styles are applied */
+    @media print {
+      body {
+        background: #fff;
+      }
+      .page {
+        margin: 0;
+        max-width: none;
+        padding: 0;
+      }
+      .card {
+        box-shadow: none;
+        border: none;
+      }
+      .cover, .bucket-head, .pill {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      /* Force a new printed page */
+      .page-break {
+        page-break-before: always;
+        break-before: page;
+      }
+      /* Avoid splitting important blocks across pages */
+      .avoid-break {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      /* Try not to split sections where possible */
+      .section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      /* Keep headings with the first content line where possible */
+      h2, h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${reportContent}
+</body>
+</html>`;
+
+      printWindow.document.write(printDocument);
+      printWindow.document.close();
+      
+      // Wait for content to load, then trigger print dialog
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Close the window after printing (optional)
+          // printWindow.close();
+        }, 250);
+      };
     } catch (e) {
       console.error("Error generating PDF:", e);
       alert("生成 PDF 时出错，请重试");
