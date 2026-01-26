@@ -202,7 +202,7 @@ findings:
   MATERIAL_DEGRADATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   ARCING_EVIDENCE_PRESENT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   ASBESTOS_RISK: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
-  NO_RCD_PROTECTION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  NO_RCD_PROTECTION: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
   GPO_EARTH_FAULT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   EXPOSED_CONDUCTOR: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   SMOKE_ALARM_FAILURE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
