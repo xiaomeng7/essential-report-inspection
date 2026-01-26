@@ -1,34 +1,59 @@
-version: 1.0
+version: 1
 description: >
-  Essential Report decision rules.
-  Converts findings into priority buckets using Safety, Urgency,
-  and internal Liability adjustment (not exposed to clients).
-
+  Essential Report decision rules. Converts findings into priority buckets using Safety, Urgency, and internal Liability
+  adjustment (not exposed to clients).
 enums:
-  safety: [HIGH, MODERATE, LOW]
-  urgency: [IMMEDIATE, SHORT_TERM, LONG_TERM]
-  liability: [HIGH, MEDIUM, LOW]
+  safety:
+    - HIGH
+    - MODERATE
+    - LOW
+  urgency:
+    - IMMEDIATE
+    - SHORT_TERM
+    - LONG_TERM
+  liability:
+    - HIGH
+    - MEDIUM
+    - LOW
   priority_bucket:
     - IMMEDIATE
     - RECOMMENDED_0_3_MONTHS
     - PLAN_MONITOR
-
 hard_overrides:
   priority_bucket: IMMEDIATE
   findings:
-    - MEN_NOT_VERIFIED
-    - SUPPLY_NO_MAIN_ISOLATION
-    - THERMAL_STRESS_ACTIVE
-    - MATERIAL_DEGRADATION
-    - ARCING_EVIDENCE_PRESENT
-    - ASBESTOS_RISK
-    - NO_RCD_PROTECTION
-    - GPO_EARTH_FAULT
-    - EXPOSED_CONDUCTOR
-    - SMOKE_ALARM_FAILURE
-    - BATTERY_THERMAL
-    - EV_UNSEGREGATED_LOAD
-
+  MEN_NOT_VERIFIED: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  SUPPLY_NO_MAIN_ISOLATION: { safety: LOW, urgency: IMMEDIATE, liability: HIGH }
+  THERMAL_STRESS_ACTIVE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  MATERIAL_DEGRADATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  ARCING_EVIDENCE_PRESENT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  ASBESTOS_RISK: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  NO_RCD_PROTECTION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  GPO_EARTH_FAULT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  EXPOSED_CONDUCTOR: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  SMOKE_ALARM_FAILURE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  BATTERY_THERMAL: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  EV_UNSEGREGATED_LOAD: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  PARTIAL_RCD_COVERAGE: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  EARTH_DEGRADED: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  LEGACY_SUPPLY_FUSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  BOARD_AT_CAPACITY: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  NO_EXPANSION_MARGIN: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  MECHANICAL_EXPOSURE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  GPO_MECHANICAL_LOOSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
+  SWITCH_ARCING: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  FITTING_OVERHEAT: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  NON_STANDARD_WORK: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  BATTERY_INSTALL_UNVERIFIED: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  EV_LOAD_AGGREGATION: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
+  LEGACY_EARTHING: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
+  LEGACY_DEVICES: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
+  IP_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  LABELING_POOR: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  SURGE_PROTECTION_ABSENT: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  HYBRID_UPGRADE_STAGE: { safety: LOW, urgency: LONG_TERM, liability: LOW }
+  ALARM_AGEING: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
+  PV_ISOLATION_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
 base_priority_matrix:
   - when:
       safety: HIGH
@@ -48,7 +73,6 @@ base_priority_matrix:
   - when:
       safety: LOW
     then: PLAN_MONITOR
-
 liability_adjustment:
   rules:
     - when:
@@ -65,7 +89,6 @@ liability_adjustment:
       action:
         shift: DOWN
         min_priority: PLAN_MONITOR
-
 liability_guardrails:
   rules:
     - if:
@@ -76,39 +99,132 @@ liability_guardrails:
         urgency: IMMEDIATE
       then:
         allow_liability_adjustment: false
-
 findings:
-  MEN_NOT_VERIFIED: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  SUPPLY_NO_MAIN_ISOLATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  THERMAL_STRESS_ACTIVE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  MATERIAL_DEGRADATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  ARCING_EVIDENCE_PRESENT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  ASBESTOS_RISK: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  NO_RCD_PROTECTION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  GPO_EARTH_FAULT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  EXPOSED_CONDUCTOR: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  SMOKE_ALARM_FAILURE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  BATTERY_THERMAL: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  EV_UNSEGREGATED_LOAD: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-
-  PARTIAL_RCD_COVERAGE: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-  EARTH_DEGRADED: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  LEGACY_SUPPLY_FUSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  BOARD_AT_CAPACITY: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  NO_EXPANSION_MARGIN: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  MECHANICAL_EXPOSURE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  GPO_MECHANICAL_LOOSE: { safety: MODERATE, urgency: SHORT_TERM, liability: MEDIUM }
-  SWITCH_ARCING: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-  FITTING_OVERHEAT: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-  NON_STANDARD_WORK: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-  BATTERY_INSTALL_UNVERIFIED: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-  EV_LOAD_AGGREGATION: { safety: MODERATE, urgency: SHORT_TERM, liability: HIGH }
-
-  LEGACY_EARTHING: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
-  LEGACY_DEVICES: { safety: MODERATE, urgency: LONG_TERM, liability: LOW }
-  IP_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: LOW }
-  LABELING_POOR: { safety: LOW, urgency: LONG_TERM, liability: LOW }
-  SURGE_PROTECTION_ABSENT: { safety: LOW, urgency: LONG_TERM, liability: LOW }
-  HYBRID_UPGRADE_STAGE: { safety: LOW, urgency: LONG_TERM, liability: LOW }
-  ALARM_AGEING: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
-  PV_ISOLATION_UNVERIFIED: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
+  MEN_NOT_VERIFIED:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  SUPPLY_NO_MAIN_ISOLATION:
+    safety: LOW
+    urgency: IMMEDIATE
+    liability: HIGH
+  THERMAL_STRESS_ACTIVE:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  MATERIAL_DEGRADATION:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  ARCING_EVIDENCE_PRESENT:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  ASBESTOS_RISK:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  NO_RCD_PROTECTION:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  GPO_EARTH_FAULT:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  EXPOSED_CONDUCTOR:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  SMOKE_ALARM_FAILURE:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  BATTERY_THERMAL:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  EV_UNSEGREGATED_LOAD:
+    safety: HIGH
+    urgency: IMMEDIATE
+    liability: HIGH
+  PARTIAL_RCD_COVERAGE:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  EARTH_DEGRADED:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  LEGACY_SUPPLY_FUSE:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  BOARD_AT_CAPACITY:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  NO_EXPANSION_MARGIN:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  MECHANICAL_EXPOSURE:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  GPO_MECHANICAL_LOOSE:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: MEDIUM
+  SWITCH_ARCING:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  FITTING_OVERHEAT:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  NON_STANDARD_WORK:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  BATTERY_INSTALL_UNVERIFIED:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  EV_LOAD_AGGREGATION:
+    safety: MODERATE
+    urgency: SHORT_TERM
+    liability: HIGH
+  LEGACY_EARTHING:
+    safety: MODERATE
+    urgency: LONG_TERM
+    liability: LOW
+  LEGACY_DEVICES:
+    safety: MODERATE
+    urgency: LONG_TERM
+    liability: LOW
+  IP_UNVERIFIED:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: LOW
+  LABELING_POOR:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: LOW
+  SURGE_PROTECTION_ABSENT:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: LOW
+  HYBRID_UPGRADE_STAGE:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: LOW
+  ALARM_AGEING:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: MEDIUM
+  PV_ISOLATION_UNVERIFIED:
+    safety: LOW
+    urgency: LONG_TERM
+    liability: MEDIUM
