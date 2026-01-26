@@ -59,14 +59,16 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `HTTP ${res.status}`);
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
+        throw new Error(errorMessage);
       }
 
       const result = await res.json();
       setEnhancedHtml(result.enhanced_html);
     } catch (e) {
-      setEnhanceError((e as Error).message);
+      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
+      setEnhanceError(errorMessage);
       console.error("Error enhancing report:", e);
     } finally {
       setIsEnhancing(false);

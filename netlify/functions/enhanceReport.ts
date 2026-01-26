@@ -13,10 +13,20 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   try {
+    console.log("EnhanceReport handler started");
     const body = JSON.parse(event.body || "{}");
     const { inspection_id, report_html, findings, limitations } = body;
 
+    console.log("Request body parsed:", { 
+      has_inspection_id: !!inspection_id, 
+      has_report_html: !!report_html,
+      report_html_length: report_html?.length || 0,
+      findings_count: findings?.length || 0,
+      limitations_count: limitations?.length || 0
+    });
+
     if (!inspection_id || !report_html) {
+      console.error("Missing required fields:", { inspection_id: !!inspection_id, report_html: !!report_html });
       return {
         statusCode: 400,
         headers: { "Content-Type": "application/json" },
@@ -37,6 +47,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         })
       };
     }
+    
+    console.log("OpenAI API key found, length:", openaiApiKey.length);
 
     // Build the prompt for OpenAI
     const findingsText = findings && findings.length > 0
@@ -53,16 +65,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     let templateContent = "";
     try {
       const templatePath = path.join(process.cwd(), "netlify", "functions", "report-template.html");
+      console.log("Trying to load template from:", templatePath);
       if (fs.existsSync(templatePath)) {
         templateContent = fs.readFileSync(templatePath, "utf-8");
+        console.log("Template loaded from netlify/functions, length:", templateContent.length);
       } else {
         const templatePath2 = path.join(process.cwd(), "report-template.html");
+        console.log("Trying alternative template path:", templatePath2);
         if (fs.existsSync(templatePath2)) {
           templateContent = fs.readFileSync(templatePath2, "utf-8");
+          console.log("Template loaded from root, length:", templateContent.length);
+        } else {
+          console.warn("Template file not found at either location");
         }
       }
     } catch (e) {
-      console.warn("Could not load report template for AI enhancement:", e);
+      console.error("Error loading report template for AI enhancement:", e);
     }
 
     const templateInstruction = templateContent 
@@ -114,18 +132,29 @@ Please return the enhanced report in HTML format, maintaining professional struc
     if (!response.ok) {
       const errorData = await response.text();
       console.error("OpenAI API error:", response.status, errorData);
+      let errorMessage = "Failed to enhance report";
+      try {
+        const errorJson = JSON.parse(errorData);
+        errorMessage = errorJson.error?.message || errorJson.error?.code || errorMessage;
+      } catch {
+        // If parsing fails, use the raw error data
+        errorMessage = errorData.substring(0, 200);
+      }
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           error: "Failed to enhance report",
+          message: errorMessage,
           details: errorData.substring(0, 500)
         })
       };
     }
 
     const data = await response.json();
+    console.log("OpenAI API response received, choices count:", data.choices?.length || 0);
     const enhancedHtml = data.choices?.[0]?.message?.content || report_html;
+    console.log("Enhanced HTML length:", enhancedHtml.length);
 
     return {
       statusCode: 200,
@@ -138,12 +167,16 @@ Please return the enhanced report in HTML format, maintaining professional struc
     };
   } catch (error) {
     console.error("Error enhancing report:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Error stack:", errorStack);
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: errorMessage,
+        ...(process.env.NETLIFY_DEV && { stack: errorStack })
       })
     };
   }
