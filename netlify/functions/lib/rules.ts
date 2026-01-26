@@ -372,37 +372,43 @@ const DEFAULT_REPORT_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 function loadReportTemplate(): string {
-  // Get __dirname for ES modules
-  let libDir: string;
+  // Build list of possible paths to try
+  const cwd = process.cwd();
+  const possiblePaths: string[] = [];
+  
+  // Try to get __dirname if available (for ES modules)
+  let libDir: string | undefined;
   try {
-    const currentFileUrl = import.meta.url;
-    libDir = path.dirname(fileURLToPath(currentFileUrl));
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      libDir = path.dirname(fileURLToPath(import.meta.url));
+      // Add paths relative to lib directory
+      possiblePaths.push(path.join(libDir, "report-template.html"));
+      possiblePaths.push(path.join(libDir, "..", "report-template.html"));
+    }
   } catch (e) {
-    console.warn("Could not determine __dirname, using process.cwd():", e);
-    libDir = process.cwd();
+    console.warn("Could not use import.meta.url:", e);
   }
   
-  const possiblePaths = [
-    // Netlify Functions bundled path (most likely in production)
-    path.join(libDir, "report-template.html"),
-    // Netlify Functions directory (one level up from lib)
-    path.join(libDir, "..", "report-template.html"),
-    // Netlify deployment path
-    path.join(process.cwd(), "netlify", "functions", "report-template.html"),
-    // Local development path
-    path.join(process.cwd(), "report-template.html"),
-    // Alternative local path
-    path.join(process.cwd(), "..", "report-template.html"),
-  ];
+  // Add paths relative to current working directory
+  if (cwd) {
+    possiblePaths.push(path.join(cwd, "netlify", "functions", "report-template.html"));
+    possiblePaths.push(path.join(cwd, "report-template.html"));
+    possiblePaths.push(path.join(cwd, "..", "report-template.html"));
+  }
+  
+  // Add absolute path fallbacks
+  possiblePaths.push("/opt/build/repo/netlify/functions/report-template.html");
+  possiblePaths.push("/opt/build/repo/report-template.html");
   
   console.log("Loading report template...");
+  console.log("process.cwd():", cwd);
   console.log("libDir:", libDir);
-  console.log("process.cwd():", process.cwd());
+  console.log("Will try", possiblePaths.length, "paths");
   
   for (const templatePath of possiblePaths) {
     try {
-      // Skip if path is invalid
-      if (!templatePath || templatePath.includes("undefined")) {
+      // Validate path before using it
+      if (!templatePath || typeof templatePath !== "string" || templatePath.includes("undefined")) {
         console.log("Skipping invalid path:", templatePath);
         continue;
       }
@@ -412,7 +418,6 @@ function loadReportTemplate(): string {
         const content = fs.readFileSync(templatePath, "utf-8");
         console.log("✅ Successfully loaded template from:", templatePath);
         console.log("Template length:", content.length, "characters");
-        console.log("Template preview (first 200 chars):", content.substring(0, 200));
         
         // Verify it's the correct template (not the default)
         if (content.includes("Electrical Property Health Assessment") && content.length > 10000) {
@@ -420,20 +425,22 @@ function loadReportTemplate(): string {
           return content;
         } else {
           console.warn("⚠️ Template loaded but seems incorrect (too short or missing expected content)");
+          console.warn("Template length:", content.length, "Expected: >10000");
+          console.warn("Has expected content:", content.includes("Electrical Property Health Assessment"));
         }
       } else {
         console.log("❌ Template not found at:", templatePath);
       }
     } catch (e) {
-      console.warn(`❌ Failed to load template from ${templatePath}:`, e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.warn(`❌ Failed to load template from ${templatePath}:`, errorMsg);
       continue;
     }
   }
   
   console.error("❌ Could not load report template from any path, using default template");
-  console.error("Tried paths:", possiblePaths);
-  console.error("Current working directory:", process.cwd());
-  console.error("libDir:", libDir);
+  console.error("Tried", possiblePaths.length, "paths");
+  console.error("Current working directory:", cwd);
   console.warn("⚠️ Using DEFAULT_REPORT_TEMPLATE (this is a simple fallback, not the full template!)");
   return DEFAULT_REPORT_TEMPLATE;
 }
