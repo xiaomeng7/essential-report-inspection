@@ -39,11 +39,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       if (fs.existsSync(rulesPath)) {
         content = fs.readFileSync(rulesPath, "utf8");
       } else {
-        return {
-          statusCode: 404,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "rules.yml not found" }),
-        };
+        // Netlify Functions 往往找不到 rules.yml，改用内嵌规则，避免 404
+        const { EMBEDDED_RULES_YAML } = await import("./lib/rules");
+        content = EMBEDDED_RULES_YAML;
       }
       const rules = yaml.load(content);
       return {
@@ -61,11 +59,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
   }
 
-  if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
+  // Format YAML endpoint（必须在 POST 保存之前判断 path）
+  const pathRaw = event.path ?? "";
+  if (event.httpMethod === "POST" && (pathRaw.endsWith("/format") || pathRaw.includes("/format"))) {
     try {
       const body = JSON.parse(event.body ?? "{}");
       const { yaml: yamlContent } = body;
-      
       if (!yamlContent || typeof yamlContent !== "string") {
         return {
           statusCode: 400,
@@ -73,8 +72,33 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           body: JSON.stringify({ error: "Missing or invalid yaml content" }),
         };
       }
+      const parsed = yaml.load(yamlContent);
+      const formatted = yaml.dump(parsed, { indent: 2, lineWidth: 120, quotingType: '"' });
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yaml: formatted }),
+      };
+    } catch (e) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Invalid YAML", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
 
-      // Validate YAML
+  if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
+    try {
+      const body = JSON.parse(event.body ?? "{}");
+      const { yaml: yamlContent } = body;
+      if (!yamlContent || typeof yamlContent !== "string") {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing or invalid yaml content" }),
+        };
+      }
       try {
         yaml.load(yamlContent);
       } catch (yamlError) {
@@ -84,28 +108,18 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           body: JSON.stringify({ error: "Invalid YAML", message: yamlError instanceof Error ? yamlError.message : String(yamlError) }),
         };
       }
-
-      // In production, you might want to write to a database or version control
-      // For now, we'll write to the file system (works in Netlify Functions with writable storage)
       const rulesPath = findRulesPath();
-      
-      // Create backup
       if (fs.existsSync(rulesPath)) {
         const backupPath = `${rulesPath}.backup.${Date.now()}`;
         fs.copyFileSync(rulesPath, backupPath);
       }
-
-      // Write new content
       fs.writeFileSync(rulesPath, yamlContent, "utf8");
-
-      // Clear cache (if rules are cached)
       try {
         const { clearRulesCache } = await import("./lib/rules");
         clearRulesCache();
       } catch {
-        // Ignore if cache clear fails
+        /* ignore */
       }
-
       return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
@@ -117,38 +131,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ error: "Failed to save rules", message: e instanceof Error ? e.message : String(e) }),
-      };
-    }
-  }
-
-  // Format YAML endpoint
-  if (event.httpMethod === "POST" && event.path?.endsWith("/format")) {
-    try {
-      const body = JSON.parse(event.body ?? "{}");
-      const { yaml: yamlContent } = body;
-      
-      if (!yamlContent || typeof yamlContent !== "string") {
-        return {
-          statusCode: 400,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ error: "Missing or invalid yaml content" }),
-        };
-      }
-
-      // Parse and reformat
-      const parsed = yaml.load(yamlContent);
-      const formatted = yaml.dump(parsed, { indent: 2, lineWidth: 120, quotingType: '"' });
-
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ yaml: formatted }),
-      };
-    } catch (e) {
-      return {
-        statusCode: 400,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Invalid YAML", message: e instanceof Error ? e.message : String(e) }),
       };
     }
   }

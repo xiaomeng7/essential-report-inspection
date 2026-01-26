@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
 /** Embedded rules.yml – used when file is not found (e.g. Netlify Functions bundle). */
-const EMBEDDED_RULES_YAML = `
+export const EMBEDDED_RULES_YAML = `
 version: 1.0
 description: >
   Essential Report decision rules.
