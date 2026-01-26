@@ -36,10 +36,40 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
 
-    // Rebuild the report HTML using the template to ensure it's properly filled
-    // This ensures we have the complete template structure before AI enhancement
-    const templateBasedHtml = buildReportHtml(findings || [], limitations || [], inspection_id, raw_data);
-    console.log("Template-based HTML generated, length:", templateBasedHtml.length);
+    // Extract text content that needs AI enhancement (before filling template)
+    // This way AI only enhances text, and we preserve the template structure
+    const imm = (findings || []).filter((f: { priority: string }) => f.priority === "IMMEDIATE");
+    const rec = (findings || []).filter((f: { priority: string }) => f.priority === "RECOMMENDED_0_3_MONTHS");
+    const plan = (findings || []).filter((f: { priority: string }) => f.priority === "PLAN_MONITOR");
+    
+    // Prepare text content for AI enhancement
+    const textToEnhance = {
+      executiveSummary: imm.length > 0
+        ? `This assessment identified ${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} that require${imm.length === 1 ? "s" : ""} urgent attention. These items should be addressed promptly to ensure safe operation.`
+        : rec.length > 0
+        ? `The electrical installation is in acceptable condition with ${rec.length} item${rec.length > 1 ? "s" : ""} identified for monitoring or planned attention within the next 0-3 months.`
+        : "The electrical installation presents a generally acceptable condition with no immediate safety concerns.",
+      riskRatingFactors: imm.length > 0
+        ? `${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} requiring urgent attention`
+        : rec.length > 0
+        ? `${rec.length} item${rec.length > 1 ? "s" : ""} requiring monitoring or planned attention`
+        : "No immediate safety concerns identified",
+      findings: {
+        immediate: imm.map((f: { id: string; title?: string }) => f.title ?? f.id.replace(/_/g, " ")),
+        recommended: rec.map((f: { id: string; title?: string }) => f.title ?? f.id.replace(/_/g, " ")),
+        plan: plan.map((f: { id: string; title?: string }) => f.title ?? f.id.replace(/_/g, " "))
+      },
+      limitations: limitations || []
+    };
+    
+    console.log("Text content prepared for AI enhancement:", {
+      executiveSummary_length: textToEnhance.executiveSummary.length,
+      findings_count: {
+        immediate: textToEnhance.findings.immediate.length,
+        recommended: textToEnhance.findings.recommended.length,
+        plan: textToEnhance.findings.plan.length
+      }
+    });
 
     // Check for OpenAI API key
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -136,19 +166,19 @@ FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every styl
         "Authorization": `Bearer ${openaiApiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o", // Using gpt-4o for better HTML structure preservation (can switch back to gpt-4o-mini if needed)
+        model: "gpt-4o-mini", // Using gpt-4o-mini is sufficient for text enhancement only
         messages: [
           {
             role: "system",
-            content: "You are a professional electrical inspection report writer specializing in Australian electrical safety standards. You enhance reports while maintaining technical accuracy. You MUST preserve HTML structure exactly as provided in templates."
+            content: "You are a professional electrical inspection report writer specializing in Australian electrical safety standards. You enhance text content to be more professional and polished while maintaining all technical accuracy. Return ONLY valid JSON."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.2, // Lower temperature for more consistent output and better template adherence
-        max_tokens: 16000 // Increased significantly to ensure complete HTML output (template is ~20KB)
+        temperature: 0.3, // Slightly higher for more natural text
+        response_format: { type: "json_object" } // Force JSON response
       })
     });
 
@@ -193,38 +223,28 @@ FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every styl
     console.log("Model used:", data.model);
     console.log("Usage:", JSON.stringify(data.usage));
     
-    let enhancedHtml = data.choices?.[0]?.message?.content || templateBasedHtml;
-    
-    // Clean up the response - remove markdown code blocks if present
-    if (enhancedHtml.includes("```html")) {
-      enhancedHtml = enhancedHtml.replace(/```html\n?/g, "").replace(/```\n?/g, "").trim();
-    } else if (enhancedHtml.includes("```")) {
-      enhancedHtml = enhancedHtml.replace(/```\n?/g, "").trim();
+    // Parse AI-enhanced text content
+    let enhancedTexts;
+    try {
+      const aiResponse = data.choices?.[0]?.message?.content || "{}";
+      enhancedTexts = JSON.parse(aiResponse);
+      console.log("AI enhanced texts parsed successfully:", Object.keys(enhancedTexts));
+    } catch (e) {
+      console.error("Failed to parse AI response as JSON:", e);
+      // Fallback: use original texts
+      enhancedTexts = textToEnhance;
     }
     
-    console.log("Enhanced HTML length:", enhancedHtml.length);
-    console.log("Original template HTML length:", templateBasedHtml.length);
-    console.log("HTML changed:", enhancedHtml !== templateBasedHtml);
+    // Build the final HTML using enhanced texts
+    const templateBasedHtml = buildReportHtml(
+      findings || [],
+      limitations || [],
+      inspection_id,
+      raw_data,
+      enhancedTexts // Pass enhanced texts to buildReportHtml
+    );
     
-    // Validate AI response - if it's significantly shorter than template, use template instead
-    const lengthRatio = enhancedHtml.length / templateBasedHtml.length;
-    console.log(`AI response validation:`, {
-      enhanced_length: enhancedHtml.length,
-      template_length: templateBasedHtml.length,
-      ratio: `${(lengthRatio * 100).toFixed(1)}%`,
-      has_doctype: enhancedHtml.includes("<!DOCTYPE"),
-      has_html_tag: enhancedHtml.includes("<html")
-    });
-    
-    if (lengthRatio < 0.7) {
-      console.warn(`AI response too short (${(lengthRatio * 100).toFixed(1)}% of template), using template-based HTML instead`);
-      enhancedHtml = templateBasedHtml;
-    } else if (!enhancedHtml.includes("<!DOCTYPE") && !enhancedHtml.includes("<html")) {
-      console.warn("AI response missing HTML structure, using template-based HTML");
-      enhancedHtml = templateBasedHtml;
-    } else if (lengthRatio < 0.9) {
-      console.warn(`AI response shorter than expected (${(lengthRatio * 100).toFixed(1)}%), but using it anyway`);
-    }
+    console.log("Final HTML generated with AI-enhanced texts, length:", templateBasedHtml.length);
 
     return {
       statusCode: 200,
@@ -232,7 +252,7 @@ FINAL REMINDER: Return the ENTIRE document. Every section, every tag, every styl
       body: JSON.stringify({
         inspection_id,
         enhanced_html: enhancedHtml,
-        original_html: templateBasedHtml, // Return the template-based HTML as original
+        original_html: report_html, // Return the original report HTML
         model_used: data.model || "gpt-4o-mini",
         usage: data.usage ? {
           prompt_tokens: data.usage.prompt_tokens,

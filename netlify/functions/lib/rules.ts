@@ -403,7 +403,17 @@ export function buildReportHtml(
   findings: Array<{ id: string; priority: string; title?: string }>,
   limitations: string[],
   inspectionId?: string,
-  raw?: Record<string, unknown>
+  raw?: Record<string, unknown>,
+  enhancedTexts?: {
+    executiveSummary?: string;
+    riskRatingFactors?: string;
+    findings?: {
+      immediate?: string[];
+      recommended?: string[];
+      plan?: string[];
+    };
+    limitations?: string[];
+  }
 ): string {
   const imm = findings.filter((f) => f.priority === "IMMEDIATE");
   const rec = findings.filter((f) => f.priority === "RECOMMENDED_0_3_MONTHS");
@@ -412,20 +422,26 @@ export function buildReportHtml(
   // Load template
   const template = loadReportTemplate();
 
-  // Build findings HTML
-  const buildFindingsHtml = (items: Array<{ id: string; priority: string; title?: string }>) => {
+  // Build findings HTML - use AI-enhanced versions if available
+  const buildFindingsHtml = (
+    items: Array<{ id: string; priority: string; title?: string }>,
+    enhancedItems?: string[]
+  ) => {
     if (items.length === 0) {
       return '<li style="color: #999; font-style: italic;">None</li>';
     }
-    return items.map((f) => {
-      const displayText = f.title ?? f.id.replace(/_/g, " ");
+    return items.map((f, index) => {
+      // Use AI-enhanced text if available, otherwise use original
+      const displayText = enhancedItems && enhancedItems[index]
+        ? enhancedItems[index]
+        : (f.title ?? f.id.replace(/_/g, " "));
       return `<li>${displayText}</li>`;
     }).join("");
   };
 
-  const immediateHtml = buildFindingsHtml(imm);
-  const recommendedHtml = buildFindingsHtml(rec);
-  const planHtml = buildFindingsHtml(plan);
+  const immediateHtml = buildFindingsHtml(imm, enhancedTexts?.findings?.immediate);
+  const recommendedHtml = buildFindingsHtml(rec, enhancedTexts?.findings?.recommended);
+  const planHtml = buildFindingsHtml(plan, enhancedTexts?.findings?.plan);
 
   // Extract data from raw for template placeholders
   const now = new Date();
@@ -446,30 +462,41 @@ export function buildReportHtml(
   const hasRecommended = rec.length > 0;
   let overallStatusBadge = '<span class="pill green">Low Risk</span>';
   let riskRatingBadge = "Low";
-  let riskRatingFactors = '<li>No immediate safety concerns identified</li>';
+  let riskRatingFactorsText = enhancedTexts?.riskRatingFactors;
+  if (!riskRatingFactorsText) {
+    riskRatingFactorsText = "No immediate safety concerns identified";
+    if (hasImmediate) {
+      riskRatingFactorsText = `${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} requiring urgent attention`;
+    } else if (hasRecommended) {
+      riskRatingFactorsText = `${rec.length} item${rec.length > 1 ? "s" : ""} requiring monitoring or planned attention`;
+    }
+  }
+  let riskRatingFactors = `<li>${riskRatingFactorsText}</li>`;
   
   if (hasImmediate) {
     overallStatusBadge = '<span class="pill red">High Risk</span>';
     riskRatingBadge = "High";
-    riskRatingFactors = `<li>${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} requiring urgent attention</li>`;
   } else if (hasRecommended) {
     overallStatusBadge = '<span class="pill amber">Moderate Risk</span>';
     riskRatingBadge = "Moderate";
-    riskRatingFactors = `<li>${rec.length} item${rec.length > 1 ? "s" : ""} requiring monitoring or planned attention</li>`;
   }
 
-  // Executive summary paragraph
-  let executiveSummaryParagraph = "The electrical installation presents a generally acceptable condition with no immediate safety concerns.";
-  if (hasImmediate) {
-    executiveSummaryParagraph = `This assessment identified ${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} that require${imm.length === 1 ? "s" : ""} urgent attention. These items should be addressed promptly to ensure safe operation.`;
-  } else if (hasRecommended) {
-    executiveSummaryParagraph = `The electrical installation is in acceptable condition with ${rec.length} item${rec.length > 1 ? "s" : ""} identified for monitoring or planned attention within the next 0-3 months.`;
+  // Executive summary paragraph - use AI-enhanced version if available
+  let executiveSummaryParagraph = enhancedTexts?.executiveSummary;
+  if (!executiveSummaryParagraph) {
+    executiveSummaryParagraph = "The electrical installation presents a generally acceptable condition with no immediate safety concerns.";
+    if (hasImmediate) {
+      executiveSummaryParagraph = `This assessment identified ${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} that require${imm.length === 1 ? "s" : ""} urgent attention. These items should be addressed promptly to ensure safe operation.`;
+    } else if (hasRecommended) {
+      executiveSummaryParagraph = `The electrical installation is in acceptable condition with ${rec.length} item${rec.length > 1 ? "s" : ""} identified for monitoring or planned attention within the next 0-3 months.`;
+    }
   }
 
-  // Build limitations section HTML
+  // Build limitations section HTML - use AI-enhanced versions if available
   let limitationsHtml = "";
-  if (limitations.length > 0) {
-    limitationsHtml = limitations.map((s) => `<li>${s}</li>`).join("");
+  const enhancedLimitations = enhancedTexts?.limitations || limitations;
+  if (enhancedLimitations.length > 0) {
+    limitationsHtml = enhancedLimitations.map((s) => `<li>${s}</li>`).join("");
   } else {
     limitationsHtml = '<li>No specific limitations beyond standard non-invasive assessment scope.</li>';
   }
