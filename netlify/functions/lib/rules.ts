@@ -943,12 +943,14 @@ function loadReportTemplate(): string {
   if (cwd) {
     possiblePaths.push(path.join(cwd, "netlify", "functions", "report-template.html"));
     possiblePaths.push(path.join(cwd, "report-template.html"));
+    possiblePaths.push(path.join(cwd, "report-template-paged.html")); // Try paged version
     possiblePaths.push(path.join(cwd, "..", "report-template.html"));
   }
   
   // Add absolute path fallbacks
   possiblePaths.push("/opt/build/repo/netlify/functions/report-template.html");
   possiblePaths.push("/opt/build/repo/report-template.html");
+  possiblePaths.push("/opt/build/repo/report-template-paged.html");
   
   console.log("Loading report template...");
   console.log("process.cwd():", cwd);
@@ -971,7 +973,14 @@ function loadReportTemplate(): string {
         
         // Verify it's the correct template (not the default)
         if (content.includes("Electrical Property Health Assessment") && content.length > 10000) {
-          console.log("✅ Template verified: Contains expected content and is full template");
+          // Check if it has pagination rules
+          const hasPageBreak = content.includes("page-break") || content.includes("break-before: page");
+          const hasAvoidBreak = content.includes("avoid-break") || content.includes("break-inside: avoid");
+          console.log("✅ Template verified:", {
+            length: content.length,
+            hasPageBreak,
+            hasAvoidBreak
+          });
           return content;
         } else {
           console.warn("⚠️ Template loaded but seems incorrect (too short or missing expected content)");
