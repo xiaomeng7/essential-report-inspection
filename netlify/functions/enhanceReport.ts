@@ -1,4 +1,6 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
+import fs from "fs";
+import path from "path";
 import { get } from "./lib/store";
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
@@ -43,21 +45,43 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       ? `\n\nLimitations:\n${limitations.map((l: string) => `- ${l}`).join("\n")}`
       : "";
 
+    // Load report template for reference
+    let templateContent = "";
+    try {
+      const templatePath = path.join(process.cwd(), "netlify", "functions", "report-template.html");
+      if (fs.existsSync(templatePath)) {
+        templateContent = fs.readFileSync(templatePath, "utf-8");
+      } else {
+        const templatePath2 = path.join(process.cwd(), "report-template.html");
+        if (fs.existsSync(templatePath2)) {
+          templateContent = fs.readFileSync(templatePath2, "utf-8");
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load report template for AI enhancement:", e);
+    }
+
+    const templateInstruction = templateContent 
+      ? `\n\nPlease follow this report template structure and style:\n${templateContent.substring(0, 2000)}...`
+      : "";
+
     const prompt = `You are a professional electrical inspection report writer. Please enhance and polish the following draft inspection report. 
 
 Requirements:
 1. Maintain all technical accuracy and factual information
 2. Use professional, clear, and concise language
 3. Follow Australian electrical inspection report standards
-4. Ensure proper formatting and structure
+4. Ensure proper formatting and structure matching the template style
 5. Keep the same inspection ID: ${inspection_id}
+6. Preserve all findings and limitations exactly as provided
+${templateInstruction}
 
 Draft Report:
 ${report_html}
 ${findingsText}
 ${limitationsText}
 
-Please return the enhanced report in HTML format, maintaining professional structure and readability.`;
+Please return the enhanced report in HTML format, maintaining professional structure and readability while following the template style.`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

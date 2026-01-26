@@ -329,34 +329,108 @@ export function collectLimitations(raw: Record<string, unknown>): string[] {
   return out;
 }
 
+// Default report template (embedded fallback)
+const DEFAULT_REPORT_TEMPLATE = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .header { border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
+    .header h1 { color: #2c3e50; margin: 0; font-size: 28px; }
+    .section { margin: 30px 0; }
+    .section h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
+    .section li { padding: 10px; margin: 8px 0; background-color: #f8f9fa; border-left: 4px solid #3498db; padding-left: 15px; list-style: none; }
+    .priority-IMMEDIATE { border-left-color: #e74c3c; background-color: #ffeaea; }
+    .priority-RECOMMENDED_0_3_MONTHS { border-left-color: #f39c12; background-color: #fff8e1; }
+    .priority-PLAN_MONITOR { border-left-color: #3498db; background-color: #e3f2fd; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Electrical Safety Inspection Report</h1>
+    <div style="color: #7f8c8d; margin-top: 5px;">Inspection ID: {{INSPECTION_ID}}</div>
+  </div>
+  <div class="section">
+    <h2>Immediate Attention Required</h2>
+    <ul>{{IMMEDIATE_FINDINGS}}</ul>
+  </div>
+  <div class="section">
+    <h2>Recommended Actions (0-3 months)</h2>
+    <ul>{{RECOMMENDED_FINDINGS}}</ul>
+  </div>
+  <div class="section">
+    <h2>Plan / Monitor</h2>
+    <ul>{{PLAN_MONITOR_FINDINGS}}</ul>
+  </div>
+  {{LIMITATIONS_SECTION}}
+</body>
+</html>`;
+
+function loadReportTemplate(): string {
+  try {
+    // Try to load from netlify/functions directory (for Netlify deployment)
+    const templatePath1 = path.join(process.cwd(), "netlify", "functions", "report-template.html");
+    if (fs.existsSync(templatePath1)) {
+      return fs.readFileSync(templatePath1, "utf-8");
+    }
+    // Try to load from project root (for local development)
+    const templatePath2 = path.join(process.cwd(), "report-template.html");
+    if (fs.existsSync(templatePath2)) {
+      return fs.readFileSync(templatePath2, "utf-8");
+    }
+  } catch (e) {
+    console.warn("Could not load report template, using default:", e);
+  }
+  return DEFAULT_REPORT_TEMPLATE;
+}
+
 export function buildReportHtml(
   findings: Array<{ id: string; priority: string; title?: string }>,
-  limitations: string[]
+  limitations: string[],
+  inspectionId?: string
 ): string {
   const imm = findings.filter((f) => f.priority === "IMMEDIATE");
   const rec = findings.filter((f) => f.priority === "RECOMMENDED_0_3_MONTHS");
   const plan = findings.filter((f) => f.priority === "PLAN_MONITOR");
 
-  let html = "<h2>Immediate Attention</h2><ul>";
-  if (imm.length) imm.forEach((f) => (html += `<li>${f.title ?? f.id}</li>`));
-  else html += "<li>None</li>";
-  html += "</ul>";
+  // Load template
+  const template = loadReportTemplate();
 
-  html += "<h2>Recommended (0–3 months)</h2><ul>";
-  if (rec.length) rec.forEach((f) => (html += `<li>${f.title ?? f.id}</li>`));
-  else html += "<li>None</li>";
-  html += "</ul>";
+  // Build findings HTML
+  const buildFindingsHtml = (items: Array<{ id: string; priority: string; title?: string }>, priorityClass: string) => {
+    if (items.length === 0) {
+      return '<li style="color: #999; font-style: italic;">None</li>';
+    }
+    return items.map((f) => 
+      `<li class="priority-${f.priority}">${f.title ?? f.id.replace(/_/g, " ")}</li>`
+    ).join("");
+  };
 
-  html += "<h2>Plan / Monitor</h2><ul>";
-  if (plan.length) plan.forEach((f) => (html += `<li>${f.title ?? f.id}</li>`));
-  else html += "<li>None</li>";
-  html += "</ul>";
+  const immediateHtml = buildFindingsHtml(imm, "IMMEDIATE");
+  const recommendedHtml = buildFindingsHtml(rec, "RECOMMENDED_0_3_MONTHS");
+  const planHtml = buildFindingsHtml(plan, "PLAN_MONITOR");
 
-  if (limitations.length) {
-    html += "<h2>Limitations</h2><ul>";
-    limitations.forEach((s) => (html += `<li>${s}</li>`));
-    html += "</ul>";
+  // Build limitations section
+  let limitationsHtml = "";
+  if (limitations.length > 0) {
+    limitationsHtml = `
+      <div class="section" style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 30px;">
+        <h2 style="color: #856404; border-bottom: none; margin-top: 0;">Limitations</h2>
+        <ul>
+          ${limitations.map((s) => `<li style="list-style: disc; margin-left: 20px;">${s}</li>`).join("")}
+        </ul>
+      </div>
+    `;
   }
+
+  // Replace placeholders
+  let html = template
+    .replace("{{INSPECTION_ID}}", inspectionId || "N/A")
+    .replace("{{IMMEDIATE_FINDINGS}}", immediateHtml)
+    .replace("{{RECOMMENDED_FINDINGS}}", recommendedHtml)
+    .replace("{{PLAN_MONITOR_FINDINGS}}", planHtml)
+    .replace("{{LIMITATIONS_SECTION}}", limitationsHtml);
 
   return html;
 }
