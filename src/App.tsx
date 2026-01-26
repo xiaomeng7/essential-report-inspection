@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
@@ -11,23 +11,58 @@ function App() {
     address?: string;
     technicianName?: string;
   } | null>(null);
+  const [pathname, setPathname] = useState<string>(
+    typeof window !== "undefined" ? window.location.pathname : "/"
+  );
+
+  // Listen to route changes (including browser back/forward)
+  useEffect(() => {
+    const handlePopState = () => {
+      setPathname(window.location.pathname);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Also listen to manual navigation (replaceState/pushState)
+  useEffect(() => {
+    const originalReplaceState = window.history.replaceState;
+    const originalPushState = window.history.pushState;
+    
+    window.history.replaceState = function(...args) {
+      originalReplaceState.apply(window.history, args);
+      setPathname(window.location.pathname);
+    };
+    
+    window.history.pushState = function(...args) {
+      originalPushState.apply(window.history, args);
+      setPathname(window.location.pathname);
+    };
+    
+    return () => {
+      window.history.replaceState = originalReplaceState;
+      window.history.pushState = originalPushState;
+    };
+  }, []);
 
   const handleSubmitted = useCallback((inspectionId: string, address?: string, technicianName?: string) => {
     setSuccessData({ inspectionId, address, technicianName });
     window.history.replaceState(null, "", `/success/${inspectionId}`);
+    setPathname(`/success/${inspectionId}`);
   }, []);
 
   const handleNewInspection = useCallback(() => {
     setSuccessData(null);
     setReviewId(null);
     window.history.replaceState(null, "", "/");
+    setPathname("/");
   }, []);
 
-  const isReviewRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/review/");
-  const isSuccessRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/success/");
-  const isAdminRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/admin/rules");
-  const idFromRoute = isReviewRoute ? window.location.pathname.replace(/^\/review\//, "") : null;
-  const successIdFromRoute = isSuccessRoute ? window.location.pathname.replace(/^\/success\//, "") : null;
+  const isReviewRoute = pathname.startsWith("/review/");
+  const isSuccessRoute = pathname.startsWith("/success/");
+  const isAdminRoute = pathname.startsWith("/admin/rules");
+  const idFromRoute = isReviewRoute ? pathname.replace(/^\/review\//, "") : null;
+  const successIdFromRoute = isSuccessRoute ? pathname.replace(/^\/success\//, "") : null;
 
   if (successData || (successIdFromRoute && isSuccessRoute)) {
     return (
@@ -57,6 +92,7 @@ function App() {
         onBack={() => {
           setReviewId(null);
           window.history.replaceState(null, "", "/");
+          setPathname("/");
         }}
       />
     );

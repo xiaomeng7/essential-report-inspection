@@ -35,7 +35,22 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }, [inspectionId]);
 
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
-  if (error) return <div className="review-page"><p>Error: {error}</p><button onClick={onBack} className="btn-secondary">Back</button></div>;
+  if (error) {
+    return (
+      <div className="review-page" style={{ padding: "20px" }}>
+        <h2>Error Loading Report</h2>
+        <p style={{ color: "#d32f2f", marginBottom: "16px" }}>
+          {error.includes("404") 
+            ? "Report not found. The inspection data may have expired or was not saved correctly." 
+            : `Error: ${error}`}
+        </p>
+        <p style={{ color: "#666", fontSize: "14px", marginBottom: "16px" }}>
+          Inspection ID: <code>{inspectionId}</code>
+        </p>
+        <button onClick={onBack} className="btn-secondary">Back to Home</button>
+      </div>
+    );
+  }
   if (!data) return null;
 
   return (
