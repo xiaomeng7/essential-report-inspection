@@ -138,71 +138,112 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     if (!reportRef.current) return;
 
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#f5f7fb" // Match the template background
-      });
-
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // Calculate dimensions
-      // html2canvas uses device pixels, we need to convert to mm
-      // Assuming scale 2 means 2x device pixels, and 96 DPI base
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
+      // Find all sections in the report
+      const sections = reportRef.current.querySelectorAll("section.section, header.cover, footer.footer");
       
-      // Convert pixels to mm (at scale 2, 1px = 0.264583mm at 96 DPI)
-      const imgWidthMM = imgWidth * 0.264583;
-      const imgHeightMM = imgHeight * 0.264583;
-      
-      // Scale to fit page width
-      const widthRatio = pdfWidth / imgWidthMM;
-      const scaledWidth = pdfWidth;
-      const scaledHeight = imgHeightMM * widthRatio;
-      
-      // Calculate number of pages needed
-      const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
-      
-      // Add image to PDF with proper pagination
-      let sourceY = 0;
-      for (let page = 0; page < pagesNeeded; page++) {
-        if (page > 0) {
-          pdf.addPage();
-        }
+      if (sections.length === 0) {
+        // Fallback: convert entire content as before
+        const canvas = await html2canvas(reportRef.current, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#f5f7fb"
+        });
         
-        // Calculate how much of the image fits on this page
-        const remainingHeight = imgHeight - sourceY;
-        const pageHeightPx = Math.min(
-          remainingHeight,
-          pdfHeight / widthRatio / 0.264583 // Convert back to pixels
-        );
+        const imgData = canvas.toDataURL("image/png");
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const imgWidthMM = imgWidth * 0.264583;
+        const imgHeightMM = imgHeight * 0.264583;
+        const widthRatio = pdfWidth / imgWidthMM;
+        const scaledWidth = pdfWidth;
+        const scaledHeight = imgHeightMM * widthRatio;
+        const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
         
-        // Create a canvas for this page
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = imgWidth;
-        pageCanvas.height = pageHeightPx;
-        const pageCtx = pageCanvas.getContext("2d");
-        
-        if (pageCtx) {
-          // Draw the portion of the image for this page
-          pageCtx.drawImage(
-            canvas,
-            0, sourceY, imgWidth, pageHeightPx,
-            0, 0, imgWidth, pageHeightPx
-          );
+        let sourceY = 0;
+        for (let page = 0; page < pagesNeeded; page++) {
+          if (page > 0) pdf.addPage();
           
-          const pageImgData = pageCanvas.toDataURL("image/png");
-          const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
+          const remainingHeight = imgHeight - sourceY;
+          const pageHeightPx = Math.min(remainingHeight, pdfHeight / widthRatio / 0.264583);
           
-          // Add to PDF
-          pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = imgWidth;
+          pageCanvas.height = pageHeightPx;
+          const pageCtx = pageCanvas.getContext("2d");
+          
+          if (pageCtx) {
+            pageCtx.drawImage(canvas, 0, sourceY, imgWidth, pageHeightPx, 0, 0, imgWidth, pageHeightPx);
+            const pageImgData = pageCanvas.toDataURL("image/png");
+            const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
+            pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
+          }
+          
+          sourceY += pageHeightPx;
         }
-        
-        sourceY += pageHeightPx;
+      } else {
+        // Process each section separately
+        for (let i = 0; i < sections.length; i++) {
+          const section = sections[i] as HTMLElement;
+          
+          // Convert section to canvas
+          const sectionCanvas = await html2canvas(section, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: "#f5f7fb",
+            windowWidth: section.scrollWidth,
+            windowHeight: section.scrollHeight
+          });
+          
+          const imgData = sectionCanvas.toDataURL("image/png");
+          const imgWidth = sectionCanvas.width;
+          const imgHeight = sectionCanvas.height;
+          
+          // Convert to mm
+          const imgWidthMM = imgWidth * 0.264583;
+          const imgHeightMM = imgHeight * 0.264583;
+          
+          // Scale to fit page width
+          const widthRatio = pdfWidth / imgWidthMM;
+          const scaledWidth = pdfWidth;
+          const scaledHeight = imgHeightMM * widthRatio;
+          
+          // If section fits on one page, add it directly
+          if (scaledHeight <= pdfHeight) {
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, 0, scaledWidth, scaledHeight);
+          } else {
+            // Section is too tall, split it across multiple pages
+            const pagesNeeded = Math.ceil(scaledHeight / pdfHeight);
+            let sourceY = 0;
+            
+            for (let page = 0; page < pagesNeeded; page++) {
+              if (i > 0 || page > 0) pdf.addPage();
+              
+              const remainingHeight = imgHeight - sourceY;
+              const pageHeightPx = Math.min(remainingHeight, pdfHeight / widthRatio / 0.264583);
+              
+              const pageCanvas = document.createElement("canvas");
+              pageCanvas.width = imgWidth;
+              pageCanvas.height = pageHeightPx;
+              const pageCtx = pageCanvas.getContext("2d");
+              
+              if (pageCtx) {
+                pageCtx.drawImage(sectionCanvas, 0, sourceY, imgWidth, pageHeightPx, 0, 0, imgWidth, pageHeightPx);
+                const pageImgData = pageCanvas.toDataURL("image/png");
+                const pageHeightMM = pageHeightPx * 0.264583 * widthRatio;
+                pdf.addImage(pageImgData, "PNG", 0, 0, scaledWidth, pageHeightMM);
+              }
+              
+              sourceY += pageHeightPx;
+            }
+          }
+        }
       }
 
       const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
