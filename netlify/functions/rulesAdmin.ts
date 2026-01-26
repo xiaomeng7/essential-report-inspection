@@ -125,7 +125,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
   }
 
-  if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
+  // 保存规则（写入 rules.yml）：仅处理非 /github-update 的 POST/PUT
+  const isGitHubUpdate = pathRaw.endsWith("/github-update") || pathRaw.includes("/github-update");
+  if ((event.httpMethod === "POST" || event.httpMethod === "PUT") && !isGitHubUpdate) {
     try {
       const body = JSON.parse(event.body ?? "{}");
       const { yaml: yamlContent } = body;
