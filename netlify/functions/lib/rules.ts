@@ -188,7 +188,19 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
       for (const [k, v] of Object.entries(o)) {
         const path = prefix ? `${prefix}.${k}` : k;
         if (typeof v === "object" && v !== null && "value" in (v as object)) {
-          setAtPath(out, path, (v as { value: unknown }).value);
+          // This is an Answer object, extract the value
+          const answerValue = (v as { value: unknown }).value;
+          // If the value itself is an Answer object (nested), recursively extract
+          if (typeof answerValue === "object" && answerValue !== null && "value" in (answerValue as object)) {
+            // Recursively extract nested Answer objects
+            let currentValue: unknown = answerValue;
+            while (typeof currentValue === "object" && currentValue !== null && "value" in (currentValue as object)) {
+              currentValue = (currentValue as { value: unknown }).value;
+            }
+            setAtPath(out, path, currentValue);
+          } else {
+            setAtPath(out, path, answerValue);
+          }
         } else {
           walk(v, path);
         }

@@ -134,7 +134,8 @@ export function SectionForm({
       <h2>{section.title}</h2>
       {visibleFields.map((f) => {
         const answer = getAnswer(f.key);
-        const value = answer ?? getValue(f.key);
+        // Always use getValue to get the actual value, not the Answer object
+        const value = getValue(f.key);
         // Debug: log field value
         if (f.required) {
           console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
@@ -143,7 +144,7 @@ export function SectionForm({
           <FieldRenderer
             key={f.key}
             field={f}
-            value={value}
+            value={answer ?? value}
             onChange={setAnswer}
             error={errors[f.key]}
             isGate={gateKeys.has(f.key)}

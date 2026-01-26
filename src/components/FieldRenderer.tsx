@@ -21,18 +21,19 @@ function normalizeVal(v: unknown, type: string): string | number | boolean | str
     if (type === "integer" || type === "number") return "";
     return "";
   }
-  if (typeof v === "object" && "value" in (v as object)) {
-    const answerValue = (v as Answer).value;
-    // If the answer value is null/undefined, normalize it based on type
-    if (answerValue == null) {
-      if (type === "boolean") return false;
-      if (type === "array_enum") return [];
-      if (type === "integer" || type === "number") return "";
-      return "";
-    }
-    return answerValue as string | number | boolean | string[];
+  // Recursively extract value from nested Answer objects
+  let currentValue: unknown = v;
+  while (typeof currentValue === "object" && currentValue !== null && "value" in (currentValue as object)) {
+    currentValue = (currentValue as Answer).value;
   }
-  return v as string | number | boolean | string[];
+  // If the final value is null/undefined, normalize it based on type
+  if (currentValue == null) {
+    if (type === "boolean") return false;
+    if (type === "array_enum") return [];
+    if (type === "integer" || type === "number") return "";
+    return "";
+  }
+  return currentValue as string | number | boolean | string[];
 }
 
 export function FieldRenderer({ field, value, onChange, error, isGate, onGateChange }: Props) {

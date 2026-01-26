@@ -52,20 +52,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Inspection saved successfully");
     
     // Extract address and technician name for email
-    const address = (raw.job as Record<string, unknown>)?.address as 
-      | { value: string; status: string } 
-      | string 
-      | undefined;
-    const addressValue = address && typeof address === "object" && "value" in address
-      ? address.value as string
-      : typeof address === "string" ? address : undefined;
+    // Helper function to extract value from Answer object (handles nested Answer objects)
+    const extractValue = (v: unknown): unknown => {
+      if (v == null) return undefined;
+      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
+      if (typeof v === "object" && "value" in (v as object)) {
+        const answerValue = (v as { value: unknown }).value;
+        // If the value itself is an Answer object (nested), recursively extract
+        if (typeof answerValue === "object" && answerValue !== null && "value" in (answerValue as object)) {
+          return extractValue(answerValue);
+        }
+        return answerValue;
+      }
+      return undefined;
+    };
     
-    const technicianName = (raw.signoff as Record<string, unknown>)?.technician_name as 
-      | { value: string; status: string } 
-      | undefined;
-    const technicianNameValue = technicianName && typeof technicianName === "object" && "value" in technicianName
-      ? technicianName.value as string
-      : undefined;
+    const address = (raw.job as Record<string, unknown>)?.address;
+    const addressValue = extractValue(address) as string | undefined;
+    
+    const technicianName = (raw.signoff as Record<string, unknown>)?.technician_name;
+    const technicianNameValue = extractValue(technicianName) as string | undefined;
     
     // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
     const reviewUrl = `${process.env.URL || "https://inspeti.netlify.app"}/review/${inspection_id}`;
