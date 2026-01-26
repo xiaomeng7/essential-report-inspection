@@ -372,11 +372,21 @@ const DEFAULT_REPORT_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 function loadReportTemplate(): string {
+  // Get __dirname for ES modules
+  let libDir: string;
+  try {
+    const currentFileUrl = import.meta.url;
+    libDir = path.dirname(fileURLToPath(currentFileUrl));
+  } catch (e) {
+    console.warn("Could not determine __dirname, using process.cwd():", e);
+    libDir = process.cwd();
+  }
+  
   const possiblePaths = [
     // Netlify Functions bundled path (most likely in production)
-    path.join(__dirname, "report-template.html"),
-    // Netlify Functions directory
-    path.join(__dirname, "..", "report-template.html"),
+    path.join(libDir, "report-template.html"),
+    // Netlify Functions directory (one level up from lib)
+    path.join(libDir, "..", "report-template.html"),
     // Netlify deployment path
     path.join(process.cwd(), "netlify", "functions", "report-template.html"),
     // Local development path
@@ -386,11 +396,17 @@ function loadReportTemplate(): string {
   ];
   
   console.log("Loading report template...");
-  console.log("__dirname:", __dirname);
+  console.log("libDir:", libDir);
   console.log("process.cwd():", process.cwd());
   
   for (const templatePath of possiblePaths) {
     try {
+      // Skip if path is invalid
+      if (!templatePath || templatePath.includes("undefined")) {
+        console.log("Skipping invalid path:", templatePath);
+        continue;
+      }
+      
       console.log("Trying to load template from:", templatePath);
       if (fs.existsSync(templatePath)) {
         const content = fs.readFileSync(templatePath, "utf-8");
@@ -417,7 +433,7 @@ function loadReportTemplate(): string {
   console.error("❌ Could not load report template from any path, using default template");
   console.error("Tried paths:", possiblePaths);
   console.error("Current working directory:", process.cwd());
-  console.error("__dirname:", __dirname);
+  console.error("libDir:", libDir);
   console.warn("⚠️ Using DEFAULT_REPORT_TEMPLATE (this is a simple fallback, not the full template!)");
   return DEFAULT_REPORT_TEMPLATE;
 }
