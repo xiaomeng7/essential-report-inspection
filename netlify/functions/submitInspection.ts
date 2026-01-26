@@ -1,12 +1,16 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { save } from "./lib/store";
+import { save, getNextInspectionNumber } from "./lib/store";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
 
-function genId(): string {
-  const y = new Date().getFullYear();
-  const n = Math.floor(1000 + Math.random() * 9000);
-  return `EH-${y}-${n}`;
+async function genId(event: HandlerEvent): Promise<string> {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0"); // 01-12
+  const number = await getNextInspectionNumber(event);
+  // Ensure number is between 1-999, then pad to 3 digits
+  const numberStr = String(Math.min(Math.max(number, 1), 999)).padStart(3, "0"); // 001-999
+  return `EH-${year}-${month}-${numberStr}`;
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
@@ -22,7 +26,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
   try {
     console.log("Starting inspection processing...");
-    const inspection_id = genId();
+    const inspection_id = await genId(event);
     console.log("Generated inspection_id:", inspection_id);
     
     console.log("Flattening facts...");

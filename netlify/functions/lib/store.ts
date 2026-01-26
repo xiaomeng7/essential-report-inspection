@@ -67,3 +67,41 @@ export async function get(id: string, event?: HandlerEvent): Promise<StoredInspe
   
   return undefined;
 }
+
+// Get and increment the inspection counter atomically
+export async function getNextInspectionNumber(event?: HandlerEvent): Promise<number> {
+  const COUNTER_KEY = "inspection_counter";
+  
+  try {
+    const store = getInspectionStore(event);
+    
+    // Try to get current counter
+    const currentData = await store.get(COUNTER_KEY, { type: "text" });
+    let currentNumber = 1; // Start from 1 if not found
+    
+    if (currentData) {
+      const parsed = JSON.parse(currentData) as { counter: number };
+      currentNumber = parsed.counter || 1;
+    }
+    
+    // Increment counter (wrap around at 999, reset to 1)
+    const nextNumber = currentNumber >= 999 ? 1 : currentNumber + 1;
+    
+    // Save updated counter
+    await store.set(COUNTER_KEY, JSON.stringify({ counter: nextNumber }), {
+      metadata: {
+        last_updated: new Date().toISOString(),
+      },
+    });
+    
+    console.log(`Inspection counter: ${currentNumber} -> ${nextNumber}`);
+    // Ensure we return a number between 1-999
+    return Math.min(Math.max(nextNumber, 1), 999);
+  } catch (e) {
+    console.error("Failed to get/increment inspection counter:", e);
+    // Fallback: use timestamp-based number if Blobs fails
+    const fallback = Math.floor(Date.now() % 999) + 1;
+    console.warn(`Using fallback counter: ${fallback}`);
+    return fallback;
+  }
+}
