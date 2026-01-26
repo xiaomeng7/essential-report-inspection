@@ -1,6 +1,5 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
+import { connectLambda, getStore } from "@netlify/blobs";
+import type { HandlerEvent } from "@netlify/functions";
 
 export type StoredInspection = {
   inspection_id: string;
@@ -10,59 +9,60 @@ export type StoredInspection = {
   limitations: string[];
 };
 
-// Use /tmp directory for persistent storage (writable in Netlify Functions)
-const STORE_DIR = path.join(os.tmpdir(), "inspection-store");
-
-// Ensure store directory exists
-function ensureStoreDir(): void {
-  try {
-    if (!fs.existsSync(STORE_DIR)) {
-      fs.mkdirSync(STORE_DIR, { recursive: true });
-    }
-  } catch (e) {
-    console.error("Failed to create store directory:", e);
+// Get Netlify Blobs store instance
+// Note: connectLambda must be called in the handler before using getStore
+function getInspectionStore(event?: HandlerEvent) {
+  if (event) {
+    connectLambda(event);
   }
-}
-
-function getFilePath(id: string): string {
-  // Sanitize ID to be filesystem-safe
-  const safeId = id.replace(/[^a-zA-Z0-9-_]/g, "_");
-  return path.join(STORE_DIR, `${safeId}.json`);
+  return getStore({
+    name: "inspections",
+    consistency: "strong", // Ensure strong consistency for reads
+  });
 }
 
 // In-memory cache for faster access (optional optimization)
 const cache = new Map<string, StoredInspection>();
 
-export function save(id: string, data: StoredInspection): void {
+export async function save(id: string, data: StoredInspection, event?: HandlerEvent): Promise<void> {
   try {
-    ensureStoreDir();
-    const filePath = getFilePath(id);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-    cache.set(id, data);
-    console.log(`Saved inspection ${id} to ${filePath}`);
+    const store = getInspectionStore(event);
+    const jsonData = JSON.stringify(data);
+    await store.set(id, jsonData, {
+      metadata: {
+        inspection_id: id,
+        created_at: new Date().toISOString(),
+      },
+    });
+    cache.set(id, data); // Update cache
+    console.log(`Saved inspection ${id} to Netlify Blobs`);
   } catch (e) {
-    console.error(`Failed to save inspection ${id}:`, e);
-    // Fallback to in-memory cache if file write fails
+    console.error(`Failed to save inspection ${id} to Blobs:`, e);
+    // Fallback to in-memory cache if Blobs fails
     cache.set(id, data);
+    throw e; // Re-throw to allow caller to handle
   }
 }
 
-export function get(id: string): StoredInspection | undefined {
+export async function get(id: string, event?: HandlerEvent): Promise<StoredInspection | undefined> {
   // Check cache first
   if (cache.has(id)) {
+    console.log(`Retrieved inspection ${id} from cache`);
     return cache.get(id);
   }
   
   try {
-    const filePath = getFilePath(id);
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, "utf8");
-      const data = JSON.parse(content) as StoredInspection;
-      cache.set(id, data); // Cache for next time
-      return data;
+    const store = getInspectionStore(event);
+    const data = await store.get(id, { type: "text" });
+    
+    if (data) {
+      const parsed = JSON.parse(data) as StoredInspection;
+      cache.set(id, parsed); // Cache for next time
+      console.log(`Retrieved inspection ${id} from Netlify Blobs`);
+      return parsed;
     }
   } catch (e) {
-    console.error(`Failed to read inspection ${id}:`, e);
+    console.error(`Failed to read inspection ${id} from Blobs:`, e);
   }
   
   return undefined;

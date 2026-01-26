@@ -23,7 +23,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   }
   
-  const data = get(inspection_id);
+  const data = await get(inspection_id, event);
   console.log("Retrieved data for", inspection_id, ":", data ? "found" : "not found");
   
   if (!data) {

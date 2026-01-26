@@ -42,13 +42,13 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Report HTML built, length:", report_html.length);
     
     console.log("Saving inspection...");
-    save(inspection_id, {
+    await save(inspection_id, {
       inspection_id,
       raw,
       report_html,
       findings,
       limitations,
-    });
+    }, event);
     console.log("Inspection saved successfully");
     
     // Extract address and technician name for email

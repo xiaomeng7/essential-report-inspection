@@ -11,13 +11,13 @@
     "netlify:dev": "netlify dev"
   },
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "js-yaml": "^4.1.0",
     "resend": "^4.0.0"
   },
   "devDependencies": {
-    "@netlify/blobs": "^6.0.0",
+    "@netlify/blobs": "^6.5.0",
     "@netlify/functions": "^2.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
