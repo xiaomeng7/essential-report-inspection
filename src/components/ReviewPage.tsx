@@ -169,8 +169,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
-  const displayHtml = useMemo(() => enhancedHtml || data.report_html, [enhancedHtml, data.report_html]);
-  const isEnhanced = useMemo(() => enhancedHtml !== null, [enhancedHtml]);
+  const displayHtml = enhancedHtml || data.report_html;
+  const isEnhanced = enhancedHtml !== null;
 
   return (
     <div className="review-page">
