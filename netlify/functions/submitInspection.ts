@@ -42,7 +42,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Limitations collected, count:", limitations.length);
     
     console.log("Building report HTML...");
-    const report_html = buildReportHtml(findings, limitations, inspection_id);
+    const report_html = buildReportHtml(findings, limitations, inspection_id, raw);
     console.log("Report HTML built, length:", report_html.length);
     
     console.log("Saving inspection...");

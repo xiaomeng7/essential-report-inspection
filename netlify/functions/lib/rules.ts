@@ -385,10 +385,25 @@ function loadReportTemplate(): string {
   return DEFAULT_REPORT_TEMPLATE;
 }
 
+// Helper to extract value from Answer object
+function extractValue(v: unknown): unknown {
+  if (v == null) return undefined;
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
+  if (typeof v === "object" && "value" in (v as object)) {
+    const answerValue = (v as { value: unknown }).value;
+    if (typeof answerValue === "object" && answerValue !== null && "value" in (answerValue as object)) {
+      return extractValue(answerValue);
+    }
+    return answerValue;
+  }
+  return undefined;
+}
+
 export function buildReportHtml(
   findings: Array<{ id: string; priority: string; title?: string }>,
   limitations: string[],
-  inspectionId?: string
+  inspectionId?: string,
+  raw?: Record<string, unknown>
 ): string {
   const imm = findings.filter((f) => f.priority === "IMMEDIATE");
   const rec = findings.filter((f) => f.priority === "RECOMMENDED_0_3_MONTHS");
@@ -398,39 +413,121 @@ export function buildReportHtml(
   const template = loadReportTemplate();
 
   // Build findings HTML
-  const buildFindingsHtml = (items: Array<{ id: string; priority: string; title?: string }>, priorityClass: string) => {
+  const buildFindingsHtml = (items: Array<{ id: string; priority: string; title?: string }>) => {
     if (items.length === 0) {
       return '<li style="color: #999; font-style: italic;">None</li>';
     }
-    return items.map((f) => 
-      `<li class="priority-${f.priority}">${f.title ?? f.id.replace(/_/g, " ")}</li>`
-    ).join("");
+    return items.map((f) => {
+      const displayText = f.title ?? f.id.replace(/_/g, " ");
+      return `<li>${displayText}</li>`;
+    }).join("");
   };
 
-  const immediateHtml = buildFindingsHtml(imm, "IMMEDIATE");
-  const recommendedHtml = buildFindingsHtml(rec, "RECOMMENDED_0_3_MONTHS");
-  const planHtml = buildFindingsHtml(plan, "PLAN_MONITOR");
+  const immediateHtml = buildFindingsHtml(imm);
+  const recommendedHtml = buildFindingsHtml(rec);
+  const planHtml = buildFindingsHtml(plan);
 
-  // Build limitations section
-  let limitationsHtml = "";
-  if (limitations.length > 0) {
-    limitationsHtml = `
-      <div class="section" style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 30px;">
-        <h2 style="color: #856404; border-bottom: none; margin-top: 0;">Limitations</h2>
-        <ul>
-          ${limitations.map((s) => `<li style="list-style: disc; margin-left: 20px;">${s}</li>`).join("")}
-        </ul>
-      </div>
-    `;
+  // Extract data from raw for template placeholders
+  const now = new Date();
+  const assessmentDate = raw?.created_at 
+    ? new Date(raw.created_at as string).toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" })
+    : now.toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" });
+
+  const jobData = raw?.job as Record<string, unknown> | undefined;
+  const signoffData = raw?.signoff as Record<string, unknown> | undefined;
+  
+  const preparedFor = extractValue(jobData?.address) as string || "Client";
+  const preparedBy = extractValue(signoffData?.technician_name) as string || "Electrical Inspector";
+  const propertyType = extractValue(jobData?.property_type) as string || "Residential Property";
+  const reportVersion = "1.0";
+
+  // Determine overall status and risk rating
+  const hasImmediate = imm.length > 0;
+  const hasRecommended = rec.length > 0;
+  let overallStatusBadge = '<span class="pill green">Low Risk</span>';
+  let riskRatingBadge = "Low";
+  let riskRatingFactors = '<li>No immediate safety concerns identified</li>';
+  
+  if (hasImmediate) {
+    overallStatusBadge = '<span class="pill red">High Risk</span>';
+    riskRatingBadge = "High";
+    riskRatingFactors = `<li>${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} requiring urgent attention</li>`;
+  } else if (hasRecommended) {
+    overallStatusBadge = '<span class="pill amber">Moderate Risk</span>';
+    riskRatingBadge = "Moderate";
+    riskRatingFactors = `<li>${rec.length} item${rec.length > 1 ? "s" : ""} requiring monitoring or planned attention</li>`;
   }
 
-  // Replace placeholders
+  // Executive summary paragraph
+  let executiveSummaryParagraph = "The electrical installation presents a generally acceptable condition with no immediate safety concerns.";
+  if (hasImmediate) {
+    executiveSummaryParagraph = `This assessment identified ${imm.length} immediate safety concern${imm.length > 1 ? "s" : ""} that require${imm.length === 1 ? "s" : ""} urgent attention. These items should be addressed promptly to ensure safe operation.`;
+  } else if (hasRecommended) {
+    executiveSummaryParagraph = `The electrical installation is in acceptable condition with ${rec.length} item${rec.length > 1 ? "s" : ""} identified for monitoring or planned attention within the next 0-3 months.`;
+  }
+
+  // Build limitations section HTML
+  let limitationsHtml = "";
+  if (limitations.length > 0) {
+    limitationsHtml = limitations.map((s) => `<li>${s}</li>`).join("");
+  } else {
+    limitationsHtml = '<li>No specific limitations beyond standard non-invasive assessment scope.</li>';
+  }
+
+  // Priority descriptions
+  const priorityImmediateDesc = hasImmediate 
+    ? `${imm.length} item${imm.length > 1 ? "s" : ""} requiring urgent attention`
+    : "None identified";
+  const priorityImmediateInterp = hasImmediate
+    ? "Address promptly to ensure safe operation"
+    : "No immediate action required";
+  
+  const priorityRecommendedDesc = hasRecommended
+    ? `${rec.length} item${rec.length > 1 ? "s" : ""} for monitoring or planned attention`
+    : "None identified";
+  const priorityRecommendedInterp = hasRecommended
+    ? "Plan for attention within 0-3 months"
+    : "No planned action required";
+  
+  const priorityPlanDesc = plan.length > 0
+    ? `${plan.length} item${plan.length > 1 ? "s" : ""} not requiring action`
+    : "None identified";
+  const priorityPlanInterp = "Acceptable condition, monitor as part of routine maintenance";
+
+  // General observations
+  const generalObservationsNotes = "Observations are based on accessible and visible components only. Concealed wiring and inaccessible areas are excluded from this assessment.";
+
+  // Test results summary (placeholder - can be enhanced with actual test data)
+  const testResultsSummary = "<p class=\"muted\">Test results summary will be populated based on inspection data.</p>";
+
+  // Capital planning table (placeholder)
+  const capitalPlanningTable = "<p class=\"muted\">Capital planning information will be populated based on inspection findings.</p>";
+
+  // Replace all placeholders
   let html = template
-    .replace("{{INSPECTION_ID}}", inspectionId || "N/A")
-    .replace("{{IMMEDIATE_FINDINGS}}", immediateHtml)
-    .replace("{{RECOMMENDED_FINDINGS}}", recommendedHtml)
-    .replace("{{PLAN_MONITOR_FINDINGS}}", planHtml)
-    .replace("{{LIMITATIONS_SECTION}}", limitationsHtml);
+    .replace(/\{\{INSPECTION_ID\}\}/g, inspectionId || "N/A")
+    .replace(/\{\{ASSESSMENT_DATE\}\}/g, assessmentDate)
+    .replace(/\{\{PREPARED_FOR\}\}/g, preparedFor)
+    .replace(/\{\{PREPARED_BY\}\}/g, preparedBy)
+    .replace(/\{\{PROPERTY_TYPE\}\}/g, propertyType)
+    .replace(/\{\{REPORT_VERSION\}\}/g, reportVersion)
+    .replace(/\{\{OVERALL_STATUS_BADGE\}\}/g, overallStatusBadge)
+    .replace(/\{\{EXECUTIVE_SUMMARY_PARAGRAPH\}\}/g, executiveSummaryParagraph)
+    .replace(/\{\{PRIORITY_IMMEDIATE_DESC\}\}/g, priorityImmediateDesc)
+    .replace(/\{\{PRIORITY_IMMEDIATE_INTERP\}\}/g, priorityImmediateInterp)
+    .replace(/\{\{PRIORITY_RECOMMENDED_DESC\}\}/g, priorityRecommendedDesc)
+    .replace(/\{\{PRIORITY_RECOMMENDED_INTERP\}\}/g, priorityRecommendedInterp)
+    .replace(/\{\{PRIORITY_PLAN_DESC\}\}/g, priorityPlanDesc)
+    .replace(/\{\{PRIORITY_PLAN_INTERP\}\}/g, priorityPlanInterp)
+    .replace(/\{\{RISK_RATING_BADGE\}\}/g, riskRatingBadge)
+    .replace(/\{\{RISK_RATING_FACTORS\}\}/g, riskRatingFactors)
+    .replace(/\{\{IMMEDIATE_FINDINGS\}\}/g, immediateHtml)
+    .replace(/\{\{RECOMMENDED_FINDINGS\}\}/g, recommendedHtml)
+    .replace(/\{\{PLAN_MONITOR_FINDINGS\}\}/g, planHtml)
+    .replace(/\{\{LIMITATIONS_SECTION\}\}/g, limitationsHtml)
+    .replace(/\{\{GENERAL_OBSERVATIONS_NOTES\}\}/g, generalObservationsNotes)
+    .replace(/\{\{TEST_RESULTS_SUMMARY\}\}/g, testResultsSummary)
+    .replace(/\{\{CAPITAL_PLANNING_TABLE\}\}/g, capitalPlanningTable);
 
   return html;
 }

@@ -27,10 +27,14 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // Check for OpenAI API key
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
+      console.error("OpenAI API key not configured. Please set OPENAI_API_KEY in Netlify environment variables.");
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "OpenAI API key not configured" })
+        body: JSON.stringify({ 
+          error: "OpenAI API key not configured",
+          message: "Please configure OPENAI_API_KEY in Netlify environment variables. Go to Site settings > Environment variables and add your OpenAI API key."
+        })
       };
     }
 
