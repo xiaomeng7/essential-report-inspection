@@ -136,28 +136,181 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         };
       }
       const rulesPath = findRulesPath();
-      if (fs.existsSync(rulesPath)) {
-        const backupPath = `${rulesPath}.backup.${Date.now()}`;
-        fs.copyFileSync(rulesPath, backupPath);
-      }
-      fs.writeFileSync(rulesPath, yamlContent, "utf8");
+      
+      // 尝试写入文件（Netlify Functions 文件系统可能是只读的）
       try {
-        const { clearRulesCache } = await import("./lib/rules");
-        clearRulesCache();
-      } catch {
-        /* ignore */
+        if (fs.existsSync(rulesPath)) {
+          try {
+            const backupPath = `${rulesPath}.backup.${Date.now()}`;
+            fs.copyFileSync(rulesPath, backupPath);
+          } catch {
+            // 备份失败不影响主流程
+          }
+        }
+        fs.writeFileSync(rulesPath, yamlContent, "utf8");
+        
+        // 清除缓存
+        try {
+          const { clearRulesCache } = await import("./lib/rules");
+          clearRulesCache();
+        } catch {
+          /* ignore */
+        }
+        
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ success: true, message: "Rules updated successfully" }),
+        };
+      } catch (writeError: any) {
+        // 文件系统只读错误（Netlify Functions 环境）
+        if (writeError.code === "EROFS" || writeError.message?.includes("read-only")) {
+          // 返回更新后的 YAML，让用户手动更新到 Git 或使用 GitHub API
+          return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              success: true,
+              message: "Rules validated successfully. File system is read-only in Netlify Functions.",
+              yaml: yamlContent,
+              requiresManualUpdate: true,
+              canUseGitHubAPI: true,
+              instructions: [
+                "1. 复制下面的 YAML 内容",
+                "2. 在本地 Git 仓库中更新 rules.yml 文件",
+                "3. 提交并推送到 Git",
+                "4. Netlify 会自动重新部署并应用新规则",
+                "",
+                "或者使用 GitHub API 直接更新（需要 GitHub Token）"
+              ],
+            }),
+          };
+        }
+        // 其他错误继续抛出
+        throw writeError;
       }
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ success: true, message: "Rules updated successfully" }),
-      };
     } catch (e) {
       console.error("Error saving rules:", e);
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ error: "Failed to save rules", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
+
+  // GitHub API 更新端点
+  if (event.httpMethod === "POST" && (pathRaw.endsWith("/github-update") || pathRaw.includes("/github-update"))) {
+    try {
+      const body = JSON.parse(event.body ?? "{}");
+      const { yaml: yamlContent, githubToken } = body;
+      
+      if (!yamlContent || typeof yamlContent !== "string") {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing or invalid yaml content" }),
+        };
+      }
+
+      if (!githubToken || typeof githubToken !== "string") {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing GitHub token" }),
+        };
+      }
+
+      // 验证 YAML
+      try {
+        yaml.load(yamlContent);
+      } catch (yamlError) {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Invalid YAML", message: yamlError instanceof Error ? yamlError.message : String(yamlError) }),
+        };
+      }
+
+      // GitHub 仓库信息（从环境变量或默认值）
+      const repoOwner = process.env.GITHUB_REPO_OWNER || "xiaomeng7";
+      const repoName = process.env.GITHUB_REPO_NAME || "essential-report-inspection";
+      const filePath = "rules.yml";
+      const branch = "main";
+
+      // 1. 获取文件的当前 SHA
+      const getFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`;
+      const getFileRes = await fetch(getFileUrl, {
+        headers: {
+          "Authorization": `token ${githubToken}`,
+          "Accept": "application/vnd.github.v3+json",
+        },
+      });
+
+      let sha: string | undefined;
+      if (getFileRes.ok) {
+        const fileData = await getFileRes.json() as { sha: string };
+        sha = fileData.sha;
+      } else if (getFileRes.status !== 404) {
+        const errorData = await getFileRes.json() as { message?: string };
+        throw new Error(`Failed to get file: ${errorData.message || getFileRes.statusText}`);
+      }
+
+      // 2. 更新文件
+      const updateFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+      const contentBase64 = Buffer.from(yamlContent, "utf8").toString("base64");
+      
+      const updatePayload = {
+        message: `Update rules.yml via admin panel - ${new Date().toISOString()}`,
+        content: contentBase64,
+        branch: branch,
+        ...(sha ? { sha } : {}),
+      };
+
+      const updateRes = await fetch(updateFileUrl, {
+        method: "PUT",
+        headers: {
+          "Authorization": `token ${githubToken}`,
+          "Accept": "application/vnd.github.v3+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!updateRes.ok) {
+        const errorData = await updateRes.json() as { message?: string };
+        throw new Error(`Failed to update file on GitHub: ${errorData.message || updateRes.statusText}`);
+      }
+
+      const updateResult = await updateRes.json() as { commit: { sha: string } };
+
+      // 清除缓存
+      try {
+        const { clearRulesCache } = await import("./lib/rules");
+        clearRulesCache();
+      } catch {
+        /* ignore */
+      }
+
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          success: true,
+          message: "Rules updated successfully on GitHub! Netlify will auto-deploy.",
+          commitSha: updateResult.commit.sha,
+          repoUrl: `https://github.com/${repoOwner}/${repoName}`,
+        }),
+      };
+    } catch (e) {
+      console.error("Error updating via GitHub API:", e);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Failed to update via GitHub API",
+          message: e instanceof Error ? e.message : String(e),
+        }),
       };
     }
   }

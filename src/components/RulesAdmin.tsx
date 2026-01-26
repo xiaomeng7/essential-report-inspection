@@ -29,6 +29,8 @@ export function RulesAdmin({ onBack }: Props) {
   const [isAuthError, setIsAuthError] = useState(false);
   const [editedFindings, setEditedFindings] = useState<Record<string, FindingValue>>({});
   const [activeTab, setActiveTab] = useState<"visual" | "yaml">("visual");
+  const [githubToken, setGithubToken] = useState("");
+  const [showGithubDialog, setShowGithubDialog] = useState(false);
 
   const loadRules = useCallback(async (token: string) => {
     try {
@@ -114,6 +116,94 @@ export function RulesAdmin({ onBack }: Props) {
         const errorData = (await res.json()) as { error?: string; message?: string };
         throw new Error(errorData.message || errorData.error || `HTTP ${res.status}`);
       }
+
+      const result = (await res.json()) as { 
+        success: boolean; 
+        message?: string; 
+        yaml?: string; 
+        requiresManualUpdate?: boolean;
+        instructions?: string[];
+      };
+
+      // 如果需要手动更新（文件系统只读）
+      if (result.requiresManualUpdate && result.yaml) {
+        // 检查是否有保存的 GitHub token
+        const savedGithubToken = localStorage.getItem("github_token") || "";
+        if (savedGithubToken) {
+          // 尝试使用 GitHub API 直接更新
+          try {
+            const githubRes = await fetch("/api/rulesAdmin/github-update", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                yaml: result.yaml,
+                githubToken: savedGithubToken,
+              }),
+            });
+
+            if (githubRes.ok) {
+              const githubResult = (await githubRes.json()) as { success: boolean; message?: string; commitSha?: string; repoUrl?: string };
+              alert(`✅ 成功！\n\n${githubResult.message}\n\nNetlify 将自动重新部署。`);
+              setSuccess(true);
+              setTimeout(() => setSuccess(false), 5000);
+              // 重新加载规则
+              await loadRules(authToken);
+              return;
+            } else {
+              const errorData = (await githubRes.json()) as { error?: string; message?: string };
+              // Token 可能失效，清除并提示重新输入
+              if (errorData.message?.includes("Bad credentials") || errorData.message?.includes("401")) {
+                localStorage.removeItem("github_token");
+                setGithubToken("");
+                setShowGithubDialog(true);
+                return;
+              }
+              throw new Error(errorData.message || errorData.error || "GitHub API 更新失败");
+            }
+          } catch (githubError) {
+            // GitHub API 失败，回退到手动复制
+            console.error("GitHub API error:", githubError);
+          }
+        }
+
+        // 没有 GitHub token 或 API 失败，显示对话框
+        const useGithub = window.confirm(
+          "文件系统只读，无法直接保存。\n\n" +
+          "选择更新方式：\n" +
+          "• 点击「确定」使用 GitHub API 直接更新（需要 GitHub Token）\n" +
+          "• 点击「取消」手动复制 YAML 内容"
+        );
+        
+        if (useGithub) {
+          setShowGithubDialog(true);
+          return;
+        }
+
+        // 手动复制
+        const shouldCopy = window.confirm(
+          "请复制更新后的 YAML 内容，然后：\n" +
+          "1. 在本地 Git 仓库中更新 rules.yml\n" +
+          "2. 提交并推送到 Git\n" +
+          "3. Netlify 会自动重新部署\n\n" +
+          "点击「确定」复制 YAML 内容到剪贴板"
+        );
+        
+        if (shouldCopy) {
+          try {
+            await navigator.clipboard.writeText(result.yaml);
+            alert("YAML 内容已复制到剪贴板！\n\n请更新本地 Git 仓库中的 rules.yml 文件。");
+          } catch {
+            setError(`无法自动复制。请手动复制以下 YAML 内容：\n\n${result.yaml}`);
+          }
+        }
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 5000);
+        return;
+      }
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       // Reload rules to get updated version
@@ -156,6 +246,52 @@ export function RulesAdmin({ onBack }: Props) {
         [field]: value,
       },
     }));
+  };
+
+  // 使用 GitHub API 更新
+  const handleGithubUpdate = async (yamlToUpdate: string, token: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(false);
+
+      const res = await fetch("/api/rulesAdmin/github-update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          yaml: yamlToUpdate,
+          githubToken: token,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = (await res.json()) as { error?: string; message?: string };
+        throw new Error(errorData.message || errorData.error || `HTTP ${res.status}`);
+      }
+
+      const result = (await res.json()) as { success: boolean; message?: string; commitSha?: string; repoUrl?: string };
+      
+      // 保存 token 到 localStorage
+      localStorage.setItem("github_token", token);
+      
+      alert(`✅ 成功！\n\n${result.message}\n\nNetlify 将自动重新部署。`);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 5000);
+      setShowGithubDialog(false);
+      
+      // 重新加载规则
+      await loadRules(authToken);
+    } catch (e) {
+      setError((e as Error).message);
+      if ((e as Error).message.includes("Bad credentials") || (e as Error).message.includes("401")) {
+        localStorage.removeItem("github_token");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   // 将编辑后的 findings 更新到 YAML 并保存
@@ -202,6 +338,65 @@ export function RulesAdmin({ onBack }: Props) {
       if (!res.ok) {
         const errorData = (await res.json()) as { error?: string; message?: string };
         throw new Error(errorData.message || errorData.error || `HTTP ${res.status}`);
+      }
+
+      const result = (await res.json()) as { 
+        success: boolean; 
+        message?: string; 
+        yaml?: string; 
+        requiresManualUpdate?: boolean;
+        instructions?: string[];
+      };
+
+      // 如果需要手动更新（文件系统只读）
+      if (result.requiresManualUpdate && result.yaml) {
+        // 检查是否有保存的 GitHub token
+        const savedGithubToken = localStorage.getItem("github_token") || "";
+        if (savedGithubToken) {
+          // 尝试使用 GitHub API 直接更新
+          try {
+            await handleGithubUpdate(result.yaml, savedGithubToken);
+            return;
+          } catch (githubError) {
+            // GitHub API 失败，清除 token 并提示重新输入
+            localStorage.removeItem("github_token");
+            console.error("GitHub API error:", githubError);
+          }
+        }
+
+        // 没有 GitHub token 或 API 失败，显示对话框
+        const useGithub = window.confirm(
+          "文件系统只读，无法直接保存。\n\n" +
+          "选择更新方式：\n" +
+          "• 点击「确定」使用 GitHub API 直接更新（需要 GitHub Token）\n" +
+          "• 点击「取消」手动复制 YAML 内容"
+        );
+        
+        if (useGithub) {
+          setShowGithubDialog(true);
+          return;
+        }
+
+        // 手动复制
+        const shouldCopy = window.confirm(
+          "请复制更新后的 YAML 内容，然后：\n" +
+          "1. 在本地 Git 仓库中更新 rules.yml\n" +
+          "2. 提交并推送到 Git\n" +
+          "3. Netlify 会自动重新部署\n\n" +
+          "点击「确定」复制 YAML 内容到剪贴板"
+        );
+        
+        if (shouldCopy) {
+          try {
+            await navigator.clipboard.writeText(result.yaml);
+            alert("YAML 内容已复制到剪贴板！\n\n请更新本地 Git 仓库中的 rules.yml 文件。");
+          } catch {
+            setError(`无法自动复制。请手动复制以下 YAML 内容：\n\n${result.yaml}`);
+          }
+        }
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 5000);
+        return;
       }
 
       setSuccess(true);
@@ -296,6 +491,123 @@ export function RulesAdmin({ onBack }: Props) {
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
           <strong>Success:</strong> Rules saved successfully!
+        </div>
+      )}
+
+      {showGithubDialog && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "30px",
+            borderRadius: "8px",
+            maxWidth: "500px",
+            width: "90%",
+            boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+          }}>
+            <h2 style={{ marginTop: 0 }}>使用 GitHub API 更新</h2>
+            <p style={{ color: "#666", marginBottom: "20px" }}>
+              需要 GitHub Personal Access Token 来直接更新 GitHub 仓库。
+            </p>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}>
+                GitHub Personal Access Token
+              </label>
+              <input
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  boxSizing: "border-box",
+                }}
+                autoFocus
+              />
+              <p style={{ fontSize: "12px", color: "#666", marginTop: "8px" }}>
+                如何获取 Token：
+                <br />
+                1. 访问 <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">GitHub Settings → Tokens</a>
+                <br />
+                2. 点击 "Generate new token (classic)"
+                <br />
+                3. 勾选 "repo" 权限
+                <br />
+                4. 生成并复制 Token
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowGithubDialog(false);
+                  setGithubToken("");
+                }}
+                className="btn-secondary"
+                disabled={saving}
+              >
+                取消
+              </button>
+              <button
+                onClick={async () => {
+                  if (!githubToken.trim()) {
+                    setError("请输入 GitHub Token");
+                    return;
+                  }
+                  try {
+                    let yamlToUpdate: string;
+                    
+                    // 如果是从可视化编辑来的，需要转换
+                    if (activeTab === "visual" && rulesData) {
+                      const resConvert = await fetch("/api/rulesAdmin/json-to-yaml", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${authToken}`,
+                        },
+                        body: JSON.stringify({
+                          rules: {
+                            ...rulesData.rules,
+                            findings: editedFindings,
+                          },
+                        }),
+                      });
+                      if (!resConvert.ok) {
+                        setError("无法生成 YAML");
+                        return;
+                      }
+                      const { yaml: updatedYaml } = (await resConvert.json()) as { yaml: string };
+                      yamlToUpdate = updatedYaml;
+                    } else {
+                      // 从 YAML 编辑器来的，直接使用当前内容
+                      yamlToUpdate = yamlContent;
+                    }
+                    
+                    await handleGithubUpdate(yamlToUpdate, githubToken);
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+                className="btn-primary"
+                disabled={saving || !githubToken.trim()}
+              >
+                {saving ? "更新中..." : "更新到 GitHub"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
