@@ -3,6 +3,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 /** Embedded rules.yml – used when file is not found (e.g. Netlify Functions bundle). */
 export const EMBEDDED_RULES_YAML = `
 version: 1.0
@@ -369,34 +373,52 @@ const DEFAULT_REPORT_TEMPLATE = `<!DOCTYPE html>
 
 function loadReportTemplate(): string {
   const possiblePaths = [
+    // Netlify Functions bundled path (most likely in production)
+    path.join(__dirname, "report-template.html"),
+    // Netlify Functions directory
+    path.join(__dirname, "..", "report-template.html"),
     // Netlify deployment path
     path.join(process.cwd(), "netlify", "functions", "report-template.html"),
     // Local development path
     path.join(process.cwd(), "report-template.html"),
-    // Alternative path
-    path.join(__dirname, "..", "report-template.html"),
-    // Another alternative
-    path.join(__dirname, "report-template.html"),
+    // Alternative local path
+    path.join(process.cwd(), "..", "report-template.html"),
   ];
+  
+  console.log("Loading report template...");
+  console.log("__dirname:", __dirname);
+  console.log("process.cwd():", process.cwd());
   
   for (const templatePath of possiblePaths) {
     try {
       console.log("Trying to load template from:", templatePath);
       if (fs.existsSync(templatePath)) {
         const content = fs.readFileSync(templatePath, "utf-8");
-        console.log("Successfully loaded template from:", templatePath, "length:", content.length);
-        return content;
+        console.log("✅ Successfully loaded template from:", templatePath);
+        console.log("Template length:", content.length, "characters");
+        console.log("Template preview (first 200 chars):", content.substring(0, 200));
+        
+        // Verify it's the correct template (not the default)
+        if (content.includes("Electrical Property Health Assessment") && content.length > 10000) {
+          console.log("✅ Template verified: Contains expected content and is full template");
+          return content;
+        } else {
+          console.warn("⚠️ Template loaded but seems incorrect (too short or missing expected content)");
+        }
+      } else {
+        console.log("❌ Template not found at:", templatePath);
       }
     } catch (e) {
-      console.warn(`Failed to load template from ${templatePath}:`, e);
+      console.warn(`❌ Failed to load template from ${templatePath}:`, e);
       continue;
     }
   }
   
-  console.warn("Could not load report template from any path, using default template");
-  console.warn("Tried paths:", possiblePaths);
-  console.warn("Current working directory:", process.cwd());
-  console.warn("__dirname:", __dirname);
+  console.error("❌ Could not load report template from any path, using default template");
+  console.error("Tried paths:", possiblePaths);
+  console.error("Current working directory:", process.cwd());
+  console.error("__dirname:", __dirname);
+  console.warn("⚠️ Using DEFAULT_REPORT_TEMPLATE (this is a simple fallback, not the full template!)");
   return DEFAULT_REPORT_TEMPLATE;
 }
 
