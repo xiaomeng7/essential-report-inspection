@@ -2,6 +2,7 @@ import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";
 import path from "path";
 import { get } from "./lib/store";
+import { buildReportHtml } from "./lib/rules";
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "POST") {
@@ -15,14 +16,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   try {
     console.log("EnhanceReport handler started");
     const body = JSON.parse(event.body || "{}");
-    const { inspection_id, report_html, findings, limitations } = body;
+    const { inspection_id, report_html, findings, limitations, raw_data } = body;
 
     console.log("Request body parsed:", { 
       has_inspection_id: !!inspection_id, 
       has_report_html: !!report_html,
       report_html_length: report_html?.length || 0,
       findings_count: findings?.length || 0,
-      limitations_count: limitations?.length || 0
+      limitations_count: limitations?.length || 0,
+      has_raw_data: !!raw_data
     });
 
     if (!inspection_id || !report_html) {
@@ -33,6 +35,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         body: JSON.stringify({ error: "Missing inspection_id or report_html" })
       };
     }
+
+    // Rebuild the report HTML using the template to ensure it's properly filled
+    // This ensures we have the complete template structure before AI enhancement
+    const templateBasedHtml = buildReportHtml(findings || [], limitations || [], inspection_id, raw_data);
+    console.log("Template-based HTML generated, length:", templateBasedHtml.length);
 
     // Check for OpenAI API key
     const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -101,36 +108,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log(`Template length: ${templateLength}, Using ${templateForPrompt.length} characters for prompt`);
 
-    const templateInstruction = templateToUse
-      ? `\n\nCRITICAL: You MUST strictly follow this exact HTML template structure. Do not change the HTML structure, CSS classes, or layout. Only enhance the text content while preserving all HTML tags, classes, and structure exactly as shown:\n\n${templateForPrompt}`
-      : "";
+    const prompt = `You are a professional electrical inspection report writer. Your task is to enhance the TEXT CONTENT of an existing HTML report while PRESERVING THE EXACT HTML STRUCTURE.
 
-    const prompt = `You are a professional electrical inspection report writer. Your task is to enhance the draft report by improving the text content while STRICTLY preserving the exact HTML template structure provided below.
+CRITICAL INSTRUCTIONS:
+1. You MUST return the EXACT same HTML structure, tags, classes, IDs, and CSS that you receive
+2. ONLY enhance the text content (words, sentences, paragraphs) - make them more professional and polished
+3. DO NOT add, remove, or modify any HTML tags, attributes, or structure
+4. DO NOT change the document structure or layout
+5. Maintain all technical accuracy and factual information
+6. Use professional, clear, and concise language
+7. Follow Australian electrical inspection report standards
+8. Keep the same inspection ID: ${inspection_id}
 
-CRITICAL REQUIREMENTS:
-1. You MUST use the exact HTML template structure provided (if available). Do NOT create your own structure.
-2. Preserve ALL HTML tags, CSS classes, IDs, and structure exactly as in the template
-3. Only enhance the TEXT CONTENT within the template - do not modify HTML structure
-4. Maintain all technical accuracy and factual information
-5. Use professional, clear, and concise language
-6. Follow Australian electrical inspection report standards
-7. Keep the same inspection ID: ${inspection_id}
-8. Preserve all findings and limitations exactly as provided
-9. Replace template placeholders (like {{INSPECTION_ID}}) with actual values from the draft report
-10. If no template is provided, create a professional HTML report structure
+Here is the complete HTML report to enhance (preserve structure, enhance text only):
 
-${templateInstruction}
+${templateBasedHtml}
 
-Draft Report HTML:
-${report_html}
-
-Findings:
-${findingsText || "None"}
-
-Limitations:
-${limitationsText || "None"}
-
-IMPORTANT: Return ONLY the complete HTML document. Do not include any explanations or markdown formatting. Return the full HTML starting with <!DOCTYPE html> and ending with </html>.`;
+IMPORTANT: 
+- Return the COMPLETE HTML document exactly as provided, but with enhanced text content
+- Start with <!DOCTYPE html> and end with </html>
+- Preserve ALL HTML tags, classes, IDs, attributes, and structure
+- Only improve the readability and professionalism of the text content
+- Do not add explanations or markdown formatting`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

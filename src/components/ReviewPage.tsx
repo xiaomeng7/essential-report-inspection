@@ -12,6 +12,7 @@ type ReviewData = {
   report_html: string;
   findings: Array<{ id: string; priority: string; title?: string }>;
   limitations?: string[];
+  raw_data?: Record<string, unknown>;
 };
 
 export function ReviewPage({ inspectionId, onBack }: Props) {
@@ -55,7 +56,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           inspection_id: data.inspection_id,
           report_html: data.report_html,
           findings: data.findings,
-          limitations: data.limitations
+          limitations: data.limitations,
+          raw_data: data.raw_data // Include raw data for template rebuilding
         })
       });
 

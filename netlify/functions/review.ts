@@ -46,6 +46,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       report_html: data.report_html,
       findings: data.findings,
       limitations: data.limitations,
+      raw_data: data.raw, // Include raw data for AI enhancement
     }),
   };
 };
