@@ -62,25 +62,31 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       : "";
 
     // Load report template for reference
+    // Note: In Netlify Functions, files are bundled, so we try multiple possible locations
     let templateContent = "";
-    try {
-      const templatePath = path.join(process.cwd(), "netlify", "functions", "report-template.html");
-      console.log("Trying to load template from:", templatePath);
-      if (fs.existsSync(templatePath)) {
-        templateContent = fs.readFileSync(templatePath, "utf-8");
-        console.log("Template loaded from netlify/functions, length:", templateContent.length);
-      } else {
-        const templatePath2 = path.join(process.cwd(), "report-template.html");
-        console.log("Trying alternative template path:", templatePath2);
-        if (fs.existsSync(templatePath2)) {
-          templateContent = fs.readFileSync(templatePath2, "utf-8");
-          console.log("Template loaded from root, length:", templateContent.length);
-        } else {
-          console.warn("Template file not found at either location");
+    const possiblePaths = [
+      path.join(process.cwd(), "netlify", "functions", "report-template.html"),
+      path.join(process.cwd(), "report-template.html"),
+    ];
+    
+    for (const templatePath of possiblePaths) {
+      try {
+        console.log("Trying to load template from:", templatePath);
+        if (fs.existsSync(templatePath)) {
+          templateContent = fs.readFileSync(templatePath, "utf-8");
+          console.log("Template loaded successfully from:", templatePath, "length:", templateContent.length);
+          break;
         }
+      } catch (e) {
+        // Silently continue to next path
+        console.log(`Template not found at ${templatePath}`);
       }
-    } catch (e) {
-      console.error("Error loading report template for AI enhancement:", e);
+    }
+    
+    if (!templateContent) {
+      console.warn("Template file not found at any location, AI will use default template structure");
+      console.log("Tried paths:", possiblePaths);
+      console.log("Current working directory:", process.cwd());
     }
 
     const templateInstruction = templateContent 
@@ -133,20 +139,34 @@ Please return the enhanced report in HTML format, maintaining professional struc
       const errorData = await response.text();
       console.error("OpenAI API error:", response.status, errorData);
       let errorMessage = "Failed to enhance report";
+      let userFriendlyMessage = "AI报告生成失败，请稍后重试。";
+      
       try {
         const errorJson = JSON.parse(errorData);
-        errorMessage = errorJson.error?.message || errorJson.error?.code || errorMessage;
+        const apiError = errorJson.error;
+        errorMessage = apiError?.message || apiError?.code || errorMessage;
+        
+        // Provide user-friendly messages for common errors
+        if (apiError?.code === "insufficient_quota") {
+          userFriendlyMessage = "OpenAI API配额不足。请检查您的OpenAI账户余额和计费设置。访问 https://platform.openai.com/account/billing 添加付款方式或充值。";
+        } else if (apiError?.code === "invalid_api_key") {
+          userFriendlyMessage = "OpenAI API密钥无效。请检查Netlify环境变量中的OPENAI_API_KEY配置。";
+        } else if (apiError?.code === "rate_limit_exceeded") {
+          userFriendlyMessage = "API请求频率过高，请稍后再试。";
+        }
       } catch {
         // If parsing fails, use the raw error data
         errorMessage = errorData.substring(0, 200);
       }
+      
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           error: "Failed to enhance report",
-          message: errorMessage,
-          details: errorData.substring(0, 500)
+          message: userFriendlyMessage,
+          technicalDetails: errorMessage,
+          ...(process.env.NETLIFY_DEV && { fullError: errorData.substring(0, 500) })
         })
       };
     }
