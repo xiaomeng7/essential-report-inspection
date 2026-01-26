@@ -111,19 +111,24 @@ ${textToEnhance.findings.plan.length > 0 ? textToEnhance.findings.plan.join("\n"
 LIMITATIONS:
 ${textToEnhance.limitations.length > 0 ? textToEnhance.limitations.join("\n") : "None"}
 
-Please return ONLY the enhanced text content in JSON format:
+CRITICAL: You MUST return a valid JSON object with this EXACT structure:
 {
-  "executiveSummary": "enhanced executive summary text",
-  "riskRatingFactors": "enhanced risk rating factors text",
+  "executiveSummary": "enhanced executive summary text (full paragraph)",
+  "riskRatingFactors": "enhanced risk rating factors text (single sentence or phrase)",
   "findings": {
-    "immediate": ["enhanced finding 1", "enhanced finding 2", ...],
-    "recommended": ["enhanced finding 1", ...],
-    "plan": ["enhanced finding 1", ...]
+    "immediate": ["enhanced finding 1", "enhanced finding 2"],
+    "recommended": ["enhanced finding 1"],
+    "plan": ["enhanced finding 1"]
   },
-  "limitations": ["enhanced limitation 1", ...]
+  "limitations": ["enhanced limitation 1", "enhanced limitation 2"]
 }
 
-Maintain all technical accuracy and use professional Australian electrical inspection report language.`;
+IMPORTANT:
+- Return ONLY the JSON object, no markdown, no code blocks, no explanations
+- The "findings" arrays must have the SAME NUMBER of items as the input
+- Enhance the text to be more professional and polished, but keep all technical terms accurate
+- Use professional Australian electrical inspection report language
+- Make the text more detailed and descriptive where appropriate`;
 
     // Call OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
