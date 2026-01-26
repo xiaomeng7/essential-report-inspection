@@ -3,9 +3,19 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
-// Get __dirname equivalent for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get __dirname equivalent for ES modules (with error handling)
+let __dirname: string;
+try {
+  if (typeof import.meta !== "undefined" && import.meta.url) {
+    const __filename = fileURLToPath(import.meta.url);
+    __dirname = path.dirname(__filename);
+  } else {
+    __dirname = process.cwd();
+  }
+} catch (e) {
+  console.warn("Could not determine __dirname from import.meta.url, using process.cwd()");
+  __dirname = process.cwd();
+}
 
 /** Embedded rules.yml – used when file is not found (e.g. Netlify Functions bundle). */
 export const EMBEDDED_RULES_YAML = `
