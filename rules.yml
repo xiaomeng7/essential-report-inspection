@@ -201,7 +201,7 @@ findings:
   THERMAL_STRESS_ACTIVE: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   MATERIAL_DEGRADATION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   ARCING_EVIDENCE_PRESENT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
-  ASBESTOS_RISK: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
+  ASBESTOS_RISK: { safety: LOW, urgency: LONG_TERM, liability: MEDIUM }
   NO_RCD_PROTECTION: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   GPO_EARTH_FAULT: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
   EXPOSED_CONDUCTOR: { safety: HIGH, urgency: IMMEDIATE, liability: HIGH }
