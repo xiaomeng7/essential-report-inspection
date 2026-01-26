@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 type Props = {
   inspectionId: string;
@@ -16,6 +18,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [data, setData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [enhancedHtml, setEnhancedHtml] = useState<string | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +39,82 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     })();
     return () => { cancelled = true; };
   }, [inspectionId]);
+
+  const handleEnhanceReport = async () => {
+    if (!data) return;
+    
+    setIsEnhancing(true);
+    setEnhanceError(null);
+    
+    try {
+      const res = await fetch("/api/enhanceReport", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inspection_id: data.inspection_id,
+          report_html: data.report_html,
+          findings: data.findings,
+          limitations: data.limitations
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP ${res.status}`);
+      }
+
+      const result = await res.json();
+      setEnhancedHtml(result.enhanced_html);
+    } catch (e) {
+      setEnhanceError((e as Error).message);
+      console.error("Error enhancing report:", e);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    if (!reportRef.current) return;
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      // Calculate how many pages we need
+      const pageHeight = imgHeight * ratio;
+      let heightLeft = pageHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
+        heightLeft -= pdfHeight;
+      }
+
+      const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
+      pdf.save(fileName);
+    } catch (e) {
+      console.error("Error generating PDF:", e);
+      alert("生成 PDF 时出错，请重试");
+    }
+  };
 
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
   if (error) {
@@ -53,12 +135,48 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
+  const displayHtml = enhancedHtml || data.report_html;
+  const isEnhanced = enhancedHtml !== null;
+
   return (
     <div className="review-page">
-      <h1>Draft Report — {data.inspection_id}</h1>
-      <div className="review-actions">
-        <button type="button" onClick={onBack}>Back to inspection</button>
+      <div style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center" }}>
+        <h1 style={{ margin: 0, flex: 1 }}>
+          {isEnhanced ? "Enhanced Report" : "Draft Report"} — {data.inspection_id}
+        </h1>
+        {!isEnhanced && (
+          <button 
+            type="button" 
+            className="btn-primary" 
+            onClick={handleEnhanceReport}
+            disabled={isEnhancing}
+          >
+            {isEnhancing ? "AI生成中..." : "AI生成report"}
+          </button>
+        )}
+        {isEnhanced && (
+          <button 
+            type="button" 
+            className="btn-primary" 
+            onClick={handleGeneratePDF}
+          >
+            生成PDF
+          </button>
+        )}
       </div>
+
+      {enhanceError && (
+        <div style={{ 
+          padding: "12px", 
+          marginBottom: "16px", 
+          backgroundColor: "#ffebee", 
+          color: "#c62828",
+          borderRadius: "4px"
+        }}>
+          错误: {enhanceError}
+        </div>
+      )}
+
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings</h2>
@@ -79,7 +197,11 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           </ul>
         </div>
       )}
-      <div className="report-html" dangerouslySetInnerHTML={{ __html: data.report_html || "<p>No report content.</p>" }} />
+      <div 
+        ref={reportRef}
+        className="report-html" 
+        dangerouslySetInnerHTML={{ __html: displayHtml || "<p>No report content.</p>" }} 
+      />
     </div>
   );
 }
