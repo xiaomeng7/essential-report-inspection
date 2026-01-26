@@ -180,18 +180,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   const displayHtml = enhancedHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
-  
-  // Debug logging - only log when enhancedHtml changes
-  useEffect(() => {
-    if (enhancedHtml) {
-      console.log("ReviewPage enhancedHtml updated:", {
-        enhancedHtml_length: enhancedHtml.length,
-        displayHtml_length: displayHtml.length,
-        isEnhanced
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enhancedHtml]); // Only depend on enhancedHtml, not computed values
 
   return (
     <div className="review-page">
