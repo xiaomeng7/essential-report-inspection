@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import html2pdf from "html2pdf.js";
 
 type Props = {
   inspectionId: string;
@@ -137,36 +136,106 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     if (!reportRef.current) return;
 
     try {
-      const element = reportRef.current;
-      const fileName = `Inspection_Report_${data?.inspection_id || inspectionId}.pdf`;
-      
-      // Configure html2pdf to respect CSS page-break rules
-      const opt = {
-        margin: 0,
-        filename: fileName,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: "#f5f7fb"
-        },
-        jsPDF: { 
-          unit: "mm", 
-          format: "a4", 
-          orientation: "portrait" 
-        },
-        // Use pagebreak options to respect CSS rules
-        pagebreak: {
-          mode: ["avoid-all", "css", "legacy"],
-          before: ".page-break",
-          after: [],
-          avoid: [".avoid-break", ".section", "h2", "h3"]
-        }
-      };
+      // Create a new window for printing with the report content
+      // This ensures CSS @media print rules are properly applied
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("无法打开打印窗口，请检查浏览器弹窗设置");
+        return;
+      }
 
-      // Generate and download PDF
-      await html2pdf().set(opt).from(element).save();
+      // Get the report HTML content
+      const reportContent = reportRef.current.innerHTML;
+      
+      // Get all styles from the current document
+      const styles = Array.from(document.styleSheets)
+        .map((sheet) => {
+          try {
+            return Array.from(sheet.cssRules)
+              .map((rule) => rule.cssText)
+              .join("\n");
+          } catch (e) {
+            // Cross-origin stylesheets will throw an error, skip them
+            return "";
+          }
+        })
+      .filter(Boolean)
+      .join("\n");
+      
+      // Create a complete HTML document with all styles and print media rules
+      const printDocument = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Electrical Property Health Assessment – ${data?.inspection_id || inspectionId}</title>
+  <style>
+    ${styles}
+    
+    /* Ensure print styles are applied */
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff !important;
+      }
+      .page {
+        margin: 0 !important;
+        max-width: none !important;
+        padding: 0 !important;
+      }
+      .card {
+        box-shadow: none !important;
+        border: none !important;
+      }
+      .cover, .bucket-head, .pill {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      /* Force a new printed page */
+      .page-break {
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      /* Avoid splitting important blocks across pages */
+      .avoid-break {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      /* Try not to split sections where possible */
+      .section {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      /* Keep headings with the first content line where possible */
+      h2, h3 {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${reportContent}
+</body>
+</html>`;
+
+      printWindow.document.write(printDocument);
+      printWindow.document.close();
+      
+      // Wait for content to load, then trigger print dialog
+      // The browser's print dialog will respect CSS @media print rules
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Note: The window will stay open so user can see the print preview
+          // User can close it manually after printing/saving as PDF
+        }, 250);
+      };
     } catch (e) {
       console.error("Error generating PDF:", e);
       alert("生成 PDF 时出错，请重试");
