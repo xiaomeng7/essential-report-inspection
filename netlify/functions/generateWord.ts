@@ -229,14 +229,46 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Creating Docxtemplater instance...");
     let doc: any;
     try {
+      // Use custom delimiters to avoid issues with Word XML splitting tags
+      // Word sometimes splits tags across XML nodes, causing duplicate tag errors
       doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
+        delimiters: {
+          start: "{{",
+          end: "}}"
+        },
+        // Ignore errors for tags that are split across XML nodes
+        // This allows the template to work even if Word has split the tags
+        nullGetter: function(part: any) {
+          // Return empty string for missing parts
+          return "";
+        }
       });
       console.log("✅ Docxtemplater created successfully");
-    } catch (e) {
+    } catch (e: any) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to create Docxtemplater:", errorMsg);
+      
+      // Check if it's a duplicate tag error
+      if (e.errors && Array.isArray(e.errors)) {
+        const duplicateErrors = e.errors.filter((err: any) => 
+          err.id === "duplicate_open_tag" || err.id === "duplicate_close_tag"
+        );
+        if (duplicateErrors.length > 0) {
+          console.error("Template has duplicate tags (likely split across XML nodes):");
+          duplicateErrors.forEach((err: any) => {
+            console.error(`  - ${err.name}: ${err.message} at offset ${err.offset}`);
+            console.error(`    Context: ${err.context}, File: ${err.file}`);
+          });
+          throw new Error(
+            "Word template has tags split across XML nodes. " +
+            "Please ensure all placeholders like {{TAG_NAME}} are in a single text run without formatting breaks. " +
+            "You may need to recreate the template or use a different delimiter format."
+          );
+        }
+      }
+      
       throw new Error(`Failed to create Docxtemplater: ${errorMsg}`);
     }
     
