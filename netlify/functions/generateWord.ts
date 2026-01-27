@@ -238,29 +238,70 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to create Docxtemplater:", errorMsg);
       
+      // Log full error object for debugging
+      console.error("Full error object:", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+      
       // Check if it's a duplicate tag error (Word XML splitting issue)
       if (e.errors && Array.isArray(e.errors)) {
+        console.error(`Found ${e.errors.length} error(s) in template:`);
+        e.errors.forEach((err: any, index: number) => {
+          console.error(`Error ${index + 1}:`, {
+            name: err.name,
+            message: err.message,
+            id: err.id,
+            context: err.context,
+            file: err.file,
+            offset: err.offset,
+            explanation: err.explanation
+          });
+        });
+        
         const duplicateErrors = e.errors.filter((err: any) => 
           err.id === "duplicate_open_tag" || err.id === "duplicate_close_tag"
         );
+        
         if (duplicateErrors.length > 0) {
-          console.error("Template has duplicate tags (Word split tags across XML nodes):");
-          const uniqueTags = new Set<string>();
+          console.error(`Template has ${duplicateErrors.length} duplicate tag error(s) (Word split tags across XML nodes):`);
+          const affectedTags = new Set<string>();
           duplicateErrors.forEach((err: any) => {
-            const tagInfo = `${err.context} (${err.file}, offset ${err.offset})`;
-            uniqueTags.add(tagInfo);
-            console.error(`  - ${err.name}: ${err.message}`);
-            console.error(`    Context: ${err.context}, File: ${err.file}, Offset: ${err.offset}`);
+            // Extract tag name from context
+            const tagMatch = err.context?.match(/\{\{([^}]+)\}\}/);
+            const tagName = tagMatch ? tagMatch[1] : err.context;
+            affectedTags.add(tagName);
+            console.error(`  - Tag: ${tagName}`);
+            console.error(`    Error: ${err.name} - ${err.message}`);
+            console.error(`    File: ${err.file}, Offset: ${err.offset}`);
+            console.error(`    Context: ${err.context}`);
+            if (err.explanation) {
+              console.error(`    Explanation: ${err.explanation}`);
+            }
           });
           
-          const errorDetails = Array.from(uniqueTags).slice(0, 5).join("; ");
+          const tagList = Array.from(affectedTags).join(", ");
           throw new Error(
-            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
+            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes: ${tagList}. ` +
             `This happens when Word splits text nodes (e.g., when formatting is applied mid-tag). ` +
-            `Affected tags: ${errorDetails}... ` +
             `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
             `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
             `To fix: Select each placeholder entirely, then apply formatting uniformly, or retype it without formatting.`
+          );
+        }
+        
+        // Handle other types of errors
+        const otherErrors = e.errors.filter((err: any) => 
+          err.id !== "duplicate_open_tag" && err.id !== "duplicate_close_tag"
+        );
+        if (otherErrors.length > 0) {
+          console.error(`Template has ${otherErrors.length} other error(s):`);
+          otherErrors.forEach((err: any) => {
+            console.error(`  - ${err.name}: ${err.message}`);
+            console.error(`    Context: ${err.context}, File: ${err.file}`);
+          });
+          
+          const errorMessages = otherErrors.map((err: any) => err.message).join("; ");
+          throw new Error(
+            `Word template has errors: ${errorMessages}. ` +
+            `Please check your template file and ensure all placeholders are correctly formatted.`
           );
         }
       }
