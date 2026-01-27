@@ -128,19 +128,51 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       let detailedErrorMsg = `Failed to create Docxtemplater: ${errorMsg}`;
       
       // Try multiple ways to access error details
+      // According to docxtemplater docs, MultiError has error.properties.errors array
       let errorsArray: any[] | null = null;
       
-      // Method 1: Direct errors property
-      if (e.errors && Array.isArray(e.errors)) {
-        errorsArray = e.errors;
-      }
-      // Method 2: Properties.errors
-      else if (e.properties && e.properties.errors && Array.isArray(e.properties.errors)) {
+      // Method 1: Properties.errors (most common for MultiError)
+      if (e.properties && e.properties.errors && Array.isArray(e.properties.errors)) {
         errorsArray = e.properties.errors;
+        console.log("Found errors via e.properties.errors:", errorsArray.length);
       }
-      // Method 3: Check if error itself is an array-like structure
+      // Method 2: Direct errors property
+      else if (e.errors && Array.isArray(e.errors)) {
+        errorsArray = e.errors;
+        console.log("Found errors via e.errors:", errorsArray.length);
+      }
+      // Method 3: Check nested properties
+      else if (e.properties && typeof e.properties === 'object') {
+        // Try to find errors in any property
+        for (const key in e.properties) {
+          if (Array.isArray(e.properties[key])) {
+            console.log(`Found array in e.properties.${key}:`, e.properties[key].length);
+            // Check if it looks like an errors array
+            const arr = e.properties[key];
+            if (arr.length > 0 && (arr[0].properties || arr[0].id || arr[0].message)) {
+              errorsArray = arr;
+              console.log("Using this array as errors:", errorsArray.length);
+              break;
+            }
+          }
+        }
+      }
+      // Method 4: Check if error itself is an array-like structure
       else if (Array.isArray(e)) {
         errorsArray = e;
+        console.log("Error itself is an array:", errorsArray.length);
+      }
+      
+      // Log what we found
+      if (!errorsArray) {
+        console.error("Could not find errors array. Error structure:", {
+          hasErrors: !!e.errors,
+          hasProperties: !!e.properties,
+          propertiesKeys: e.properties ? Object.keys(e.properties) : [],
+          errorKeys: Object.keys(e),
+          errorType: e.constructor?.name,
+          errorName: e.name
+        });
       }
       
       // Check if it's a duplicate tag error (Word XML splitting issue)
@@ -149,22 +181,30 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         const errorDetails: string[] = [];
         
         errorsArray.forEach((err: any, index: number) => {
+          // Extract error info - docxtemplater errors have properties nested
+          const errProperties = err.properties || {};
           const errInfo = {
-            name: err.name,
-            message: err.message,
-            id: err.id,
-            context: err.context,
-            file: err.file,
-            offset: err.offset,
-            explanation: err.explanation
+            name: err.name || errProperties.name,
+            message: err.message || errProperties.message,
+            id: err.id || errProperties.id,
+            context: err.context || errProperties.context,
+            file: err.file || errProperties.file,
+            offset: err.offset || errProperties.offset,
+            explanation: err.explanation || errProperties.explanation
           };
           console.error(`Error ${index + 1}:`, errInfo);
-          errorDetails.push(`Error ${index + 1}: ${err.id || err.name || 'unknown'} - ${err.message || 'no message'} (context: ${err.context || 'none'})`);
+          console.error(`Error ${index + 1} full object:`, JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+          
+          const errorId = errInfo.id || errInfo.name || 'unknown';
+          const errorMsg = errInfo.message || errInfo.explanation || 'no message';
+          const errorContext = errInfo.context || 'none';
+          errorDetails.push(`Error ${index + 1}: ${errorId} - ${errorMsg} (context: ${errorContext})`);
         });
         
-        const duplicateErrors = errorsArray.filter((err: any) => 
-          err.id === "duplicate_open_tag" || err.id === "duplicate_close_tag"
-        );
+        const duplicateErrors = errorsArray.filter((err: any) => {
+          const errId = err.id || err.properties?.id;
+          return errId === "duplicate_open_tag" || errId === "duplicate_close_tag";
+        });
         
         if (duplicateErrors.length > 0) {
           console.error(`Template has ${duplicateErrors.length} duplicate tag error(s) (Word split tags across XML nodes):`);
@@ -172,16 +212,21 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           // Group errors by tag to identify which tags are split
           const tagGroups: Record<string, Array<{type: string, context: string, offset: number}>> = {};
           duplicateErrors.forEach((err: any) => {
+            // Extract error properties (may be nested)
+            const errId = err.id || err.properties?.id;
+            const errContext = err.context || err.properties?.context || "";
+            const errOffset = err.offset || err.properties?.offset;
+            
             // Try to identify the full tag name from partial contexts
             let tagKey = "UNKNOWN";
-            if (err.context) {
+            if (errContext) {
               // For open tags like "{{PROP", try to find matching close tag
-              if (err.id === "duplicate_open_tag" && err.context.startsWith("{{")) {
-                tagKey = err.context;
+              if (errId === "duplicate_open_tag" && errContext.startsWith("{{")) {
+                tagKey = errContext;
               }
               // For close tags like "TYPE}}", try to find matching open tag
-              else if (err.id === "duplicate_close_tag" && err.context.endsWith("}}")) {
-                tagKey = err.context;
+              else if (errId === "duplicate_close_tag" && errContext.endsWith("}}")) {
+                tagKey = errContext;
               }
             }
             
@@ -189,9 +234,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
               tagGroups[tagKey] = [];
             }
             tagGroups[tagKey].push({
-              type: err.id,
-              context: err.context,
-              offset: err.offset
+              type: errId,
+              context: errContext,
+              offset: errOffset
             });
           });
           
