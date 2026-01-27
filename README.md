@@ -73,6 +73,52 @@ Response: `{ "inspection_id": "EH-YYYY-XXXX", "status": "accepted", "review_url"
 
 Then open `/review/EH-YYYY-XXXX` (or use the returned `review_url`) to view the draft report.
 
+## Testing Word Document Generation
+
+### Test Word Blob Storage
+
+**Local Testing:**
+```bash
+# Start Netlify Dev
+npm run netlify:dev
+
+# In another terminal, test the endpoint
+curl http://localhost:8888/api/testWordBlob
+```
+
+**Production Testing:**
+```bash
+curl https://your-site.netlify.app/api/testWordBlob
+```
+
+Expected response:
+```json
+{
+  "ok": true,
+  "key": "reports/TEST-001.docx",
+  "message": "Test Word document generated and saved successfully"
+}
+```
+
+### Download Word Document
+
+**Local Testing:**
+```bash
+# Download the test document
+curl -O -J "http://localhost:8888/api/downloadWord?inspection_id=TEST-001"
+```
+
+**Production Testing:**
+```bash
+curl -O -J "https://your-site.netlify.app/api/downloadWord?inspection_id=TEST-001"
+```
+
+Or open in browser:
+- Local: `http://localhost:8888/api/downloadWord?inspection_id=TEST-001`
+- Production: `https://your-site.netlify.app/api/downloadWord?inspection_id=TEST-001`
+
+The file will be downloaded as `TEST-001.docx`.
+
 ## Flow
 
 1. **Technician** → Complete inspection wizard (sections, gates, skips, autosave).

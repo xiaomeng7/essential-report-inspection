@@ -23,24 +23,32 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     // Get Word document from Blob
-    const blobKey = `word/${inspectionId}.docx`;
+    // Support both old format (word/{id}.docx) and new format (reports/{id}.docx)
+    let blobKey = `reports/${inspectionId}.docx`;
     console.log("Fetching Word document:", blobKey);
-    const buffer = await getWordDoc(blobKey, event);
+    let buffer = await getWordDoc(blobKey, event);
+    
+    // Fallback to old format if not found
+    if (!buffer) {
+      blobKey = `word/${inspectionId}.docx`;
+      console.log("Trying fallback path:", blobKey);
+      buffer = await getWordDoc(blobKey, event);
+    }
     
     if (!buffer) {
       return {
         statusCode: 404,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Word document not found" })
+        body: JSON.stringify({ error: `Word document not found for inspection_id: ${inspectionId}` })
       };
     }
 
-    // Return file as download
+    // Return file as download with correct headers
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="Inspection_Report_${inspectionId}.docx"`,
+        "Content-Disposition": `attachment; filename="${inspectionId}.docx"`,
         "Content-Length": buffer.length.toString(),
       },
       body: buffer.toString("base64"),
