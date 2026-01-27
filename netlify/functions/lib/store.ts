@@ -105,3 +105,57 @@ export async function getNextInspectionNumber(event?: HandlerEvent): Promise<num
     return fallback;
   }
 }
+
+// Get Netlify Blobs store for Word documents
+function getWordStore(event?: HandlerEvent) {
+  if (event) {
+    connectLambda(event);
+  }
+  return getStore({
+    name: "word-documents",
+    consistency: "eventual",
+  });
+}
+
+// Save Word document to Netlify Blob
+export async function saveWordDoc(
+  key: string,
+  buffer: Buffer,
+  event?: HandlerEvent
+): Promise<void> {
+  try {
+    const store = getWordStore(event);
+    await store.set(key, buffer, {
+      metadata: {
+        created_at: new Date().toISOString(),
+        content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      },
+    });
+    console.log(`Saved Word document ${key} to Netlify Blobs`);
+  } catch (e) {
+    console.error(`Failed to save Word document ${key} to Blobs:`, e);
+    throw e;
+  }
+}
+
+// Get Word document from Netlify Blob
+export async function getWordDoc(
+  key: string,
+  event?: HandlerEvent
+): Promise<Buffer | undefined> {
+  try {
+    const store = getWordStore(event);
+    const data = await store.get(key, { type: "blob" });
+    
+    if (data) {
+      const arrayBuffer = await data.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      console.log(`Retrieved Word document ${key} from Netlify Blobs`);
+      return buffer;
+    }
+  } catch (e) {
+    console.error(`Failed to read Word document ${key} from Blobs:`, e);
+  }
+  
+  return undefined;
+}

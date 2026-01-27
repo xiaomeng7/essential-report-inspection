@@ -22,6 +22,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null);
+  const [isGeneratingWord, setIsGeneratingWord] = useState(false);
+  const [wordError, setWordError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -242,6 +244,49 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     }
   };
 
+  const handleGenerateWord = async () => {
+    if (!data) {
+      console.error("Cannot generate Word: data is null");
+      return;
+    }
+
+    setIsGeneratingWord(true);
+    setWordError(null);
+
+    try {
+      console.log("Generating Word document for:", data.inspection_id);
+      
+      const res = await fetch("/api/generateWord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inspection_id: data.inspection_id
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await res.json();
+      console.log("Word document generated:", result);
+
+      // Download the Word document
+      const downloadUrl = `/api/downloadWord?inspection_id=${data.inspection_id}`;
+      window.open(downloadUrl, "_blank");
+      
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
+      setWordError(errorMessage);
+      console.error("Error generating Word document:", e);
+      alert(`生成 Word 文档时出错: ${errorMessage}`);
+    } finally {
+      setIsGeneratingWord(false);
+    }
+  };
+
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
   if (error) {
     return (
@@ -295,14 +340,24 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
             </button>
           )}
           {(isEnhanced || isShowingTemplate) && (
-            <button 
-              type="button" 
-              className="btn-primary" 
-              onClick={handleGeneratePDF}
-              disabled={isShowingTemplate}
-            >
-              生成PDF
-            </button>
+            <>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={handleGeneratePDF}
+                disabled={isShowingTemplate}
+              >
+                生成PDF
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={handleGenerateWord}
+                disabled={isGeneratingWord || isShowingTemplate}
+              >
+                {isGeneratingWord ? "生成Word中..." : "生成Word报告"}
+              </button>
+            </>
           )}
         </div>
         {modelInfo && (
