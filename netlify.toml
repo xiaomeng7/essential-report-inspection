@@ -3,6 +3,13 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[functions]
+  included_files = [
+    "./netlify/functions/report-template.docx",
+    "./netlify/functions/report-template.html",
+    "./netlify/functions/rules.yml"
+  ]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
