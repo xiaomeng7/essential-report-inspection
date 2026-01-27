@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
-import { saveWordDoc } from "./lib/store";
+import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -58,6 +58,49 @@ function loadWordTemplate(): Buffer {
   throw new Error("Could not load report-template.docx from any path");
 }
 
+// Build report data from inspection - unified data structure for HTML and Word
+export type ReportData = {
+  inspection_id: string;
+  immediate: string[];
+  recommended: string[];
+  plan: string[];
+  limitations: string[];
+};
+
+export function buildReportData(inspection: StoredInspection): ReportData {
+  // Group findings by priority
+  const immediate: string[] = [];
+  const recommended: string[] = [];
+  const plan: string[] = [];
+  
+  inspection.findings.forEach((finding) => {
+    const title = finding.title || finding.id.replace(/_/g, " ");
+    if (finding.priority === "IMMEDIATE") {
+      immediate.push(title);
+    } else if (finding.priority === "RECOMMENDED_0_3_MONTHS") {
+      recommended.push(title);
+    } else if (finding.priority === "PLAN_MONITOR") {
+      plan.push(title);
+    }
+  });
+  
+  return {
+    inspection_id: inspection.inspection_id,
+    immediate,
+    recommended,
+    plan,
+    limitations: inspection.limitations || [],
+  };
+}
+
+// Format array as bullet-point text for Word document
+function formatFindingsText(items: string[], defaultText: string): string {
+  if (items.length === 0) {
+    return defaultText;
+  }
+  return items.map(item => `• ${item}`).join("\n");
+}
+
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
     return { 
@@ -91,10 +134,58 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("Generating Word report for inspection_id:", inspection_id);
     
+    // Get inspection data from store
+    console.log("Fetching inspection data...");
+    const inspection = await get(inspection_id, event);
+    
+    if (!inspection) {
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Inspection not found" })
+      };
+    }
+    
+    console.log("Inspection data retrieved:", {
+      inspection_id: inspection.inspection_id,
+      findings_count: inspection.findings.length,
+      limitations_count: inspection.limitations.length
+    });
+    
+    // Build unified report data
+    const reportData = buildReportData(inspection);
+    console.log("Report data built:", {
+      immediate: reportData.immediate.length,
+      recommended: reportData.recommended.length,
+      plan: reportData.plan.length,
+      limitations: reportData.limitations.length
+    });
+    
     // Load Word template
     const templateBuffer = loadWordTemplate();
     
-    // Prepare template data - use real inspection_id, others with defaults/empty
+    // Format findings as bullet-point text with defaults for empty arrays
+    const immediateText = formatFindingsText(
+      reportData.immediate,
+      "No immediate safety risks were identified at the time of inspection."
+    );
+    
+    const recommendedText = formatFindingsText(
+      reportData.recommended,
+      "No items requiring monitoring or planned attention were identified at the time of inspection."
+    );
+    
+    const planText = formatFindingsText(
+      reportData.plan,
+      "No items requiring action were identified at the time of inspection."
+    );
+    
+    const limitationsText = formatFindingsText(
+      reportData.limitations,
+      "No material limitations were noted beyond standard non-invasive constraints."
+    );
+    
+    // Prepare template data - use real inspection_id and findings data
     const templateData = {
       INSPECTION_ID: inspection_id,
       ASSESSMENT_DATE: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
@@ -102,21 +193,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       PREPARED_BY: "Better Home Technology Pty Ltd", // Default value
       PROPERTY_ADDRESS: "", // TODO: Extract from inspection data
       PROPERTY_TYPE: "", // TODO: Extract from inspection data
-      IMMEDIATE_FINDINGS: "", // TODO: Extract from inspection findings
-      RECOMMENDED_FINDINGS: "", // TODO: Extract from inspection findings
-      PLAN_FINDINGS: "", // TODO: Extract from inspection findings
-      LIMITATIONS: "", // TODO: Extract from inspection limitations
+      IMMEDIATE_FINDINGS: immediateText,
+      RECOMMENDED_FINDINGS: recommendedText,
+      PLAN_FINDINGS: planText,
+      LIMITATIONS: limitationsText,
       REPORT_VERSION: "1.0",
       OVERALL_STATUS: "", // TODO: Calculate from findings
       EXECUTIVE_SUMMARY: "", // TODO: Generate from inspection data
       RISK_RATING: "", // TODO: Calculate from findings
       RISK_RATING_FACTORS: "", // TODO: Extract from inspection data
-      URGENT_FINDINGS: "", // TODO: Extract from inspection findings
+      URGENT_FINDINGS: "", // TODO: Extract from inspection findings (if different from immediate)
       TEST_SUMMARY: "", // TODO: Extract from inspection data
       TECHNICAL_NOTES: "", // TODO: Extract from inspection data
     };
     
     console.log("Template data prepared:", Object.keys(templateData));
+    console.log("Findings preview:", {
+      immediate: immediateText.substring(0, 100),
+      recommended: recommendedText.substring(0, 100),
+      plan: planText.substring(0, 100)
+    });
     
     // Generate Word document
     console.log("Creating PizZip instance...");
