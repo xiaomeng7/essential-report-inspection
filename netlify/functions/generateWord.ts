@@ -188,9 +188,19 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     // Load Word template
-    const templateBuffer = loadWordTemplate();
+    console.log("Loading Word template...");
+    let templateBuffer: Buffer;
+    try {
+      templateBuffer = loadWordTemplate();
+      console.log("✅ Template loaded successfully, size:", templateBuffer.length, "bytes");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to load template:", errorMsg);
+      throw new Error(`Failed to load Word template: ${errorMsg}`);
+    }
     
     // Prepare data for template
+    console.log("Preparing template data...");
     const templateData = prepareWordData(
       inspection.inspection_id,
       inspection.raw,
@@ -199,40 +209,92 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     );
     
     console.log("Template data prepared:", Object.keys(templateData));
+    console.log("Template data sample:", JSON.stringify(templateData, null, 2).substring(0, 500));
     
     // Generate Word document
-    const zip = new PizZip(templateBuffer);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    console.log("Creating PizZip instance...");
+    let zip: any;
+    try {
+      zip = new PizZip(templateBuffer);
+      console.log("✅ PizZip created successfully");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to create PizZip:", errorMsg);
+      throw new Error(`Failed to create PizZip: ${errorMsg}`);
+    }
+    
+    console.log("Creating Docxtemplater instance...");
+    let doc: any;
+    try {
+      doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+      console.log("✅ Docxtemplater created successfully");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to create Docxtemplater:", errorMsg);
+      throw new Error(`Failed to create Docxtemplater: ${errorMsg}`);
+    }
     
     // Set template variables
-    doc.setData(templateData);
+    console.log("Setting template data...");
+    try {
+      doc.setData(templateData);
+      console.log("✅ Template data set successfully");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to set template data:", errorMsg);
+      throw new Error(`Failed to set template data: ${errorMsg}`);
+    }
     
+    // Render template
+    console.log("Rendering template...");
     try {
       doc.render();
+      console.log("✅ Template rendered successfully");
     } catch (error) {
-      const e = error as { properties?: { name: string; message: string } };
-      console.error("Error rendering template:", e);
-      if (e.properties && e.properties.name === "RenderError") {
-        throw new Error(`Template rendering error: ${e.properties.message}`);
+      const e = error as { properties?: { name: string; message: string; explanation?: string; file?: string } };
+      console.error("❌ Error rendering template:", e);
+      if (e.properties) {
+        const errorDetails = {
+          name: e.properties.name,
+          message: e.properties.message,
+          explanation: e.properties.explanation,
+          file: e.properties.file
+        };
+        console.error("Template error details:", JSON.stringify(errorDetails));
+        throw new Error(`Template rendering error: ${e.properties.message}${e.properties.explanation ? ` - ${e.properties.explanation}` : ""}`);
       }
       throw error;
     }
     
     // Generate buffer
-    const buffer = doc.getZip().generate({
-      type: "nodebuffer",
-      compression: "DEFLATE",
-    });
-    
-    console.log("Word document generated, size:", buffer.length, "bytes");
+    console.log("Generating Word document buffer...");
+    let buffer: Buffer;
+    try {
+      buffer = doc.getZip().generate({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+      });
+      console.log("✅ Word document generated, size:", buffer.length, "bytes");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to generate buffer:", errorMsg);
+      throw new Error(`Failed to generate Word document buffer: ${errorMsg}`);
+    }
     
     // Save to Netlify Blob
+    console.log("Saving to Netlify Blob...");
     const blobKey = `word/${inspection_id}.docx`;
-    await saveWordDoc(blobKey, buffer, event);
-    console.log("Word document saved to Blob:", blobKey);
+    try {
+      await saveWordDoc(blobKey, buffer, event);
+      console.log("✅ Word document saved to Blob:", blobKey);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to save to Blob:", errorMsg);
+      throw new Error(`Failed to save Word document to Blob: ${errorMsg}`);
+    }
     
     return {
       statusCode: 200,
@@ -246,13 +308,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
+    const errorStack = e instanceof Error ? e.stack : undefined;
     console.error("Error generating Word document:", e);
+    console.error("Error stack:", errorStack);
+    console.error("Error details:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         error: "Failed to generate Word document",
-        message: errorMessage
+        message: errorMessage,
+        stack: process.env.NETLIFY_DEV ? errorStack : undefined // Only include stack in dev
       })
     };
   }
