@@ -274,15 +274,20 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   };
 
   const handleGenerateOfficialWord = async () => {
+    if (!data?.inspection_id) {
+      alert("无法生成 Word 文档：缺少检查 ID");
+      return;
+    }
+
     setIsGeneratingOfficialWord(true);
     setOfficialWordError(null);
     setOfficialWordReady(false);
 
     try {
-      console.log("Generating official Word document via testWordBlob...");
+      console.log("Generating official Word document via generateWordReport for:", data.inspection_id);
       
-      // Use /.netlify/functions/ path as requested
-      const res = await fetch("/.netlify/functions/testWordBlob", {
+      // Call generateWordReport with inspection_id
+      const res = await fetch(`/.netlify/functions/generateWordReport?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -297,10 +302,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const result = await res.json();
       console.log("Official Word document generated:", result);
 
-      if (result.ok && result.key) {
+      if (result.ok && result.inspection_id) {
         setOfficialWordReady(true);
       } else {
-        throw new Error("生成失败，未返回有效的 key");
+        throw new Error("生成失败，未返回有效的 inspection_id");
       }
       
     } catch (e) {
@@ -403,9 +408,9 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
                 {isGeneratingOfficialWord ? "生成中..." : "AI 生成（Word 官方版）"}
               </button>
             )}
-            {officialWordReady && (
+            {officialWordReady && data?.inspection_id && (
               <a
-                href="/.netlify/functions/downloadWord?inspection_id=TEST-001"
+                href={`/.netlify/functions/downloadWord?inspection_id=${encodeURIComponent(data.inspection_id)}`}
                 className="btn-primary"
                 style={{ 
                   display: "inline-block", 
