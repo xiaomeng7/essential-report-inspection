@@ -99,12 +99,13 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         setTemplateHtml(null);
       }
       
-      if (result.model_used) {
-        setModelInfo({
-          model: result.model_used,
-          usage: result.usage
-        });
-      }
+      // Model info temporarily disabled with AI
+      // if (result.model_used) {
+      //   setModelInfo({
+      //     model: result.model_used,
+      //     usage: result.usage
+      //   });
+      // }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setEnhanceError(errorMessage);
