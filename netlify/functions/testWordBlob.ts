@@ -92,22 +92,195 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Test data prepared:", Object.keys(testData));
     
     // Generate Word document
-    const zip = new PizZip(templateBuffer);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    console.log("Creating PizZip instance...");
+    let zip: any;
+    try {
+      zip = new PizZip(templateBuffer);
+      console.log("✅ PizZip created successfully");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to create PizZip:", errorMsg);
+      throw new Error(`Failed to create PizZip: ${errorMsg}`);
+    }
     
-    doc.setData(testData);
-    doc.render();
+    console.log("Creating Docxtemplater instance...");
+    let doc: any;
+    try {
+      doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+      console.log("✅ Docxtemplater created successfully");
+    } catch (e: any) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to create Docxtemplater:", errorMsg);
+      
+      // Log full error object for debugging
+      console.error("Full error object:", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+      
+      // Check if it's a duplicate tag error (Word XML splitting issue)
+      if (e.errors && Array.isArray(e.errors)) {
+        console.error(`Found ${e.errors.length} error(s) in template:`);
+        e.errors.forEach((err: any, index: number) => {
+          console.error(`Error ${index + 1}:`, {
+            name: err.name,
+            message: err.message,
+            id: err.id,
+            context: err.context,
+            file: err.file,
+            offset: err.offset,
+            explanation: err.explanation
+          });
+        });
+        
+        const duplicateErrors = e.errors.filter((err: any) => 
+          err.id === "duplicate_open_tag" || err.id === "duplicate_close_tag"
+        );
+        
+        if (duplicateErrors.length > 0) {
+          console.error(`Template has ${duplicateErrors.length} duplicate tag error(s) (Word split tags across XML nodes):`);
+          
+          // Group errors by tag to identify which tags are split
+          const tagGroups: Record<string, Array<{type: string, context: string, offset: number}>> = {};
+          duplicateErrors.forEach((err: any) => {
+            // Try to identify the full tag name from partial contexts
+            let tagKey = "UNKNOWN";
+            if (err.context) {
+              // For open tags like "{{PROP", try to find matching close tag
+              if (err.id === "duplicate_open_tag" && err.context.startsWith("{{")) {
+                tagKey = err.context;
+              }
+              // For close tags like "TYPE}}", try to find matching open tag
+              else if (err.id === "duplicate_close_tag" && err.context.endsWith("}}")) {
+                tagKey = err.context;
+              }
+            }
+            
+            if (!tagGroups[tagKey]) {
+              tagGroups[tagKey] = [];
+            }
+            tagGroups[tagKey].push({
+              type: err.id,
+              context: err.context,
+              offset: err.offset
+            });
+          });
+          
+          // Try to reconstruct full tag names by matching open/close pairs
+          const affectedTags = new Set<string>();
+          Object.entries(tagGroups).forEach(([key, errors]) => {
+            const openTag = errors.find(e => e.type === "duplicate_open_tag");
+            const closeTag = errors.find(e => e.type === "duplicate_close_tag");
+            
+            if (openTag && closeTag) {
+              // Try to reconstruct: "{{PROP" + "ERTY_TYPE}}" = "{{PROPERTY_TYPE}}"
+              const openPart = openTag.context.replace("{{", "");
+              const closePart = closeTag.context.replace("}}", "");
+              // Find common patterns
+              if (openPart === "PROP" && closePart === "TYPE") {
+                affectedTags.add("PROPERTY_TYPE");
+              } else if (openPart === "PREP" && closePart === "_FOR") {
+                affectedTags.add("PREPARED_FOR");
+              } else if (openPart === "ASSE" && closePart === "DATE") {
+                affectedTags.add("ASSESSMENT_DATE");
+              } else if (openPart === "INSP" && closePart === "ID") {
+                affectedTags.add("INSPECTION_ID");
+              } else if (openPart === "OVER" && closePart === "ADGE") {
+                affectedTags.add("OVERALL_STATUS");
+              } else if (openPart === "EXEC" && closePart === "RAPH") {
+                affectedTags.add("EXECUTIVE_SUMMARY");
+              } else if (openPart === "RISK" && closePart === "ADGE") {
+                affectedTags.add("RISK_RATING");
+              } else if (openPart === "RISK" && closePart === "TORS") {
+                affectedTags.add("RISK_RATING_FACTORS");
+              } else if (openPart === "IMME" && closePart === "INGS") {
+                affectedTags.add("IMMEDIATE_FINDINGS");
+              } else if (openPart === "URGE" && closePart === "INGS") {
+                affectedTags.add("URGENT_FINDINGS");
+              } else if (openPart === "RECO" && closePart === "INGS") {
+                affectedTags.add("RECOMMENDED_FINDINGS");
+              } else if (openPart === "PLAN" && closePart === "INGS") {
+                affectedTags.add("PLAN_FINDINGS");
+              } else if (openPart === "TEST" && closePart === "MARY") {
+                affectedTags.add("TEST_SUMMARY");
+              } else if (openPart === "TECH" && closePart === "OTES") {
+                affectedTags.add("TECHNICAL_NOTES");
+              } else {
+                affectedTags.add(`${openPart}...${closePart}`);
+              }
+            }
+            
+            errors.forEach((err: any) => {
+              console.error(`  - ${err.type}: ${err.context} (offset ${err.offset})`);
+            });
+          });
+          
+          const tagList = Array.from(affectedTags).join(", ");
+          throw new Error(
+            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
+            `Affected tags: ${tagList}. ` +
+            `This happens when Word splits text nodes (e.g., when formatting is applied mid-tag). ` +
+            `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
+            `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
+            `To fix: Select each placeholder entirely, then apply formatting uniformly, or retype it without formatting. ` +
+            `Make sure to save the file after fixing.`
+          );
+        }
+      }
+      
+      throw new Error(`Failed to create Docxtemplater: ${errorMsg}`);
+    }
     
-    // Generate buffer
-    const buffer = doc.getZip().generate({
-      type: "nodebuffer",
-      compression: "DEFLATE",
-    });
+    console.log("Setting template data...");
+    try {
+      doc.setData(testData);
+      console.log("✅ Template data set successfully");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to set template data:", errorMsg);
+      throw new Error(`Failed to set template data: ${errorMsg}`);
+    }
     
-    console.log("Word document generated, size:", buffer.length, "bytes");
+    console.log("Rendering template...");
+    try {
+      doc.render();
+      console.log("✅ Template rendered successfully");
+    } catch (e: any) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to render template:", errorMsg);
+      
+      // Check for rendering errors (similar to instantiation errors)
+      if (e.errors && Array.isArray(e.errors)) {
+        console.error(`Found ${e.errors.length} rendering error(s):`);
+        e.errors.forEach((err: any, index: number) => {
+          console.error(`Error ${index + 1}:`, {
+            name: err.name,
+            message: err.message,
+            id: err.id,
+            context: err.context,
+            file: err.file,
+            offset: err.offset,
+            explanation: err.explanation
+          });
+        });
+      }
+      
+      throw new Error(`Failed to render template: ${errorMsg}`);
+    }
+    
+    console.log("Generating buffer...");
+    let buffer: Buffer;
+    try {
+      buffer = doc.getZip().generate({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+      });
+      console.log("✅ Word document generated, size:", buffer.length, "bytes");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("❌ Failed to generate buffer:", errorMsg);
+      throw new Error(`Failed to generate buffer: ${errorMsg}`);
+    }
     
     // Save to Netlify Blob
     const blobKey = "reports/TEST-001.docx";

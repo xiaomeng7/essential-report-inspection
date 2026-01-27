@@ -290,6 +290,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
+        console.error("API error response:", errorData);
         throw new Error(errorMessage);
       }
 
@@ -306,7 +307,13 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setOfficialWordError(errorMessage);
       console.error("Error generating official Word document:", e);
-      alert(`生成 Word 官方版时出错: ${errorMessage}`);
+      
+      // Show detailed error message
+      const fullError = e instanceof Error ? e.toString() : String(e);
+      console.error("Full error details:", fullError);
+      
+      // Display error in alert with more details
+      alert(`生成 Word 官方版时出错:\n\n${errorMessage}\n\n请查看浏览器控制台获取更多详细信息。`);
     } finally {
       setIsGeneratingOfficialWord(false);
     }
