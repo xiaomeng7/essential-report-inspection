@@ -281,7 +281,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     try {
       console.log("Generating official Word document via testWordBlob...");
       
-      const res = await fetch("/api/testWordBlob", {
+      // Use /.netlify/functions/ path as requested
+      const res = await fetch("/.netlify/functions/testWordBlob", {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -397,7 +398,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
             )}
             {officialWordReady && (
               <a
-                href="/api/downloadWord?inspection_id=TEST-001"
+                href="/.netlify/functions/downloadWord?inspection_id=TEST-001"
                 className="btn-primary"
                 style={{ 
                   display: "inline-block", 
