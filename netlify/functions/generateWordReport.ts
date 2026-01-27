@@ -55,55 +55,37 @@ function loadWordTemplate(): Buffer {
             linebreaks: true,
           });
           
-          // Method 1: Try to get tags using docxtemplater's internal API
+          // Use docxtemplater's getTags() method to get all recognized tags
           try {
-            // Access the parser to get all tags
-            const parser = (doc as any).parser;
-            if (parser && parser.getTags) {
-              const tags = parser.getTags();
-              console.log("📋 Found placeholders via parser.getTags():", tags);
+            const tags = doc.getTags();
+            console.log("📋 Found placeholders via doc.getTags():", tags);
+            if (tags && Array.isArray(tags)) {
+              const tagNames = tags.map((tag: any) => {
+                if (typeof tag === 'string') return tag;
+                if (tag && typeof tag === 'object' && 'tag' in tag) return tag.tag;
+                return String(tag);
+              });
+              console.log("📋 Tag names:", tagNames);
             }
-          } catch (parserErr) {
-            console.log("Could not get tags via parser:", parserErr);
+          } catch (tagsErr) {
+            console.log("Could not get tags via doc.getTags():", tagsErr);
           }
           
-          // Method 2: Try to get full text and extract placeholders
+          // Try to get full text and extract placeholders manually
           try {
             const fullText = doc.getFullText();
-            console.log("Full text sample (first 500 chars):", fullText.substring(0, 500));
+            console.log("Full text sample (first 1000 chars):", fullText.substring(0, 1000));
             
-            // Try multiple regex patterns to catch split placeholders
-            const patterns = [
-              /\{\{(\w+)\}\}/g,  // Standard: {{TAG}}
-              /\{\{([^}]*)\}\}/g, // More flexible: {{ANYTHING}}
-              /\{\{([^}]*)/g,     // Partial open: {{TAG
-              /([^}]*)\}\}/g,     // Partial close: TAG}}
-            ];
-            
+            // Extract placeholders using regex
+            const placeholderRegex = /\{\{([^}]+)\}\}/g;
             const placeholders = new Set<string>();
-            patterns.forEach((pattern, idx) => {
-              let match;
-              const text = fullText;
-              while ((match = pattern.exec(text)) !== null) {
-                if (match[1]) {
-                  placeholders.add(match[1].trim());
-                }
-              }
-            });
-            
-            console.log("📋 Found placeholders via regex (all patterns):", Array.from(placeholders).sort());
+            let match;
+            while ((match = placeholderRegex.exec(fullText)) !== null) {
+              placeholders.add(match[1].trim());
+            }
+            console.log("📋 Found placeholders via regex from fullText:", Array.from(placeholders).sort());
           } catch (textErr) {
             console.warn("Could not extract placeholders from full text:", textErr);
-          }
-          
-          // Method 3: Try to access the parsed template structure
-          try {
-            const parsed = (doc as any).parsed;
-            if (parsed) {
-              console.log("Parsed template structure available:", typeof parsed);
-            }
-          } catch (parsedErr) {
-            // Ignore
           }
         } catch (extractErr) {
           console.warn("Could not extract placeholders from template:", extractErr);
@@ -403,20 +385,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("Rendering template...");
     try {
-      // Before rendering, try to get all tags that docxtemplater recognizes
+      // Before rendering, get all tags that docxtemplater recognizes
       try {
-        const parser = (doc as any).parser;
-        if (parser) {
-          // Try to access tags
-          const allTags = parser.getTags ? parser.getTags() : null;
-          if (allTags) {
-            console.log("📋 Tags recognized by docxtemplater:", allTags);
-          }
+        const tags = doc.getTags();
+        console.log("📋 Tags recognized by docxtemplater before render:", tags);
+        if (tags && Array.isArray(tags)) {
+          const tagNames = tags.map((tag: any) => {
+            if (typeof tag === 'string') return tag;
+            if (tag && typeof tag === 'object' && 'tag' in tag) return tag.tag;
+            return String(tag);
+          });
+          console.log("📋 Tag names before render:", tagNames);
           
-          // Try to get the scope parser
-          const scopeParser = parser.scopeParser;
-          if (scopeParser) {
-            console.log("Scope parser available");
+          // Check which tags we're providing data for
+          const providedTags = Object.keys(templateData);
+          const missingTags = tagNames.filter((tag: string) => !providedTags.includes(tag));
+          const extraTags = providedTags.filter(tag => !tagNames.includes(tag));
+          
+          if (missingTags.length > 0) {
+            console.warn("⚠️ Tags in template but not in data:", missingTags);
+          }
+          if (extraTags.length > 0) {
+            console.warn("⚠️ Tags in data but not in template:", extraTags);
           }
         }
       } catch (tagErr) {
@@ -427,7 +417,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       console.log("✅ Template rendered successfully");
       
       // After rendering, check what was actually replaced
-      // Get the rendered text to see if placeholders were replaced
       try {
         const renderedText = doc.getFullText();
         console.log("Rendered text sample (first 1000 chars):", renderedText.substring(0, 1000));
@@ -435,7 +424,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         // Check if placeholders are still present (meaning they weren't replaced)
         const remainingPlaceholders = renderedText.match(/\{\{[^}]+\}\}/g);
         if (remainingPlaceholders && remainingPlaceholders.length > 0) {
-          console.warn("⚠️ Found unreplaced placeholders in rendered text:", remainingPlaceholders);
+          const uniqueRemaining = Array.from(new Set(remainingPlaceholders));
+          console.warn("⚠️ Found unreplaced placeholders in rendered text:", uniqueRemaining);
         } else {
           console.log("✅ No unreplaced placeholders found in rendered text");
         }
