@@ -342,7 +342,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
             </>
           )}
         </div>
-        {modelInfo && (
+        {/* Model info temporarily disabled with AI */}
+        {/* {modelInfo && (
           <div style={{ 
             fontSize: "12px", 
             color: "#666", 
@@ -358,7 +359,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
               </span>
             )}
           </div>
-        )}
+        )} */}
       </div>
 
       {enhanceError && (
