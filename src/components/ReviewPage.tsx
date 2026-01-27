@@ -49,24 +49,25 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       return;
     }
     
-    console.log("Starting AI enhancement...", {
-      inspection_id: data.inspection_id,
-      has_findings: !!data.findings,
-      findings_count: data.findings?.length || 0,
-      has_raw_data: !!data.raw_data
-    });
+    // AI enhancement temporarily disabled for testing to avoid API costs
+    // Just show the template HTML directly without calling AI API
+    console.log("AI enhancement disabled - showing template directly");
     
     setIsEnhancing(true);
     setEnhanceError(null);
     
-    // Step 1: Immediately show template HTML (with original data filled)
-    // This gives immediate feedback to the user
+    // Immediately show template HTML (with original data filled)
     const initialTemplateHtml = data.report_html; // This is already template-filled HTML
     setTemplateHtml(initialTemplateHtml);
     setEnhancedHtml(null); // Reset enhanced HTML
     
-    console.log("Template HTML set, showing template with original data");
+    // Simulate a short delay for UI consistency
+    await new Promise(resolve => setTimeout(resolve, 500));
     
+    setIsEnhancing(false);
+    console.log("Template displayed (AI disabled)");
+    
+    /* AI enhancement code - disabled for testing
     try {
       const requestBody = {
         inspection_id: data.inspection_id,
@@ -76,45 +77,26 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         raw_data: data.raw_data
       };
       
-      console.log("Sending request to /api/enhanceReport", {
-        body_size: JSON.stringify(requestBody).length,
-        has_raw_data: !!requestBody.raw_data
-      });
-      
       const res = await fetch("/api/enhanceReport", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
       });
 
-      console.log("Response received:", {
-        status: res.status,
-        ok: res.ok
-      });
-
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
-        console.error("API error:", errorMessage, errorData);
         throw new Error(errorMessage);
       }
 
       const result = await res.json();
-      console.log("AI enhancement result:", {
-        has_enhanced_html: !!result.enhanced_html,
-        enhanced_html_length: result.enhanced_html?.length || 0,
-        model_used: result.model_used
-      });
       
       if (result.enhanced_html && result.enhanced_html.length > 100) {
-        // Step 2: Replace template HTML with AI-enhanced HTML
-        console.log("Replacing template HTML with AI-enhanced HTML");
         setEnhancedHtml(result.enhanced_html);
-        setTemplateHtml(null); // Clear template HTML since we now have enhanced version
+        setTemplateHtml(null);
       } else {
-        console.warn("No valid enhanced_html in response");
         setEnhanceError("AI返回了无效内容，请重试");
-        setTemplateHtml(null); // Clear template on error
+        setTemplateHtml(null);
       }
       
       if (result.model_used) {
@@ -127,11 +109,11 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
       setEnhanceError(errorMessage);
       console.error("Error enhancing report:", e);
-      setTemplateHtml(null); // Clear template on error
+      setTemplateHtml(null);
     } finally {
       setIsEnhancing(false);
-      console.log("Enhancement process completed");
     }
+    */
   };
 
   const handleGeneratePDF = async () => {
