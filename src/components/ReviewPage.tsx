@@ -24,6 +24,9 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   // const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null); // Temporarily disabled with AI
   const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [wordError, setWordError] = useState<string | null>(null);
+  const [isGeneratingOfficialWord, setIsGeneratingOfficialWord] = useState(false);
+  const [officialWordReady, setOfficialWordReady] = useState(false);
+  const [officialWordError, setOfficialWordError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -270,6 +273,44 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     }
   };
 
+  const handleGenerateOfficialWord = async () => {
+    setIsGeneratingOfficialWord(true);
+    setOfficialWordError(null);
+    setOfficialWordReady(false);
+
+    try {
+      console.log("Generating official Word document via testWordBlob...");
+      
+      const res = await fetch("/api/testWordBlob", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await res.json();
+      console.log("Official Word document generated:", result);
+
+      if (result.ok && result.key) {
+        setOfficialWordReady(true);
+      } else {
+        throw new Error("生成失败，未返回有效的 key");
+      }
+      
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
+      setOfficialWordError(errorMessage);
+      console.error("Error generating official Word document:", e);
+      alert(`生成 Word 官方版时出错: ${errorMessage}`);
+    } finally {
+      setIsGeneratingOfficialWord(false);
+    }
+  };
+
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
   if (error) {
     return (
@@ -342,6 +383,34 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
               </button>
             </>
           )}
+          {/* Official Word generation buttons */}
+          <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
+            {!officialWordReady && (
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={handleGenerateOfficialWord}
+                disabled={isGeneratingOfficialWord}
+              >
+                {isGeneratingOfficialWord ? "生成中..." : "AI 生成（Word 官方版）"}
+              </button>
+            )}
+            {officialWordReady && (
+              <a
+                href="/api/downloadWord?inspection_id=TEST-001"
+                className="btn-primary"
+                style={{ 
+                  display: "inline-block", 
+                  textDecoration: "none", 
+                  textAlign: "center",
+                  padding: "14px 20px"
+                }}
+                download
+              >
+                下载 Word（官方版）
+              </a>
+            )}
+          </div>
         </div>
         {/* Model info temporarily disabled with AI */}
         {/* {modelInfo && (
@@ -384,6 +453,17 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           borderRadius: "4px"
         }}>
           <strong>Word生成错误:</strong> {wordError}
+        </div>
+      )}
+      {officialWordError && (
+        <div style={{ 
+          padding: "12px", 
+          marginBottom: "16px", 
+          backgroundColor: "#ffebee", 
+          color: "#c62828",
+          borderRadius: "4px"
+        }}>
+          <strong>Word官方版生成错误:</strong> {officialWordError}
         </div>
       )}
 
