@@ -21,7 +21,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [templateHtml, setTemplateHtml] = useState<string | null>(null); // Template HTML with placeholders filled
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null);
+  // const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null); // Temporarily disabled with AI
   const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [wordError, setWordError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
