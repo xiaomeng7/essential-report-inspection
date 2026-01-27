@@ -46,6 +46,27 @@ function loadWordTemplate(): Buffer {
         const content = fs.readFileSync(templatePath);
         console.log("✅ Successfully loaded Word template from:", templatePath);
         console.log("Template size:", content.length, "bytes");
+        
+        // Extract and log all placeholders in the template for debugging
+        try {
+          const zip = new PizZip(content);
+          const doc = new Docxtemplater(zip, {
+            paragraphLoop: true,
+            linebreaks: true,
+          });
+          // Get all tags from the template
+          const tags = doc.getFullText();
+          const placeholderRegex = /\{\{(\w+)\}\}/g;
+          const placeholders = new Set<string>();
+          let match;
+          while ((match = placeholderRegex.exec(tags)) !== null) {
+            placeholders.add(match[1]);
+          }
+          console.log("📋 Found placeholders in Word template:", Array.from(placeholders).sort());
+        } catch (extractErr) {
+          console.warn("Could not extract placeholders from template:", extractErr);
+        }
+        
         return content;
       }
     } catch (e) {
