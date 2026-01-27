@@ -54,15 +54,57 @@ function loadWordTemplate(): Buffer {
             paragraphLoop: true,
             linebreaks: true,
           });
-          // Get all tags from the template
-          const tags = doc.getFullText();
-          const placeholderRegex = /\{\{(\w+)\}\}/g;
-          const placeholders = new Set<string>();
-          let match;
-          while ((match = placeholderRegex.exec(tags)) !== null) {
-            placeholders.add(match[1]);
+          
+          // Method 1: Try to get tags using docxtemplater's internal API
+          try {
+            // Access the parser to get all tags
+            const parser = (doc as any).parser;
+            if (parser && parser.getTags) {
+              const tags = parser.getTags();
+              console.log("📋 Found placeholders via parser.getTags():", tags);
+            }
+          } catch (parserErr) {
+            console.log("Could not get tags via parser:", parserErr);
           }
-          console.log("📋 Found placeholders in Word template:", Array.from(placeholders).sort());
+          
+          // Method 2: Try to get full text and extract placeholders
+          try {
+            const fullText = doc.getFullText();
+            console.log("Full text sample (first 500 chars):", fullText.substring(0, 500));
+            
+            // Try multiple regex patterns to catch split placeholders
+            const patterns = [
+              /\{\{(\w+)\}\}/g,  // Standard: {{TAG}}
+              /\{\{([^}]*)\}\}/g, // More flexible: {{ANYTHING}}
+              /\{\{([^}]*)/g,     // Partial open: {{TAG
+              /([^}]*)\}\}/g,     // Partial close: TAG}}
+            ];
+            
+            const placeholders = new Set<string>();
+            patterns.forEach((pattern, idx) => {
+              let match;
+              const text = fullText;
+              while ((match = pattern.exec(text)) !== null) {
+                if (match[1]) {
+                  placeholders.add(match[1].trim());
+                }
+              }
+            });
+            
+            console.log("📋 Found placeholders via regex (all patterns):", Array.from(placeholders).sort());
+          } catch (textErr) {
+            console.warn("Could not extract placeholders from full text:", textErr);
+          }
+          
+          // Method 3: Try to access the parsed template structure
+          try {
+            const parsed = (doc as any).parsed;
+            if (parsed) {
+              console.log("Parsed template structure available:", typeof parsed);
+            }
+          } catch (parsedErr) {
+            // Ignore
+          }
         } catch (extractErr) {
           console.warn("Could not extract placeholders from template:", extractErr);
         }
@@ -361,8 +403,38 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("Rendering template...");
     try {
+      // Before rendering, try to get all tags that docxtemplater recognizes
+      try {
+        const parser = (doc as any).parser;
+        if (parser) {
+          // Try to access tags
+          const allTags = parser.getTags ? parser.getTags() : null;
+          if (allTags) {
+            console.log("📋 Tags recognized by docxtemplater:", allTags);
+          }
+          
+          // Try to get the scope parser
+          const scopeParser = parser.scopeParser;
+          if (scopeParser) {
+            console.log("Scope parser available");
+          }
+        }
+      } catch (tagErr) {
+        console.log("Could not get tags before render:", tagErr);
+      }
+      
       doc.render();
       console.log("✅ Template rendered successfully");
+      
+      // After rendering, check if any tags were used
+      try {
+        const usedTags = (doc as any).usedTags || (doc as any).getUsedTags?.();
+        if (usedTags) {
+          console.log("📋 Tags used during rendering:", usedTags);
+        }
+      } catch (usedErr) {
+        // Ignore
+      }
     } catch (e: any) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to render template:", errorMsg);
