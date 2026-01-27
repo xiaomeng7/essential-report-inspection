@@ -186,7 +186,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     );
     
     // Prepare template data - use real inspection_id and findings data
-    const templateData = {
+    // Note: Ensure placeholder names match exactly what's in the Word template
+    const templateData: Record<string, string> = {
       INSPECTION_ID: inspection_id,
       ASSESSMENT_DATE: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
       PREPARED_FOR: "", // TODO: Extract from inspection data
@@ -207,11 +208,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       TECHNICAL_NOTES: "", // TODO: Extract from inspection data
     };
     
+    // Log all template data for debugging
     console.log("Template data prepared:", Object.keys(templateData));
-    console.log("Findings preview:", {
-      immediate: immediateText.substring(0, 100),
-      recommended: recommendedText.substring(0, 100),
-      plan: planText.substring(0, 100)
+    console.log("Template data values:", {
+      INSPECTION_ID: templateData.INSPECTION_ID,
+      IMMEDIATE_FINDINGS: templateData.IMMEDIATE_FINDINGS.substring(0, 200),
+      RECOMMENDED_FINDINGS: templateData.RECOMMENDED_FINDINGS.substring(0, 200),
+      PLAN_FINDINGS: templateData.PLAN_FINDINGS.substring(0, 200),
+      LIMITATIONS: templateData.LIMITATIONS.substring(0, 200),
+    });
+    
+    // Log findings counts for verification
+    console.log("Findings counts:", {
+      immediate: reportData.immediate.length,
+      recommended: reportData.recommended.length,
+      plan: reportData.plan.length,
+      limitations: reportData.limitations.length
     });
     
     // Generate Word document
@@ -307,11 +319,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("Setting template data...");
     try {
+      // Log what we're setting
+      console.log("Setting data with keys:", Object.keys(templateData));
+      console.log("Sample values:", {
+        INSPECTION_ID: templateData.INSPECTION_ID,
+        IMMEDIATE_FINDINGS_length: templateData.IMMEDIATE_FINDINGS.length,
+        RECOMMENDED_FINDINGS_length: templateData.RECOMMENDED_FINDINGS.length,
+        PLAN_FINDINGS_length: templateData.PLAN_FINDINGS.length,
+        LIMITATIONS_length: templateData.LIMITATIONS.length,
+      });
+      
       doc.setData(templateData);
       console.log("✅ Template data set successfully");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to set template data:", errorMsg);
+      console.error("Template data that failed:", JSON.stringify(templateData, null, 2));
       throw new Error(`Failed to set template data: ${errorMsg}`);
     }
     
