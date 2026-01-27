@@ -116,13 +116,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       console.error("❌ Failed to create Docxtemplater:", errorMsg);
       
       // Log full error object for debugging
-      console.error("Full error object:", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+      try {
+        console.error("Full error object:", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+      } catch (jsonErr) {
+        console.error("Could not stringify error object:", jsonErr);
+        console.error("Error object keys:", Object.keys(e));
+        console.error("Error object:", e);
+      }
+      
+      // Build detailed error message
+      let detailedErrorMsg = `Failed to create Docxtemplater: ${errorMsg}`;
       
       // Check if it's a duplicate tag error (Word XML splitting issue)
       if (e.errors && Array.isArray(e.errors)) {
         console.error(`Found ${e.errors.length} error(s) in template:`);
+        const errorDetails: string[] = [];
+        
         e.errors.forEach((err: any, index: number) => {
-          console.error(`Error ${index + 1}:`, {
+          const errInfo = {
             name: err.name,
             message: err.message,
             id: err.id,
@@ -130,7 +141,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             file: err.file,
             offset: err.offset,
             explanation: err.explanation
-          });
+          };
+          console.error(`Error ${index + 1}:`, errInfo);
+          errorDetails.push(`Error ${index + 1}: ${err.id || err.name || 'unknown'} - ${err.message || 'no message'} (context: ${err.context || 'none'})`);
         });
         
         const duplicateErrors = e.errors.filter((err: any) => 
@@ -216,19 +229,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           });
           
           const tagList = Array.from(affectedTags).join(", ");
-          throw new Error(
+          detailedErrorMsg = 
             `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
-            `Affected tags: ${tagList}. ` +
+            `Affected tags: ${tagList || 'UNKNOWN'}. ` +
             `This happens when Word splits text nodes (e.g., when formatting is applied mid-tag). ` +
             `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
             `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
             `To fix: Select each placeholder entirely, then apply formatting uniformly, or retype it without formatting. ` +
-            `Make sure to save the file after fixing.`
-          );
+            `Make sure to save the file after fixing. ` +
+            `\n\nError details:\n${errorDetails.join('\n')}`;
+        } else {
+          // Other docxtemplater errors
+          detailedErrorMsg = 
+            `Docxtemplater error: ${errorMsg}\n\n` +
+            `Found ${e.errors.length} error(s) in template:\n${errorDetails.join('\n')}`;
         }
+      } else if (e.properties && e.properties.errors) {
+        // Alternative error structure
+        console.error("Error has properties.errors:", e.properties.errors);
+        detailedErrorMsg = `Docxtemplater error: ${errorMsg}. Check console for details.`;
       }
       
-      throw new Error(`Failed to create Docxtemplater: ${errorMsg}`);
+      throw new Error(detailedErrorMsg);
     }
     
     console.log("Setting template data...");

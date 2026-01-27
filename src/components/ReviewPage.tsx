@@ -465,13 +465,23 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       )}
       {officialWordError && (
         <div style={{ 
-          padding: "12px", 
+          padding: "16px", 
           marginBottom: "16px", 
           backgroundColor: "#ffebee", 
           color: "#c62828",
-          borderRadius: "4px"
+          borderRadius: "4px",
+          border: "1px solid #ef5350",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontSize: "14px",
+          lineHeight: "1.6"
         }}>
-          <strong>Word官方版生成错误:</strong> {officialWordError}
+          <strong style={{ display: "block", marginBottom: "8px", fontSize: "16px" }}>
+            Word官方版生成错误:
+          </strong>
+          <div style={{ fontFamily: "monospace", fontSize: "13px" }}>
+            {officialWordError}
+          </div>
         </div>
       )}
 
