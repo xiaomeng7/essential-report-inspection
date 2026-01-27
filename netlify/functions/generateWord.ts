@@ -101,21 +101,32 @@ function prepareWordData(
 
 // Load Word template
 function loadWordTemplate(): Buffer {
+  // Try multiple paths - prioritize netlify/functions directory (where it's copied during build)
   const possiblePaths = [
-    path.join(__dirname, "..", "..", "report-template.docx"),
+    // First try: same directory as the function (netlify/functions/)
     path.join(__dirname, "report-template.docx"),
+    // Second try: parent directory (netlify/)
+    path.join(__dirname, "..", "report-template.docx"),
+    // Third try: project root (for local dev)
     path.join(process.cwd(), "report-template.docx"),
-    path.join(process.cwd(), "..", "report-template.docx"),
+    // Fourth try: netlify/functions from project root
+    path.join(process.cwd(), "netlify", "functions", "report-template.docx"),
+    // Fifth try: Netlify build environment
     "/opt/build/repo/report-template.docx",
+    "/opt/build/repo/netlify/functions/report-template.docx",
+    // Fallback: relative to current working directory
+    path.join(process.cwd(), "..", "report-template.docx"),
   ];
   
   console.log("Loading Word template...");
   console.log("process.cwd():", process.cwd());
   console.log("__dirname:", __dirname);
+  console.log("Will try", possiblePaths.length, "paths");
   
   for (const templatePath of possiblePaths) {
     try {
       if (!templatePath || typeof templatePath !== "string" || templatePath.includes("undefined")) {
+        console.log("Skipping invalid path:", templatePath);
         continue;
       }
       
@@ -135,6 +146,10 @@ function loadWordTemplate(): Buffer {
     }
   }
   
+  console.error("❌ Could not load report-template.docx from any path");
+  console.error("Tried", possiblePaths.length, "paths");
+  console.error("Current working directory:", process.cwd());
+  console.error("__dirname:", __dirname);
   throw new Error("Could not load report-template.docx from any path");
 }
 
