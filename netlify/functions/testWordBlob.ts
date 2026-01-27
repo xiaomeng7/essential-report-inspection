@@ -210,83 +210,104 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           console.error(`Template has ${duplicateErrors.length} duplicate tag error(s) (Word split tags across XML nodes):`);
           
           // Group errors by tag to identify which tags are split
-          const tagGroups: Record<string, Array<{type: string, context: string, offset: number}>> = {};
+          // We need to match open/close pairs, so we'll group by a combination of open and close parts
+          const tagPairs: Array<{open: {context: string, offset: number}, close: {context: string, offset: number}}> = [];
+          const openTags: Array<{context: string, offset: number}> = [];
+          const closeTags: Array<{context: string, offset: number}> = [];
+          
           duplicateErrors.forEach((err: any) => {
             // Extract error properties (may be nested)
             const errId = err.id || err.properties?.id;
             const errContext = err.context || err.properties?.context || "";
             const errOffset = err.offset || err.properties?.offset;
             
-            // Try to identify the full tag name from partial contexts
-            let tagKey = "UNKNOWN";
-            if (errContext) {
-              // For open tags like "{{PROP", try to find matching close tag
-              if (errId === "duplicate_open_tag" && errContext.startsWith("{{")) {
-                tagKey = errContext;
-              }
-              // For close tags like "TYPE}}", try to find matching open tag
-              else if (errId === "duplicate_close_tag" && errContext.endsWith("}}")) {
-                tagKey = errContext;
-              }
+            if (errId === "duplicate_open_tag" && errContext.startsWith("{{")) {
+              openTags.push({ context: errContext, offset: errOffset || 0 });
+            } else if (errId === "duplicate_close_tag" && errContext.endsWith("}}")) {
+              closeTags.push({ context: errContext, offset: errOffset || 0 });
             }
-            
-            if (!tagGroups[tagKey]) {
-              tagGroups[tagKey] = [];
-            }
-            tagGroups[tagKey].push({
-              type: errId,
-              context: errContext,
-              offset: errOffset
+          });
+          
+          // Match open and close tags by proximity (offset)
+          // Sort by offset to match closest pairs
+          openTags.sort((a, b) => a.offset - b.offset);
+          closeTags.sort((a, b) => a.offset - b.offset);
+          
+          // Try to match pairs - for each open tag, find the closest close tag
+          const usedCloseIndices = new Set<number>();
+          openTags.forEach((openTag) => {
+            let bestMatch: {index: number, distance: number} | null = null;
+            closeTags.forEach((closeTag, index) => {
+              if (usedCloseIndices.has(index)) return;
+              const distance = Math.abs(closeTag.offset - openTag.offset);
+              if (!bestMatch || distance < bestMatch.distance) {
+                bestMatch = { index, distance };
+              }
             });
+            
+            if (bestMatch) {
+              usedCloseIndices.add(bestMatch.index);
+              tagPairs.push({
+                open: openTag,
+                close: closeTags[bestMatch.index]
+              });
+            }
           });
           
           // Try to reconstruct full tag names by matching open/close pairs
           const affectedTags = new Set<string>();
-          Object.entries(tagGroups).forEach(([key, errors]) => {
-            const openTag = errors.find(e => e.type === "duplicate_open_tag");
-            const closeTag = errors.find(e => e.type === "duplicate_close_tag");
+          const tagMapping: Record<string, Record<string, string>> = {
+            "PROP": { "TYPE": "PROPERTY_TYPE" },
+            "PREP": { "_FOR": "PREPARED_FOR" },
+            "ASSE": { "DATE": "ASSESSMENT_DATE" },
+            "INSP": { "ID": "INSPECTION_ID" },
+            "OVER": { "ATUS": "OVERALL_STATUS" },
+            "EXEC": { "MARY": "EXECUTIVE_SUMMARY" },
+            "RISK": { "TING": "RISK_RATING", "TORS": "RISK_RATING_FACTORS" },
+            "IMME": { "INGS": "IMMEDIATE_FINDINGS" },
+            "URGE": { "INGS": "URGENT_FINDINGS" },
+            "RECO": { "INGS": "RECOMMENDED_FINDINGS" },
+            "PLAN": { "INGS": "PLAN_FINDINGS" },
+            "TEST": { "MARY": "TEST_SUMMARY" },
+            "TECH": { "OTES": "TECHNICAL_NOTES" },
+          };
+          
+          tagPairs.forEach((pair) => {
+            // Extract parts: "{{PROP" -> "PROP", "TYPE}}" -> "TYPE"
+            const openPart = pair.open.context.replace("{{", "").trim();
+            const closePart = pair.close.context.replace("}}", "").trim();
             
-            if (openTag && closeTag) {
-              // Try to reconstruct: "{{PROP" + "ERTY_TYPE}}" = "{{PROPERTY_TYPE}}"
-              const openPart = openTag.context.replace("{{", "");
-              const closePart = closeTag.context.replace("}}", "");
-              // Find common patterns
-              if (openPart === "PROP" && closePart === "TYPE") {
-                affectedTags.add("PROPERTY_TYPE");
-              } else if (openPart === "PREP" && closePart === "_FOR") {
-                affectedTags.add("PREPARED_FOR");
-              } else if (openPart === "ASSE" && closePart === "DATE") {
-                affectedTags.add("ASSESSMENT_DATE");
-              } else if (openPart === "INSP" && closePart === "ID") {
-                affectedTags.add("INSPECTION_ID");
-              } else if (openPart === "OVER" && closePart === "ADGE") {
-                affectedTags.add("OVERALL_STATUS");
-              } else if (openPart === "EXEC" && closePart === "RAPH") {
-                affectedTags.add("EXECUTIVE_SUMMARY");
-              } else if (openPart === "RISK" && closePart === "ADGE") {
-                affectedTags.add("RISK_RATING");
-              } else if (openPart === "RISK" && closePart === "TORS") {
-                affectedTags.add("RISK_RATING_FACTORS");
-              } else if (openPart === "IMME" && closePart === "INGS") {
-                affectedTags.add("IMMEDIATE_FINDINGS");
-              } else if (openPart === "URGE" && closePart === "INGS") {
-                affectedTags.add("URGENT_FINDINGS");
-              } else if (openPart === "RECO" && closePart === "INGS") {
-                affectedTags.add("RECOMMENDED_FINDINGS");
-              } else if (openPart === "PLAN" && closePart === "INGS") {
-                affectedTags.add("PLAN_FINDINGS");
-              } else if (openPart === "TEST" && closePart === "MARY") {
-                affectedTags.add("TEST_SUMMARY");
-              } else if (openPart === "TECH" && closePart === "OTES") {
-                affectedTags.add("TECHNICAL_NOTES");
-              } else {
-                affectedTags.add(`${openPart}...${closePart}`);
+            console.error(`Matching pair: ${openPart} + ${closePart}`);
+            
+            // Try to match using the mapping
+            let matched = false;
+            if (tagMapping[openPart] && tagMapping[openPart][closePart]) {
+              affectedTags.add(tagMapping[openPart][closePart]);
+              matched = true;
+              console.error(`  -> Matched: ${tagMapping[openPart][closePart]}`);
+            } else {
+              // Try partial matching
+              for (const [openKey, closeMap] of Object.entries(tagMapping)) {
+                if (openPart === openKey || openPart.startsWith(openKey)) {
+                  for (const [closeKey, tagName] of Object.entries(closeMap)) {
+                    if (closePart === closeKey || closePart.endsWith(closeKey)) {
+                      affectedTags.add(tagName);
+                      matched = true;
+                      console.error(`  -> Matched via partial: ${tagName}`);
+                      break;
+                    }
+                  }
+                  if (matched) break;
+                }
               }
             }
             
-            errors.forEach((err: any) => {
-              console.error(`  - ${err.type}: ${err.context} (offset ${err.offset})`);
-            });
+            // If still not matched, show the parts
+            if (!matched) {
+              const combined = `${openPart}...${closePart}`;
+              affectedTags.add(combined);
+              console.error(`  -> No match found, using: ${combined}`);
+            }
           });
           
           const tagList = Array.from(affectedTags).join(", ");
