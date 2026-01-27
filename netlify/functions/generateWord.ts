@@ -101,21 +101,24 @@ function prepareWordData(
 
 // Load Word template
 function loadWordTemplate(): Buffer {
-  // Try multiple paths - prioritize netlify/functions directory (where it's copied during build)
+  // Try multiple paths - prioritize same directory as function (where included_files places it)
   const possiblePaths = [
-    // First try: same directory as the function (netlify/functions/)
+    // First try: same directory as the function file (netlify/functions/)
+    // This is where included_files will place the template
     path.join(__dirname, "report-template.docx"),
-    // Second try: parent directory (netlify/)
-    path.join(__dirname, "..", "report-template.docx"),
-    // Third try: project root (for local dev)
+    // Second try: current working directory (for Netlify Functions runtime)
     path.join(process.cwd(), "report-template.docx"),
-    // Fourth try: netlify/functions from project root
+    // Third try: netlify/functions subdirectory from cwd
     path.join(process.cwd(), "netlify", "functions", "report-template.docx"),
-    // Fifth try: Netlify build environment
+    // Fourth try: parent directory (netlify/)
+    path.join(__dirname, "..", "report-template.docx"),
+    // Fifth try: Netlify build environment paths
     "/opt/build/repo/report-template.docx",
     "/opt/build/repo/netlify/functions/report-template.docx",
-    // Fallback: relative to current working directory
+    // Fallback: relative paths
     path.join(process.cwd(), "..", "report-template.docx"),
+    "./report-template.docx",
+    "./netlify/functions/report-template.docx",
   ];
   
   console.log("Loading Word template...");
