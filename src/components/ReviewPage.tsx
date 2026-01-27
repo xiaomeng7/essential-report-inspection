@@ -391,6 +391,18 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         </div>
       )}
 
+      {wordError && (
+        <div style={{ 
+          padding: "12px", 
+          marginBottom: "16px", 
+          backgroundColor: "#ffebee", 
+          color: "#c62828",
+          borderRadius: "4px"
+        }}>
+          <strong>Word生成错误:</strong> {wordError}
+        </div>
+      )}
+
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings</h2>
