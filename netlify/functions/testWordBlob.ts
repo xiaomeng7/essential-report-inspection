@@ -127,12 +127,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       // Build detailed error message
       let detailedErrorMsg = `Failed to create Docxtemplater: ${errorMsg}`;
       
-      // Check if it's a duplicate tag error (Word XML splitting issue)
+      // Try multiple ways to access error details
+      let errorsArray: any[] | null = null;
+      
+      // Method 1: Direct errors property
       if (e.errors && Array.isArray(e.errors)) {
-        console.error(`Found ${e.errors.length} error(s) in template:`);
+        errorsArray = e.errors;
+      }
+      // Method 2: Properties.errors
+      else if (e.properties && e.properties.errors && Array.isArray(e.properties.errors)) {
+        errorsArray = e.properties.errors;
+      }
+      // Method 3: Check if error itself is an array-like structure
+      else if (Array.isArray(e)) {
+        errorsArray = e;
+      }
+      
+      // Check if it's a duplicate tag error (Word XML splitting issue)
+      if (errorsArray && errorsArray.length > 0) {
+        console.error(`Found ${errorsArray.length} error(s) in template:`);
         const errorDetails: string[] = [];
         
-        e.errors.forEach((err: any, index: number) => {
+        errorsArray.forEach((err: any, index: number) => {
           const errInfo = {
             name: err.name,
             message: err.message,
@@ -146,7 +162,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           errorDetails.push(`Error ${index + 1}: ${err.id || err.name || 'unknown'} - ${err.message || 'no message'} (context: ${err.context || 'none'})`);
         });
         
-        const duplicateErrors = e.errors.filter((err: any) => 
+        const duplicateErrors = errorsArray.filter((err: any) => 
           err.id === "duplicate_open_tag" || err.id === "duplicate_close_tag"
         );
         
@@ -242,12 +258,42 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           // Other docxtemplater errors
           detailedErrorMsg = 
             `Docxtemplater error: ${errorMsg}\n\n` +
-            `Found ${e.errors.length} error(s) in template:\n${errorDetails.join('\n')}`;
+            `Found ${errorsArray.length} error(s) in template:\n${errorDetails.join('\n')}`;
         }
-      } else if (e.properties && e.properties.errors) {
-        // Alternative error structure
-        console.error("Error has properties.errors:", e.properties.errors);
-        detailedErrorMsg = `Docxtemplater error: ${errorMsg}. Check console for details.`;
+      } else {
+        // Try to extract any error information from the error object
+        console.error("Error structure:", {
+          hasErrors: !!e.errors,
+          hasProperties: !!e.properties,
+          hasPropertiesErrors: !!(e.properties && e.properties.errors),
+          errorKeys: Object.keys(e),
+          errorMessage: errorMsg,
+          errorName: e.name,
+          errorStack: e.stack
+        });
+        
+        // Try to stringify the entire error object for debugging
+        try {
+          const errorStr = JSON.stringify(e, Object.getOwnPropertyNames(e), 2);
+          console.error("Full error object:", errorStr);
+          detailedErrorMsg = 
+            `Docxtemplater error: ${errorMsg}\n\n` +
+            `Error type: ${e.name || 'Unknown'}\n` +
+            `Please check Netlify function logs for full error details.\n` +
+            `Common causes:\n` +
+            `- Placeholder tags split across XML nodes (e.g., {{TAG}} has formatting in the middle)\n` +
+            `- Invalid placeholder syntax\n` +
+            `- Missing closing braces\n\n` +
+            `Full error (first 500 chars):\n${errorStr.substring(0, 500)}`;
+        } catch (jsonErr) {
+          detailedErrorMsg = 
+            `Docxtemplater error: ${errorMsg}\n\n` +
+            `Could not parse error details. Please check Netlify function logs.\n` +
+            `Common causes:\n` +
+            `- Placeholder tags split across XML nodes (e.g., {{TAG}} has formatting in the middle)\n` +
+            `- Invalid placeholder syntax\n` +
+            `- Missing closing braces`;
+        }
       }
       
       throw new Error(detailedErrorMsg);
@@ -321,12 +367,29 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
     console.error("Error in testWordBlob:", e);
+    
+    // Try to extract more details from the error
+    let detailedMessage = errorMessage;
+    if (e instanceof Error && e.message) {
+      detailedMessage = e.message;
+    }
+    
+    // Log full error for debugging
+    try {
+      console.error("Full error object:", JSON.stringify(e, Object.getOwnPropertyNames(e), 2));
+    } catch (jsonErr) {
+      console.error("Could not stringify error:", jsonErr);
+      console.error("Error object:", e);
+    }
+    
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         error: "Failed to generate test Word document",
-        message: errorMessage
+        message: detailedMessage,
+        // Include error details if available
+        ...(e instanceof Error && e.stack ? { stack: e.stack.substring(0, 500) } : {})
       })
     };
   }
