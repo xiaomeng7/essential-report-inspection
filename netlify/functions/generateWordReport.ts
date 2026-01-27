@@ -426,14 +426,21 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       doc.render();
       console.log("✅ Template rendered successfully");
       
-      // After rendering, check if any tags were used
+      // After rendering, check what was actually replaced
+      // Get the rendered text to see if placeholders were replaced
       try {
-        const usedTags = (doc as any).usedTags || (doc as any).getUsedTags?.();
-        if (usedTags) {
-          console.log("📋 Tags used during rendering:", usedTags);
+        const renderedText = doc.getFullText();
+        console.log("Rendered text sample (first 1000 chars):", renderedText.substring(0, 1000));
+        
+        // Check if placeholders are still present (meaning they weren't replaced)
+        const remainingPlaceholders = renderedText.match(/\{\{[^}]+\}\}/g);
+        if (remainingPlaceholders && remainingPlaceholders.length > 0) {
+          console.warn("⚠️ Found unreplaced placeholders in rendered text:", remainingPlaceholders);
+        } else {
+          console.log("✅ No unreplaced placeholders found in rendered text");
         }
-      } catch (usedErr) {
-        // Ignore
+      } catch (textErr) {
+        console.warn("Could not get rendered text:", textErr);
       }
     } catch (e: any) {
       const errorMsg = e instanceof Error ? e.message : String(e);
