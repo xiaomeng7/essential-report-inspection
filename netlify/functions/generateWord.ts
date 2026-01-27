@@ -262,28 +262,89 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         
         if (duplicateErrors.length > 0) {
           console.error(`Template has ${duplicateErrors.length} duplicate tag error(s) (Word split tags across XML nodes):`);
-          const affectedTags = new Set<string>();
+          
+          // Group errors by tag to identify which tags are split
+          const tagGroups: Record<string, Array<{type: string, context: string, offset: number}>> = {};
           duplicateErrors.forEach((err: any) => {
-            // Extract tag name from context
-            const tagMatch = err.context?.match(/\{\{([^}]+)\}\}/);
-            const tagName = tagMatch ? tagMatch[1] : err.context;
-            affectedTags.add(tagName);
-            console.error(`  - Tag: ${tagName}`);
-            console.error(`    Error: ${err.name} - ${err.message}`);
-            console.error(`    File: ${err.file}, Offset: ${err.offset}`);
-            console.error(`    Context: ${err.context}`);
-            if (err.explanation) {
-              console.error(`    Explanation: ${err.explanation}`);
+            // Try to identify the full tag name from partial contexts
+            let tagKey = "UNKNOWN";
+            if (err.context) {
+              // For open tags like "{{PROP", try to find matching close tag
+              if (err.id === "duplicate_open_tag" && err.context.startsWith("{{")) {
+                tagKey = err.context;
+              }
+              // For close tags like "TYPE}}", try to find matching open tag
+              else if (err.id === "duplicate_close_tag" && err.context.endsWith("}}")) {
+                tagKey = err.context;
+              }
             }
+            
+            if (!tagGroups[tagKey]) {
+              tagGroups[tagKey] = [];
+            }
+            tagGroups[tagKey].push({
+              type: err.id,
+              context: err.context,
+              offset: err.offset
+            });
+          });
+          
+          // Try to reconstruct full tag names by matching open/close pairs
+          const affectedTags = new Set<string>();
+          Object.entries(tagGroups).forEach(([key, errors]) => {
+            const openTag = errors.find(e => e.type === "duplicate_open_tag");
+            const closeTag = errors.find(e => e.type === "duplicate_close_tag");
+            
+            if (openTag && closeTag) {
+              // Try to reconstruct: "{{PROP" + "ERTY_TYPE}}" = "{{PROPERTY_TYPE}}"
+              const openPart = openTag.context.replace("{{", "");
+              const closePart = closeTag.context.replace("}}", "");
+              // Find common patterns
+              if (openPart === "PROP" && closePart === "TYPE") {
+                affectedTags.add("PROPERTY_TYPE");
+              } else if (openPart === "PREP" && closePart === "_FOR") {
+                affectedTags.add("PREPARED_FOR");
+              } else if (openPart === "ASSE" && closePart === "DATE") {
+                affectedTags.add("ASSESSMENT_DATE");
+              } else if (openPart === "OVER" && closePart === "ADGE") {
+                affectedTags.add("OVERALL_STATUS");
+              } else if (openPart === "EXEC" && closePart === "RAPH") {
+                affectedTags.add("EXECUTIVE_SUMMARY");
+              } else if (openPart === "RISK" && closePart === "ADGE") {
+                affectedTags.add("RISK_RATING");
+              } else if (openPart === "RISK" && closePart === "TORS") {
+                affectedTags.add("RISK_RATING_FACTORS");
+              } else if (openPart === "IMME" && closePart === "INGS") {
+                affectedTags.add("IMMEDIATE_FINDINGS");
+              } else if (openPart === "URGE" && closePart === "INGS") {
+                affectedTags.add("URGENT_FINDINGS");
+              } else if (openPart === "RECO" && closePart === "INGS") {
+                affectedTags.add("RECOMMENDED_FINDINGS");
+              } else if (openPart === "PLAN" && closePart === "INGS") {
+                affectedTags.add("PLAN_FINDINGS");
+              } else if (openPart === "TEST" && closePart === "MARY") {
+                affectedTags.add("TEST_SUMMARY");
+              } else if (openPart === "TECH" && closePart === "OTES") {
+                affectedTags.add("TECHNICAL_NOTES");
+              } else {
+                affectedTags.add(`${openPart}...${closePart}`);
+              }
+            }
+            
+            errors.forEach((err: any) => {
+              console.error(`  - ${err.type}: ${err.context} (offset ${err.offset})`);
+            });
           });
           
           const tagList = Array.from(affectedTags).join(", ");
           throw new Error(
-            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes: ${tagList}. ` +
+            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
+            `Affected tags: ${tagList}. ` +
             `This happens when Word splits text nodes (e.g., when formatting is applied mid-tag). ` +
             `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
             `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
-            `To fix: Select each placeholder entirely, then apply formatting uniformly, or retype it without formatting.`
+            `To fix: Select each placeholder entirely, then apply formatting uniformly, or retype it without formatting. ` +
+            `Make sure to save the file after fixing.`
           );
         }
         
