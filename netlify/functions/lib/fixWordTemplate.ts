@@ -6,137 +6,124 @@ import fs from "fs";
  * Word sometimes splits placeholders across XML nodes when formatting is applied
  * This function merges them back into continuous placeholders
  */
+/**
+ * Fix split placeholders in a single XML content string
+ */
+function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; count: number } {
+  const originalLength = xmlContent.length;
+  let fixCount = 0;
+  
+  // More flexible pattern: handles various XML structures between split parts
+  // Pattern matches: {{TEXT1</w:t></w:r>...<w:r>...<w:t>TEXT2}}
+  // The ... can be any XML content (attributes, other elements, etc.)
+  const splitPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t>([A-Z_]+)\}\}/g;
+  
+  // First, find all matches to log them
+  const matches: Array<{ match: string; part1: string; part2: string }> = [];
+  let match;
+  while ((match = splitPattern.exec(xmlContent)) !== null) {
+    matches.push({
+      match: match[0],
+      part1: match[1],
+      part2: match[2]
+    });
+  }
+  
+  if (matches.length > 0) {
+    console.log(`📋 Found ${matches.length} split placeholder(s) in ${fileName}:`);
+    matches.forEach((m, i) => {
+      console.log(`  ${i + 1}. ${m.part1}...${m.part2}`);
+    });
+  }
+  
+  // Mapping of known split patterns to full placeholders
+  const placeholderMap: Record<string, string> = {
+    "PROP|TYPE": "PROPERTY_TYPE",
+    "ASSE|DATE": "ASSESSMENT_DATE",
+    "ASSE|POSE": "ASSESSMENT_PURPOSE",
+    "PREP|_FOR": "PREPARED_FOR",
+    "PREP|D_BY": "PREPARED_BY",
+    "IMME|INGS": "IMMEDIATE_FINDINGS",
+    "RECO|INGS": "RECOMMENDED_FINDINGS",
+    "PLAN|INGS": "PLAN_FINDINGS",
+    "URGE|INGS": "URGENT_FINDINGS",
+    "EXEC|RAPH": "EXECUTIVE_SUMMARY",
+    "OVER|ADGE": "OVERALL_STATUS",
+    "RISK|ADGE": "RISK_RATING",
+    "RISK|TORS": "RISK_RATING_FACTORS",
+    "LIMI|TION": "LIMITATIONS",
+    "LIMI|TIONS": "LIMITATIONS",
+    "TEST|MARY": "TEST_SUMMARY",
+    "TECH|OTES": "TECHNICAL_NOTES",
+    "GENE|OTES": "GENERAL_NOTES",
+    "CAPI|ABLE": "CAPITAL_PLANNING",
+    "NEXT|TEPS": "NEXT_STEPS",
+  };
+  
+  // Replace all split placeholders
+  xmlContent = xmlContent.replace(splitPattern, (fullMatch, part1, part2) => {
+    const key = `${part1}|${part2}`;
+    const fullName = placeholderMap[key];
+    
+    if (fullName) {
+      fixCount++;
+      console.log(`  ✅ Fixed: ${part1}...${part2} -> {{${fullName}}}`);
+      return `{{${fullName}}}`;
+    } else {
+      console.warn(`  ⚠️ Unknown pattern: ${part1}...${part2}, trying to combine`);
+      // Fallback: try to combine (may not be correct)
+      return `{{${part1}${part2}}}`;
+    }
+  });
+  
+  if (fixCount > 0) {
+    console.log(`✅ Fixed ${fixCount} split placeholder(s) in ${fileName}`);
+  }
+  
+  return { fixed: xmlContent, count: fixCount };
+}
+
 export function fixWordTemplate(buffer: Buffer): Buffer {
   try {
     const zip = new PizZip(buffer);
+    let totalFixCount = 0;
     
-    // Read document.xml
+    // Fix document.xml
     const documentXml = zip.files["word/document.xml"];
-    if (!documentXml) {
-      console.warn("⚠️ word/document.xml not found in template, skipping fix");
-      return buffer;
+    if (documentXml) {
+      const result = fixXmlContent(documentXml.asText(), "word/document.xml");
+      zip.file("word/document.xml", result.fixed);
+      totalFixCount += result.count;
+    } else {
+      console.warn("⚠️ word/document.xml not found in template");
     }
     
-    let xmlContent = documentXml.asText();
-    const originalLength = xmlContent.length;
-    console.log("Original XML length:", originalLength);
-    
-    // List of placeholders that are known to be split
-    // Format: { splitPattern: fullPlaceholder }
-    const placeholderFixes: Record<string, string> = {
-      // Core findings placeholders
-      "{{IMME</w:t></w:r><w:r><w:t>INGS}}": "{{IMMEDIATE_FINDINGS}}",
-      "{{RECO</w:t></w:r><w:r><w:t>INGS}}": "{{RECOMMENDED_FINDINGS}}",
-      "{{PLAN</w:t></w:r><w:r><w:t>INGS}}": "{{PLAN_FINDINGS}}",
-      "{{URGE</w:t></w:r><w:r><w:t>INGS}}": "{{URGENT_FINDINGS}}",
-      
-      // Basic info placeholders
-      "{{PROP</w:t></w:r><w:r><w:t>TYPE}}": "{{PROPERTY_TYPE}}",
-      "{{ASSE</w:t></w:r><w:r><w:t>DATE}}": "{{ASSESSMENT_DATE}}",
-      "{{ASSE</w:t></w:r><w:r><w:t>POSE}}": "{{ASSESSMENT_PURPOSE}}",
-      "{{PREP</w:t></w:r><w:r><w:t>_FOR}}": "{{PREPARED_FOR}}",
-      "{{PREP</w:t></w:r><w:r><w:t>D_BY}}": "{{PREPARED_BY}}",
-      
-      // Report content placeholders
-      "{{EXEC</w:t></w:r><w:r><w:t>RAPH}}": "{{EXECUTIVE_SUMMARY}}",
-      "{{OVER</w:t></w:r><w:r><w:t>ADGE}}": "{{OVERALL_STATUS}}",
-      "{{RISK</w:t></w:r><w:r><w:t>ADGE}}": "{{RISK_RATING}}",
-      "{{RISK</w:t></w:r><w:r><w:t>TORS}}": "{{RISK_RATING_FACTORS}}",
-      "{{RISK</w:t></w:r><w:r><w:t>FACTORS}}": "{{RISK_FACTORS}}",
-      "{{LIMI</w:t></w:r><w:r><w:t>TION}}": "{{LIMITATIONS}}",
-      "{{LIMI</w:t></w:r><w:r><w:t>TIONS}}": "{{LIMITATIONS}}",
-      "{{TEST</w:t></w:r><w:r><w:t>MARY}}": "{{TEST_SUMMARY}}",
-      "{{TECH</w:t></w:r><w:r><w:t>OTES}}": "{{TECHNICAL_NOTES}}",
-      "{{GENE</w:t></w:r><w:r><w:t>OTES}}": "{{GENERAL_NOTES}}",
-      "{{CAPI</w:t></w:r><w:r><w:t>ABLE}}": "{{CAPITAL_PLANNING}}",
-      "{{NEXT</w:t></w:r><w:r><w:t>TEPS}}": "{{NEXT_STEPS}}",
-      
-      // Also handle cases where the split might be in different positions
-      // Pattern: {{PART1</w:t></w:r><w:r><w:t>PART2}}
-      // We'll use a more general regex approach for these
-    };
-    
-    // Apply specific fixes
-    let fixCount = 0;
-    for (const [splitPattern, fullPlaceholder] of Object.entries(placeholderFixes)) {
-      const regex = new RegExp(splitPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      const matches = xmlContent.match(regex);
-      if (matches) {
-        xmlContent = xmlContent.replace(regex, fullPlaceholder);
-        fixCount += matches.length;
-        console.log(`✅ Fixed ${matches.length} occurrence(s) of ${fullPlaceholder}`);
+    // Fix all header XML files
+    Object.keys(zip.files).forEach(fileName => {
+      if (fileName.startsWith("word/header") && fileName.endsWith(".xml")) {
+        const headerXml = zip.files[fileName];
+        if (headerXml) {
+          const result = fixXmlContent(headerXml.asText(), fileName);
+          zip.file(fileName, result.fixed);
+          totalFixCount += result.count;
+        }
       }
-    }
+    });
     
-    // General pattern: {{TEXT1</w:t></w:r><w:r><w:t>TEXT2}}
-    // This catches any remaining split placeholders
-    // Note: The pattern might have optional whitespace or other XML elements between the parts
-    const generalPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>(?:<w:r[^>]*>)?<w:t>([A-Z_]+)\}\}/g;
-    const generalMatches = xmlContent.match(generalPattern);
-    if (generalMatches) {
-      console.log(`⚠️ Found ${generalMatches.length} additional split placeholders with general pattern:`);
-      generalMatches.forEach((match, index) => {
-        const part1Match = match.match(/\{\{([A-Z_]+)</);
-        const part2Match = match.match(/>([A-Z_]+)\}\}/);
-        if (part1Match && part2Match) {
-          const part1 = part1Match[1];
-          const part2 = part2Match[1];
-          // Try to reconstruct the full placeholder name
-          const possibleNames = [
-            `${part1}${part2}`,
-            `${part1}_${part2}`,
-            `${part1}ERTY_${part2}`,
-            `${part1}MENT_${part2}`,
-            // Add more patterns as needed
-          ];
-          console.log(`  ${index + 1}. ${match} -> Try: ${possibleNames.join(', ')}`);
+    // Fix all footer XML files
+    Object.keys(zip.files).forEach(fileName => {
+      if (fileName.startsWith("word/footer") && fileName.endsWith(".xml")) {
+        const footerXml = zip.files[fileName];
+        if (footerXml) {
+          const result = fixXmlContent(footerXml.asText(), fileName);
+          zip.file(fileName, result.fixed);
+          totalFixCount += result.count;
         }
-      });
-      
-      // Replace with reconstructed names (you may need to adjust this based on actual patterns)
-      xmlContent = xmlContent.replace(generalPattern, (match) => {
-        const part1Match = match.match(/\{\{([A-Z_]+)</);
-        const part2Match = match.match(/>([A-Z_]+)\}\}/);
-        if (part1Match && part2Match) {
-          const part1 = part1Match[1];
-          const part2 = part2Match[1];
-          // Common reconstruction patterns
-          // Common reconstruction patterns based on error logs
-          if (part1 === "PROP" && part2 === "TYPE") return "{{PROPERTY_TYPE}}";
-          if (part1 === "ASSE" && part2 === "DATE") return "{{ASSESSMENT_DATE}}";
-          if (part1 === "ASSE" && part2 === "POSE") return "{{ASSESSMENT_PURPOSE}}";
-          if (part1 === "PREP" && part2 === "_FOR") return "{{PREPARED_FOR}}";
-          if (part1 === "PREP" && part2 === "D_BY") return "{{PREPARED_BY}}";
-          if (part1 === "IMME" && part2 === "INGS") return "{{IMMEDIATE_FINDINGS}}";
-          if (part1 === "RECO" && part2 === "INGS") return "{{RECOMMENDED_FINDINGS}}";
-          if (part1 === "PLAN" && part2 === "INGS") return "{{PLAN_FINDINGS}}";
-          if (part1 === "URGE" && part2 === "INGS") return "{{URGENT_FINDINGS}}";
-          if (part1 === "EXEC" && part2 === "RAPH") return "{{EXECUTIVE_SUMMARY}}";
-          if (part1 === "OVER" && part2 === "ADGE") return "{{OVERALL_STATUS}}";
-          if (part1 === "RISK" && part2 === "ADGE") return "{{RISK_RATING}}";
-          if (part1 === "RISK" && part2 === "TORS") return "{{RISK_RATING_FACTORS}}";
-          if (part1 === "LIMI" && (part2 === "TION" || part2 === "TIONS")) return "{{LIMITATIONS}}";
-          if (part1 === "TEST" && part2 === "MARY") return "{{TEST_SUMMARY}}";
-          if (part1 === "TECH" && part2 === "OTES") return "{{TECHNICAL_NOTES}}";
-          if (part1 === "GENE" && part2 === "OTES") return "{{GENERAL_NOTES}}";
-          if (part1 === "CAPI" && part2 === "ABLE") return "{{CAPITAL_PLANNING}}";
-          if (part1 === "NEXT" && part2 === "TEPS") return "{{NEXT_STEPS}}";
-          
-          // Log unknown patterns for debugging
-          console.warn(`⚠️ Unknown split pattern: ${part1} + ${part2}, keeping as-is`);
-          // Fallback: try to combine parts (may not be correct, but better than split)
-          return `{{${part1}${part2}}}`;
-        }
-        return match;
-      });
-      fixCount += generalMatches.length;
-    }
+      }
+    });
     
-    if (fixCount > 0) {
-      console.log(`✅ Fixed ${fixCount} split placeholder(s) in total`);
-      
-      // Update the zip file
-      zip.file("word/document.xml", xmlContent);
+    if (totalFixCount > 0) {
+      console.log(`✅ Fixed ${totalFixCount} split placeholder(s) in total across all XML files`);
       
       // Generate new buffer
       const fixedBuffer = zip.generate({
@@ -144,7 +131,7 @@ export function fixWordTemplate(buffer: Buffer): Buffer {
         compression: "DEFLATE",
       });
       
-      console.log(`✅ Template fixed: ${originalLength} -> ${fixedBuffer.length} bytes`);
+      console.log(`✅ Template fixed: ${buffer.length} -> ${fixedBuffer.length} bytes`);
       return fixedBuffer;
     } else {
       console.log("ℹ️ No split placeholders found, template is clean");
