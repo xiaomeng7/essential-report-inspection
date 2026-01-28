@@ -16,7 +16,12 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   // More flexible pattern: handles various XML structures between split parts
   // Pattern matches: {{TEXT1</w:t></w:r>...<w:r>...<w:t>TEXT2}}
   // The ... can be any XML content (attributes, other elements, etc.)
-  const splitPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t>([A-Z_]+)\}\}/g;
+  // We use a non-greedy match to find the shortest match between the parts
+  // This handles cases like:
+  // - {{PROP</w:t></w:r><w:r><w:t>TYPE}}
+  // - {{PROP</w:t></w:r><w:r><w:rPr>...</w:rPr><w:t>TYPE}}
+  // - {{PROP</w:t></w:r><w:r w:rsidR="..."><w:t>TYPE}}
+  const splitPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/g;
   
   // First, find all matches to log them
   const matches: Array<{ match: string; part1: string; part2: string }> = [];
