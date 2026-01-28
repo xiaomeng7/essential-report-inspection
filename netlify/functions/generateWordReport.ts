@@ -323,25 +323,27 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     });
     
     // Generate Word document
-    console.log("Creating PizZip instance...");
+    console.log("🔧 STEP 3: Creating PizZip instance from fixed template...");
+    console.log(`   Template buffer size: ${templateBuffer.length} bytes`);
     let zip: any;
     try {
       zip = new PizZip(templateBuffer);
-      console.log("✅ PizZip created successfully");
+      console.log("✅ STEP 3 completed: PizZip created successfully");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to create PizZip:", errorMsg);
       throw new Error(`Failed to create PizZip: ${errorMsg}`);
     }
     
-    console.log("Creating Docxtemplater instance...");
+    console.log("🔧 STEP 4: Creating Docxtemplater instance...");
+    console.log("   This is where split placeholder errors would occur if fix didn't work");
     let doc: any;
     try {
       doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
       });
-      console.log("✅ Docxtemplater created successfully");
+      console.log("✅ STEP 4 completed: Docxtemplater created successfully");
     } catch (e: any) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       console.error("❌ Failed to create Docxtemplater:", errorMsg);
