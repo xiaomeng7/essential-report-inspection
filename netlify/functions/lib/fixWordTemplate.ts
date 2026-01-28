@@ -62,19 +62,6 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   
   const matches = allMatches;
   
-  // First, find all matches to log them
-  const matches: Array<{ match: string; part1: string; part2: string }> = [];
-  let match;
-  // Reset regex lastIndex to ensure we start from the beginning
-  splitPattern.lastIndex = 0;
-  while ((match = splitPattern.exec(xmlContent)) !== null) {
-    matches.push({
-      match: match[0],
-      part1: match[1],
-      part2: match[2]
-    });
-  }
-  
   if (matches.length > 0) {
     console.log(`📋 Found ${matches.length} split placeholder(s) in ${fileName}:`);
     matches.forEach((m, i) => {
