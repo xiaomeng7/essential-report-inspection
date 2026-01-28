@@ -23,7 +23,44 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   // - {{PROP</w:t></w:r><w:r><w:t>TYPE}}
   // - {{PROP</w:t></w:r><w:r><w:rPr>...</w:rPr><w:t>TYPE}}
   // - {{PROP</w:t></w:r><w:r w:rsidR="..."><w:t>TYPE}}
-  const splitPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/g;
+  // Try multiple patterns to catch different XML structures
+  const patterns = [
+    // Pattern 1: Simple case with no attributes
+    /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r><w:t>([A-Z_]+)\}\}/g,
+    // Pattern 2: With attributes on w:r
+    /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r[^>]*><w:t>([A-Z_]+)\}\}/g,
+    // Pattern 3: With attributes on w:t
+    /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r[^>]*><w:t[^>]*>([A-Z_]+)\}\}/g,
+    // Pattern 4: With w:rPr or other elements between
+    /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/g,
+  ];
+  
+  let allMatches: Array<{ match: string; part1: string; part2: string; patternIndex: number }> = [];
+  
+  patterns.forEach((pattern, patternIndex) => {
+    pattern.lastIndex = 0; // Reset regex
+    let match;
+    while ((match = pattern.exec(xmlContent)) !== null) {
+      // Check if this match overlaps with an existing match (prefer shorter matches)
+      const existingMatch = allMatches.find(m => 
+        m.match.includes(match![1]) && m.match.includes(match![2])
+      );
+      if (!existingMatch || match[0].length < existingMatch.match.length) {
+        if (existingMatch) {
+          // Remove the longer match
+          allMatches = allMatches.filter(m => m !== existingMatch);
+        }
+        allMatches.push({
+          match: match[0],
+          part1: match[1],
+          part2: match[2],
+          patternIndex
+        });
+      }
+    }
+  });
+  
+  const matches = allMatches;
   
   // First, find all matches to log them
   const matches: Array<{ match: string; part1: string; part2: string }> = [];
@@ -77,19 +114,30 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     "NEXT|TEPS": "NEXT_STEPS",
   };
   
-  // Replace all split placeholders
-  xmlContent = xmlContent.replace(splitPattern, (fullMatch, part1, part2) => {
-    const key = `${part1}|${part2}`;
+  // Replace all split placeholders (process in reverse order to avoid index shifting)
+  // Sort matches by position (descending) to replace from end to start
+  const sortedMatches = [...matches].sort((a, b) => {
+    const aIndex = xmlContent.indexOf(a.match);
+    const bIndex = xmlContent.indexOf(b.match);
+    return bIndex - aIndex; // Reverse order
+  });
+  
+  sortedMatches.forEach((m) => {
+    const key = `${m.part1}|${m.part2}`;
     const fullName = placeholderMap[key];
     
     if (fullName) {
+      // Escape the match string for regex replacement
+      const escapedMatch = m.match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      xmlContent = xmlContent.replace(escapedMatch, `{{${fullName}}}`);
       fixCount++;
-      console.log(`  ✅ Fixed: ${part1}...${part2} -> {{${fullName}}}`);
-      return `{{${fullName}}}`;
+      console.log(`  ✅ Fixed: ${m.part1}...${m.part2} -> {{${fullName}}}`);
     } else {
-      console.warn(`  ⚠️ Unknown pattern: ${part1}...${part2}, trying to combine`);
+      console.warn(`  ⚠️ Unknown pattern: ${m.part1}...${m.part2}, trying to combine`);
       // Fallback: try to combine (may not be correct)
-      return `{{${part1}${part2}}}`;
+      const escapedMatch = m.match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      xmlContent = xmlContent.replace(escapedMatch, `{{${m.part1}${m.part2}}}`);
+      fixCount++;
     }
   });
   
