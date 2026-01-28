@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
+import { fixWordTemplate } from "./lib/fixWordTemplate";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -239,7 +240,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     });
     
     // Load Word template
-    const templateBuffer = loadWordTemplate();
+    let templateBuffer = loadWordTemplate();
+    
+    // Fix split placeholders in template before using it
+    console.log("Fixing split placeholders in Word template...");
+    templateBuffer = fixWordTemplate(templateBuffer);
+    console.log("✅ Template fix completed");
     
     // Format findings as bullet-point text with defaults for empty arrays
     const immediateText = formatFindingsText(
