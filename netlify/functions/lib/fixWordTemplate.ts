@@ -74,6 +74,27 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     if (testMatches && testMatches.length > 0) {
       console.log(`⚠️ Found ${testMatches.length} potential split placeholder(s) (open tag pattern) in ${fileName}, but regex didn't match full pattern`);
       console.log(`   Sample: ${testMatches[0]}`);
+      
+      // Try to find the corresponding close tags
+      console.log(`   🔍 Attempting to find corresponding close tags...`);
+      testMatches.slice(0, 5).forEach((openTag, i) => {
+        const part1Match = openTag.match(/\{\{([A-Z_]+)</);
+        if (part1Match) {
+          const part1 = part1Match[1];
+          const openIndex = xmlContent.indexOf(openTag);
+          if (openIndex >= 0) {
+            const afterOpen = xmlContent.substring(openIndex + openTag.length, openIndex + openTag.length + 500);
+            const closeMatch = afterOpen.match(/<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/);
+            if (closeMatch) {
+              console.log(`     ${i + 1}. Found: ${part1}...${closeMatch[1]} (distance: ${afterOpen.indexOf(closeMatch[0])} chars)`);
+            } else {
+              console.log(`     ${i + 1}. ${part1}... (no close tag found within 500 chars)`);
+            }
+          }
+        }
+      });
+    } else {
+      console.log(`   ✅ No split placeholder patterns found in ${fileName}`);
     }
   }
   
