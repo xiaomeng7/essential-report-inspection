@@ -13,6 +13,8 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   const originalLength = xmlContent.length;
   let fixCount = 0;
   
+  console.log(`🔍 Analyzing ${fileName} (${originalLength} bytes)...`);
+  
   // More flexible pattern: handles various XML structures between split parts
   // Pattern matches: {{TEXT1</w:t></w:r>...<w:r>...<w:t>TEXT2}}
   // The ... can be any XML content (attributes, other elements, etc.)
@@ -26,6 +28,8 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   // First, find all matches to log them
   const matches: Array<{ match: string; part1: string; part2: string }> = [];
   let match;
+  // Reset regex lastIndex to ensure we start from the beginning
+  splitPattern.lastIndex = 0;
   while ((match = splitPattern.exec(xmlContent)) !== null) {
     matches.push({
       match: match[0],
@@ -37,8 +41,16 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   if (matches.length > 0) {
     console.log(`📋 Found ${matches.length} split placeholder(s) in ${fileName}:`);
     matches.forEach((m, i) => {
-      console.log(`  ${i + 1}. ${m.part1}...${m.part2}`);
+      console.log(`  ${i + 1}. ${m.part1}...${m.part2} (sample: ${m.match.substring(0, 100)}...)`);
     });
+  } else {
+    // Try to find any placeholders that might be split differently
+    const testPattern = /\{\{[A-Z_]+<\/w:t><\/w:r>/g;
+    const testMatches = xmlContent.match(testPattern);
+    if (testMatches && testMatches.length > 0) {
+      console.log(`⚠️ Found ${testMatches.length} potential split placeholder(s) (open tag pattern) in ${fileName}, but regex didn't match full pattern`);
+      console.log(`   Sample: ${testMatches[0]}`);
+    }
   }
   
   // Mapping of known split patterns to full placeholders
