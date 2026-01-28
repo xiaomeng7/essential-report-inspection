@@ -1,0 +1,1067 @@
+meta:
+  version: v1.0
+  updated: '2026-01-28'
+  notes: Generated skeleton rules per checklist field_key. Tune buckets/thresholds
+    and add compound rules as needed.
+rules:
+- id: AUTO_R001
+  when:
+    field: s_2__photo_record_requirements__overall_switchboard
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: OVERALL_SWITCHBOARD
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_2__photo_record_requirements__overall_switchboard
+- id: AUTO_R002
+  when:
+    field: s_2__photo_record_requirements__main_switch_service_fuse
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: MAIN_SWITCH_SERVICE_FUSE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_2__photo_record_requirements__main_switch_service_fuse
+- id: AUTO_R003
+  when:
+    field: s_2__photo_record_requirements__men_link
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: MEN_LINK
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_2__photo_record_requirements__men_link
+- id: AUTO_R004
+  when:
+    field: s_2__photo_record_requirements__damage_corrosion_overheating
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: DAMAGE_CORROSION_OVERHEATING
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_2__photo_record_requirements__damage_corrosion_overheating
+- id: AUTO_R005
+  when:
+    field: s_2__photo_record_requirements__asbestos_suspected_backboard
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: ASBESTOS_SUSPECTED_BACKBOARD
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_2__photo_record_requirements__asbestos_suspected_backboard
+- id: AUTO_R006
+  when:
+    field: s_3__3_1_power_points__power_point_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: POWER_POINT_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__power_point_present
+- id: AUTO_R007
+  when:
+    field: s_3__3_1_power_points__power_point_moves_when_lightly_touched
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__power_point_moves_when_lightly_touched
+- id: AUTO_R008
+  when:
+    field: s_3__3_1_power_points__cracks_visible_on_faceplate
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: CRACKS_VISIBLE_ON_FACEPLATE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__cracks_visible_on_faceplate
+- id: AUTO_R009
+  when:
+    field: s_3__3_1_power_points__burn_marks_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: BURN_MARKS_VISIBLE
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_1_power_points__burn_marks_visible
+- id: AUTO_R010
+  when:
+    field: s_3__3_1_power_points__plug_disengages_under_its_own_weight
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__plug_disengages_under_its_own_weight
+- id: AUTO_R011
+  when:
+    field: s_3__3_1_power_points__switch_movement_uneven_or_obstructed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__switch_movement_uneven_or_obstructed
+- id: AUTO_R012
+  when:
+    field: s_3__3_1_power_points__earth_pin_missing_or_damaged
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: EARTH_PIN_MISSING_OR_DAMAGED
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_1_power_points__earth_pin_missing_or_damaged
+- id: AUTO_R013
+  when:
+    field: s_3__3_1_power_points__surface_feels_abnormally_warm_to_touch
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_1_power_points__surface_feels_abnormally_warm_to_touch
+- id: AUTO_R014
+  when:
+    field: s_3__3_1_power_points__horizontal_distance_from_power_point_edge_to_sink_tap_edge_measured_mm
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__horizontal_distance_from_power_point_edge_to_sink_tap_edge_measured_mm
+- id: AUTO_R015
+  when:
+    field: s_3__3_1_power_points__extension_lead_connected_at_time_of_inspection
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_1_power_points__extension_lead_connected_at_time_of_inspection
+- id: AUTO_L016
+  when:
+    field: s_3__3_1_power_points__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_1_power_points__unable_to_confirm
+- id: AUTO_R017
+  when:
+    field: s_3__3_2_lighting_switches__switch_plate_cracked_or_damaged
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SWITCH_PLATE_CRACKED_OR_DAMAGED
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_2_lighting_switches__switch_plate_cracked_or_damaged
+- id: AUTO_R018
+  when:
+    field: s_3__3_2_lighting_switches__switch_body_moves_when_touched
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SWITCH_BODY_MOVES_WHEN_TOUCHED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_2_lighting_switches__switch_body_moves_when_touched
+- id: AUTO_R019
+  when:
+    field: s_3__3_2_lighting_switches__unusual_audible_sound_heard_during_operation
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_2_lighting_switches__unusual_audible_sound_heard_during_operation
+- id: AUTO_R020
+  when:
+    field: s_3__3_2_lighting_switches__light_fitting_moves_when_lightly_touched
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_2_lighting_switches__light_fitting_moves_when_lightly_touched
+- id: AUTO_R021
+  when:
+    field: s_3__3_2_lighting_switches__heat_damage_visible_on_fitting_or_ceiling
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_2_lighting_switches__heat_damage_visible_on_fitting_or_ceiling
+- id: AUTO_R022
+  when:
+    field: s_3__3_2_lighting_switches__lamp_type_observed_led_halogen_incandescent
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_2_lighting_switches__lamp_type_observed_led_halogen_incandescent
+- id: AUTO_R023
+  when:
+    field: s_3__3_2_lighting_switches__bare_metal_wire_core_is_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: BARE_METAL_WIRE_CORE_IS_VISIBLE
+      priority: IMMEDIATE
+      liability: MEDIUM
+      urgency: NOW
+      timeframe: Immediate
+  evidence:
+  - s_3__3_2_lighting_switches__bare_metal_wire_core_is_visible
+- id: AUTO_L024
+  when:
+    field: s_3__3_2_lighting_switches__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_2_lighting_switches__unable_to_confirm
+- id: AUTO_R025
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__oven_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: OVEN_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__oven_present
+- id: AUTO_R026
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__cooktop_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: COOKTOP_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__cooktop_present
+- id: AUTO_R027
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__dishwasher_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: DISHWASHER_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__dishwasher_present
+- id: AUTO_R028
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__dedicated_outlet_or_isolator_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__dedicated_outlet_or_isolator_visible
+- id: AUTO_R029
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__supply_cable_located_within_mm_of_cooktop_surface
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__supply_cable_located_within_mm_of_cooktop_surface
+- id: AUTO_R030
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__number_of_power_points_above_bench
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: NUMBER_OF_POWER_POINTS_ABOVE_BENCH
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__number_of_power_points_above_bench
+- id: AUTO_R031
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__horizontal_distance_from_power_point_to_sink_edge_mm
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__horizontal_distance_from_power_point_to_sink_edge_mm
+- id: AUTO_R032
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__range_hood_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: RANGE_HOOD_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__range_hood_present
+- id: AUTO_R033
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__grease_residue_observed_on_rangehood_filter_cover
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__grease_residue_observed_on_rangehood_filter_cover
+- id: AUTO_L034
+  when:
+    field: s_3__3_3_kitchen_fixed_installations__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_3_kitchen_fixed_installations__unable_to_confirm
+- id: AUTO_R035
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__power_point_present_in_bathroom
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: POWER_POINT_PRESENT_IN_BATHROOM
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__power_point_present_in_bathroom
+- id: AUTO_R036
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__light_fitting_present_above_bath_shower
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__light_fitting_present_above_bath_shower
+- id: AUTO_R037
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__exhaust_fan_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: EXHAUST_FAN_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__exhaust_fan_present
+- id: AUTO_R038
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__heated_towel_rail_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: HEATED_TOWEL_RAIL_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__heated_towel_rail_present
+- id: AUTO_R039
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__moisture_staining_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: MOISTURE_STAINING_VISIBLE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__moisture_staining_visible
+- id: AUTO_L040
+  when:
+    field: s_3__3_4_bathrooms_damp_areas__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_4_bathrooms_damp_areas__unable_to_confirm
+- id: AUTO_R041
+  when:
+    field: s_3__3_5_laundry__washing_machine_outlet_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: WASHING_MACHINE_OUTLET_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_5_laundry__washing_machine_outlet_present
+- id: AUTO_R042
+  when:
+    field: s_3__3_5_laundry__dryer_outlet_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: DRYER_OUTLET_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_5_laundry__dryer_outlet_present
+- id: AUTO_R043
+  when:
+    field: s_3__3_5_laundry__outlet_height_above_finished_floor_mm
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_5_laundry__outlet_height_above_finished_floor_mm
+- id: AUTO_R044
+  when:
+    field: s_3__3_5_laundry__water_tap_present_within_mm_of_outlet
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_5_laundry__water_tap_present_within_mm_of_outlet
+- id: AUTO_R045
+  when:
+    field: s_3__3_5_laundry__extension_lead_connected_at_time_of_inspection
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_5_laundry__extension_lead_connected_at_time_of_inspection
+- id: AUTO_L046
+  when:
+    field: s_3__3_5_laundry__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_5_laundry__unable_to_confirm
+- id: AUTO_R047
+  when:
+    field: s_3__3_6_roof_space_ceiling__roof_space_accessed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: ROOF_SPACE_ACCESSED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_6_roof_space_ceiling__roof_space_accessed
+- id: AUTO_R048
+  when:
+    field: s_3__3_6_roof_space_ceiling__cable_support_method_observed_clips_resting_buried
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_6_roof_space_ceiling__cable_support_method_observed_clips_resting_buried
+- id: AUTO_R049
+  when:
+    field: s_3__3_6_roof_space_ceiling__insulation_contact_observed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: INSULATION_CONTACT_OBSERVED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_6_roof_space_ceiling__insulation_contact_observed
+- id: AUTO_R050
+  when:
+    field: s_3__3_6_roof_space_ceiling__cable_with_non_modern_insulation_observed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: CABLE_WITH_NON_MODERN_INSULATION_OBSERVED
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_3__3_6_roof_space_ceiling__cable_with_non_modern_insulation_observed
+- id: AUTO_R051
+  when:
+    field: s_3__3_6_roof_space_ceiling__taped_connection_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: TAPED_CONNECTION_VISIBLE
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_3__3_6_roof_space_ceiling__taped_connection_visible
+- id: AUTO_R052
+  when:
+    field: s_3__3_6_roof_space_ceiling__transformer_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: TRANSFORMER_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_6_roof_space_ceiling__transformer_present
+- id: AUTO_R053
+  when:
+    field: s_3__3_6_roof_space_ceiling__transformer_resting_on_insulation
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: TRANSFORMER_RESTING_ON_INSULATION
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_6_roof_space_ceiling__transformer_resting_on_insulation
+- id: AUTO_L054
+  when:
+    field: s_3__3_6_roof_space_ceiling__not_accessed
+    op: ==
+    value: true
+  then:
+    add_limitation: Not accessed (reason recorded)
+  evidence:
+  - s_3__3_6_roof_space_ceiling__not_accessed
+- id: AUTO_R055
+  when:
+    field: s_3__3_7_exterior_garage__outdoor_power_point_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: OUTDOOR_POWER_POINT_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_7_exterior_garage__outdoor_power_point_present
+- id: AUTO_R056
+  when:
+    field: s_3__3_7_exterior_garage__weatherproof_cover_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: WEATHERPROOF_COVER_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_7_exterior_garage__weatherproof_cover_present
+- id: AUTO_R057
+  when:
+    field: s_3__3_7_exterior_garage__cover_broken_or_missing
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: COVER_BROKEN_OR_MISSING
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_3__3_7_exterior_garage__cover_broken_or_missing
+- id: AUTO_R058
+  when:
+    field: s_3__3_7_exterior_garage__exterior_light_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: EXTERIOR_LIGHT_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_7_exterior_garage__exterior_light_present
+- id: AUTO_R059
+  when:
+    field: s_3__3_7_exterior_garage__garage_door_opener_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: GARAGE_DOOR_OPENER_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_7_exterior_garage__garage_door_opener_present
+- id: AUTO_R060
+  when:
+    field: s_3__3_7_exterior_garage__flexible_lead_fixed_in_place_with_clips_screws
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_7_exterior_garage__flexible_lead_fixed_in_place_with_clips_screws
+- id: AUTO_L061
+  when:
+    field: s_3__3_7_exterior_garage__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_7_exterior_garage__unable_to_confirm
+- id: AUTO_R062
+  when:
+    field: s_3__3_8_smoke_alarms__smoke_alarm_present
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: SMOKE_ALARM_PRESENT
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__smoke_alarm_present
+- id: AUTO_R063
+  when:
+    field: s_3__3_8_smoke_alarms__location_photographed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: LOCATION_PHOTOGRAPHED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__location_photographed
+- id: AUTO_R064
+  when:
+    field: s_3__3_8_smoke_alarms__type_observed_photoelectric_ionisation_unknown
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_3__3_8_smoke_alarms__type_observed_photoelectric_ionisation_unknown
+- id: AUTO_R065
+  when:
+    field: s_3__3_8_smoke_alarms__unit_tested_as_interconnected
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: UNIT_TESTED_AS_INTERCONNECTED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__unit_tested_as_interconnected
+- id: AUTO_R066
+  when:
+    field: s_3__3_8_smoke_alarms__test_button_pressed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: TEST_BUTTON_PRESSED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__test_button_pressed
+- id: AUTO_R067
+  when:
+    field: s_3__3_8_smoke_alarms__alarm_sounded
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: ALARM_SOUNDED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__alarm_sounded
+- id: AUTO_R068
+  when:
+    field: s_3__3_8_smoke_alarms__manufacture_date_recorded
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: MANUFACTURE_DATE_RECORDED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__manufacture_date_recorded
+- id: AUTO_R069
+  when:
+    field: s_3__3_8_smoke_alarms__power_source_observed_mains_battery_both
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_8_smoke_alarms__power_source_observed_mains_battery_both
+- id: AUTO_L070
+  when:
+    field: s_3__3_8_smoke_alarms__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_8_smoke_alarms__unable_to_confirm
+- id: AUTO_R071
+  when:
+    field: s_3__3_9_general_observations__ceramic_fuse_holder_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: CERAMIC_FUSE_HOLDER_VISIBLE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_9_general_observations__ceramic_fuse_holder_visible
+- id: AUTO_R072
+  when:
+    field: s_3__3_9_general_observations__bakelite_or_ceramic_accessory_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_9_general_observations__bakelite_or_ceramic_accessory_visible
+- id: AUTO_R073
+  when:
+    field: s_3__3_9_general_observations__non_standard_wiring_or_added_component_observed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_3__3_9_general_observations__non_standard_wiring_or_added_component_observed
+- id: AUTO_R074
+  when:
+    field: s_3__3_9_general_observations__number_of_power_boards_observed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: NUMBER_OF_POWER_BOARDS_OBSERVED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_9_general_observations__number_of_power_boards_observed
+- id: AUTO_R075
+  when:
+    field: s_3__3_9_general_observations__cable_damage_visible
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: CABLE_DAMAGE_VISIBLE
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_3__3_9_general_observations__cable_damage_visible
+- id: AUTO_L076
+  when:
+    field: s_3__3_9_general_observations__unable_to_confirm
+    op: ==
+    value: true
+  then:
+    add_limitation: Unable to confirm
+  evidence:
+  - s_3__3_9_general_observations__unable_to_confirm
+- id: AUTO_R077
+  when:
+    field: s_6__general__all_checklist_items_completed
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: ALL_CHECKLIST_ITEMS_COMPLETED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_6__general__all_checklist_items_completed
+- id: AUTO_R078
+  when:
+    field: s_6__general__all_required_photos_uploaded
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: ALL_REQUIRED_PHOTOS_UPLOADED
+      priority: PLAN_MONITOR
+      liability: LOW
+      urgency: LATER
+      timeframe: Monitor
+  evidence:
+  - s_6__general__all_required_photos_uploaded
+- id: AUTO_R079
+  when:
+    field: s_6__general__no_advice_or_quotations_provided
+    op: ==
+    value: true
+  then:
+    emit_finding:
+      finding_code: NO_ADVICE_OR_QUOTATIONS_PROVIDED
+      priority: RECOMMENDED
+      liability: MEDIUM
+      urgency: SOON
+      timeframe: 0–3 months
+  evidence:
+  - s_6__general__no_advice_or_quotations_provided

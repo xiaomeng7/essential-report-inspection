@@ -1,0 +1,713 @@
+[
+  {
+    "section":"SECTION 2 | Supply & Distribution \u2013 Visual Inspection (Mandatory)",
+    "subsection":"Photo Record Requirements",
+    "label":"Overall switchboard",
+    "field_key":"s_2__photo_record_requirements__overall_switchboard",
+    "field_type":"boolean",
+    "finding_code":"OVERALL_SWITCHBOARD",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 2 | Supply & Distribution \u2013 Visual Inspection (Mandatory)",
+    "subsection":"Photo Record Requirements",
+    "label":"Main switch & service fuse",
+    "field_key":"s_2__photo_record_requirements__main_switch_service_fuse",
+    "field_type":"boolean",
+    "finding_code":"MAIN_SWITCH_SERVICE_FUSE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 2 | Supply & Distribution \u2013 Visual Inspection (Mandatory)",
+    "subsection":"Photo Record Requirements",
+    "label":"MEN link",
+    "field_key":"s_2__photo_record_requirements__men_link",
+    "field_type":"boolean",
+    "finding_code":"MEN_LINK",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 2 | Supply & Distribution \u2013 Visual Inspection (Mandatory)",
+    "subsection":"Photo Record Requirements",
+    "label":"Damage \/ corrosion \/ overheating",
+    "field_key":"s_2__photo_record_requirements__damage_corrosion_overheating",
+    "field_type":"boolean",
+    "finding_code":"DAMAGE_CORROSION_OVERHEATING",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 2 | Supply & Distribution \u2013 Visual Inspection (Mandatory)",
+    "subsection":"Photo Record Requirements",
+    "label":"Asbestos suspected backboard",
+    "field_key":"s_2__photo_record_requirements__asbestos_suspected_backboard",
+    "field_type":"boolean",
+    "finding_code":"ASBESTOS_SUSPECTED_BACKBOARD",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Power point present",
+    "field_key":"s_3__3_1_power_points__power_point_present",
+    "field_type":"boolean",
+    "finding_code":"POWER_POINT_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Power point moves when lightly touched",
+    "field_key":"s_3__3_1_power_points__power_point_moves_when_lightly_touched",
+    "field_type":"boolean",
+    "finding_code":"POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Cracks visible on faceplate",
+    "field_key":"s_3__3_1_power_points__cracks_visible_on_faceplate",
+    "field_type":"boolean",
+    "finding_code":"CRACKS_VISIBLE_ON_FACEPLATE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Burn marks visible",
+    "field_key":"s_3__3_1_power_points__burn_marks_visible",
+    "field_type":"boolean",
+    "finding_code":"BURN_MARKS_VISIBLE",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Plug disengages under its own weight",
+    "field_key":"s_3__3_1_power_points__plug_disengages_under_its_own_weight",
+    "field_type":"boolean",
+    "finding_code":"PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Switch movement uneven or obstructed",
+    "field_key":"s_3__3_1_power_points__switch_movement_uneven_or_obstructed",
+    "field_type":"boolean",
+    "finding_code":"SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Earth pin missing or damaged (if applicable)",
+    "field_key":"s_3__3_1_power_points__earth_pin_missing_or_damaged",
+    "field_type":"boolean",
+    "finding_code":"EARTH_PIN_MISSING_OR_DAMAGED",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Surface feels abnormally warm to touch (photograph item)",
+    "field_key":"s_3__3_1_power_points__surface_feels_abnormally_warm_to_touch",
+    "field_type":"boolean",
+    "finding_code":"SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Horizontal distance from power point edge to sink\/tap edge measured: ____ mm",
+    "field_key":"s_3__3_1_power_points__horizontal_distance_from_power_point_edge_to_sink_tap_edge_measured_mm",
+    "field_type":"number_or_text",
+    "finding_code":"HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Extension lead connected at time of inspection",
+    "field_key":"s_3__3_1_power_points__extension_lead_connected_at_time_of_inspection",
+    "field_type":"boolean",
+    "finding_code":"EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.1 Power Points (All Areas)",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_1_power_points__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Switch plate cracked or damaged",
+    "field_key":"s_3__3_2_lighting_switches__switch_plate_cracked_or_damaged",
+    "field_type":"boolean",
+    "finding_code":"SWITCH_PLATE_CRACKED_OR_DAMAGED",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Switch body moves when touched",
+    "field_key":"s_3__3_2_lighting_switches__switch_body_moves_when_touched",
+    "field_type":"boolean",
+    "finding_code":"SWITCH_BODY_MOVES_WHEN_TOUCHED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Unusual audible sound heard during operation (e.g., buzz, crackle)",
+    "field_key":"s_3__3_2_lighting_switches__unusual_audible_sound_heard_during_operation",
+    "field_type":"boolean",
+    "finding_code":"UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Light fitting moves when lightly touched",
+    "field_key":"s_3__3_2_lighting_switches__light_fitting_moves_when_lightly_touched",
+    "field_type":"boolean",
+    "finding_code":"LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Heat damage visible on fitting or ceiling",
+    "field_key":"s_3__3_2_lighting_switches__heat_damage_visible_on_fitting_or_ceiling",
+    "field_type":"boolean",
+    "finding_code":"HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Lamp type observed: \u2610 LED \u2610 Halogen \u2610 Incandescent",
+    "field_key":"s_3__3_2_lighting_switches__lamp_type_observed_led_halogen_incandescent",
+    "field_type":"boolean",
+    "finding_code":"LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Bare metal wire core is visible (photograph)",
+    "field_key":"s_3__3_2_lighting_switches__bare_metal_wire_core_is_visible",
+    "field_type":"boolean",
+    "finding_code":"BARE_METAL_WIRE_CORE_IS_VISIBLE",
+    "default_bucket":"IMMEDIATE"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.2 Lighting & Switches",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_2_lighting_switches__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Oven present",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__oven_present",
+    "field_type":"boolean",
+    "finding_code":"OVEN_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Cooktop present",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__cooktop_present",
+    "field_type":"boolean",
+    "finding_code":"COOKTOP_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Dishwasher present",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__dishwasher_present",
+    "field_type":"boolean",
+    "finding_code":"DISHWASHER_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Dedicated outlet or isolator visible",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__dedicated_outlet_or_isolator_visible",
+    "field_type":"boolean",
+    "finding_code":"DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Supply cable located within ____ mm of cooktop surface",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__supply_cable_located_within_mm_of_cooktop_surface",
+    "field_type":"number_or_text",
+    "finding_code":"SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Number of power points above bench: ____",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__number_of_power_points_above_bench",
+    "field_type":"number_or_text",
+    "finding_code":"NUMBER_OF_POWER_POINTS_ABOVE_BENCH",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Horizontal distance from power point to sink edge: ____ mm",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__horizontal_distance_from_power_point_to_sink_edge_mm",
+    "field_type":"number_or_text",
+    "finding_code":"HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Range hood present",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__range_hood_present",
+    "field_type":"boolean",
+    "finding_code":"RANGE_HOOD_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Grease residue observed on rangehood filter\/cover (photograph)",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__grease_residue_observed_on_rangehood_filter_cover",
+    "field_type":"boolean",
+    "finding_code":"GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.3 Kitchen \u2013 Fixed Installations",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_3_kitchen_fixed_installations__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Power point present in bathroom",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__power_point_present_in_bathroom",
+    "field_type":"boolean",
+    "finding_code":"POWER_POINT_PRESENT_IN_BATHROOM",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Light fitting present above bath\/shower",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__light_fitting_present_above_bath_shower",
+    "field_type":"boolean",
+    "finding_code":"LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Exhaust fan present",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__exhaust_fan_present",
+    "field_type":"boolean",
+    "finding_code":"EXHAUST_FAN_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Heated towel rail present",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__heated_towel_rail_present",
+    "field_type":"boolean",
+    "finding_code":"HEATED_TOWEL_RAIL_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Moisture staining visible (photo reference)",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__moisture_staining_visible",
+    "field_type":"boolean",
+    "finding_code":"MOISTURE_STAINING_VISIBLE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.4 Bathrooms & Damp Areas",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_4_bathrooms_damp_areas__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Washing machine outlet present",
+    "field_key":"s_3__3_5_laundry__washing_machine_outlet_present",
+    "field_type":"boolean",
+    "finding_code":"WASHING_MACHINE_OUTLET_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Dryer outlet present",
+    "field_key":"s_3__3_5_laundry__dryer_outlet_present",
+    "field_type":"boolean",
+    "finding_code":"DRYER_OUTLET_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Outlet height above finished floor: ____ mm",
+    "field_key":"s_3__3_5_laundry__outlet_height_above_finished_floor_mm",
+    "field_type":"number_or_text",
+    "finding_code":"OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Water tap present within ____ mm of outlet",
+    "field_key":"s_3__3_5_laundry__water_tap_present_within_mm_of_outlet",
+    "field_type":"number_or_text",
+    "finding_code":"WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Extension lead connected at time of inspection",
+    "field_key":"s_3__3_5_laundry__extension_lead_connected_at_time_of_inspection",
+    "field_type":"boolean",
+    "finding_code":"EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.5 Laundry",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_5_laundry__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Roof space accessed",
+    "field_key":"s_3__3_6_roof_space_ceiling__roof_space_accessed",
+    "field_type":"boolean",
+    "finding_code":"ROOF_SPACE_ACCESSED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Cable support method observed: clips \/ resting \/ buried",
+    "field_key":"s_3__3_6_roof_space_ceiling__cable_support_method_observed_clips_resting_buried",
+    "field_type":"boolean",
+    "finding_code":"CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Insulation contact observed",
+    "field_key":"s_3__3_6_roof_space_ceiling__insulation_contact_observed",
+    "field_type":"boolean",
+    "finding_code":"INSULATION_CONTACT_OBSERVED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Cable with non\u2011modern (non\u2011PVC) insulation observed (photograph)",
+    "field_key":"s_3__3_6_roof_space_ceiling__cable_with_non_modern_insulation_observed",
+    "field_type":"boolean",
+    "finding_code":"CABLE_WITH_NON_MODERN_INSULATION_OBSERVED",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Taped connection (non\u2011box) visible (photograph)",
+    "field_key":"s_3__3_6_roof_space_ceiling__taped_connection_visible",
+    "field_type":"boolean",
+    "finding_code":"TAPED_CONNECTION_VISIBLE",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Transformer present",
+    "field_key":"s_3__3_6_roof_space_ceiling__transformer_present",
+    "field_type":"boolean",
+    "finding_code":"TRANSFORMER_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Transformer resting on insulation",
+    "field_key":"s_3__3_6_roof_space_ceiling__transformer_resting_on_insulation",
+    "field_type":"boolean",
+    "finding_code":"TRANSFORMER_RESTING_ON_INSULATION",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.6 Roof Space \/ Ceiling",
+    "label":"Not accessed (reason recorded)",
+    "field_key":"s_3__3_6_roof_space_ceiling__not_accessed",
+    "field_type":"boolean",
+    "finding_code":"NOT_ACCESSED",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Outdoor power point present",
+    "field_key":"s_3__3_7_exterior_garage__outdoor_power_point_present",
+    "field_type":"boolean",
+    "finding_code":"OUTDOOR_POWER_POINT_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Weatherproof cover present",
+    "field_key":"s_3__3_7_exterior_garage__weatherproof_cover_present",
+    "field_type":"boolean",
+    "finding_code":"WEATHERPROOF_COVER_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Cover broken or missing",
+    "field_key":"s_3__3_7_exterior_garage__cover_broken_or_missing",
+    "field_type":"boolean",
+    "finding_code":"COVER_BROKEN_OR_MISSING",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Exterior light present",
+    "field_key":"s_3__3_7_exterior_garage__exterior_light_present",
+    "field_type":"boolean",
+    "finding_code":"EXTERIOR_LIGHT_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Garage door opener present",
+    "field_key":"s_3__3_7_exterior_garage__garage_door_opener_present",
+    "field_type":"boolean",
+    "finding_code":"GARAGE_DOOR_OPENER_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Flexible lead fixed in place with clips\/screws",
+    "field_key":"s_3__3_7_exterior_garage__flexible_lead_fixed_in_place_with_clips_screws",
+    "field_type":"boolean",
+    "finding_code":"FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.7 Exterior & Garage",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_7_exterior_garage__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Smoke alarm present",
+    "field_key":"s_3__3_8_smoke_alarms__smoke_alarm_present",
+    "field_type":"boolean",
+    "finding_code":"SMOKE_ALARM_PRESENT",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Location photographed",
+    "field_key":"s_3__3_8_smoke_alarms__location_photographed",
+    "field_type":"boolean",
+    "finding_code":"LOCATION_PHOTOGRAPHED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Type observed: photoelectric \/ ionisation \/ unknown",
+    "field_key":"s_3__3_8_smoke_alarms__type_observed_photoelectric_ionisation_unknown",
+    "field_type":"boolean",
+    "finding_code":"TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Unit tested as interconnected (pressing test button on one activates others)",
+    "field_key":"s_3__3_8_smoke_alarms__unit_tested_as_interconnected",
+    "field_type":"boolean",
+    "finding_code":"UNIT_TESTED_AS_INTERCONNECTED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Test button pressed",
+    "field_key":"s_3__3_8_smoke_alarms__test_button_pressed",
+    "field_type":"boolean",
+    "finding_code":"TEST_BUTTON_PRESSED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Alarm sounded",
+    "field_key":"s_3__3_8_smoke_alarms__alarm_sounded",
+    "field_type":"boolean",
+    "finding_code":"ALARM_SOUNDED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Manufacture date recorded: ____",
+    "field_key":"s_3__3_8_smoke_alarms__manufacture_date_recorded",
+    "field_type":"number_or_text",
+    "finding_code":"MANUFACTURE_DATE_RECORDED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Power source observed: mains \/ battery \/ both",
+    "field_key":"s_3__3_8_smoke_alarms__power_source_observed_mains_battery_both",
+    "field_type":"boolean",
+    "finding_code":"POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.8 Smoke Alarms",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_8_smoke_alarms__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Ceramic fuse holder visible",
+    "field_key":"s_3__3_9_general_observations__ceramic_fuse_holder_visible",
+    "field_type":"boolean",
+    "finding_code":"CERAMIC_FUSE_HOLDER_VISIBLE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Bakelite or ceramic accessory visible",
+    "field_key":"s_3__3_9_general_observations__bakelite_or_ceramic_accessory_visible",
+    "field_type":"boolean",
+    "finding_code":"BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Non\u2011standard wiring or added component observed (photograph)",
+    "field_key":"s_3__3_9_general_observations__non_standard_wiring_or_added_component_observed",
+    "field_type":"boolean",
+    "finding_code":"NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED",
+    "default_bucket":"RECOMMENDED"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Number of power boards observed: ____",
+    "field_key":"s_3__3_9_general_observations__number_of_power_boards_observed",
+    "field_type":"number_or_text",
+    "finding_code":"NUMBER_OF_POWER_BOARDS_OBSERVED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Cable damage visible",
+    "field_key":"s_3__3_9_general_observations__cable_damage_visible",
+    "field_type":"boolean",
+    "finding_code":"CABLE_DAMAGE_VISIBLE",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 3 | Internal Installation \u2013 Visual Inspection (Mandatory)",
+    "subsection":"3.9 General Observations",
+    "label":"Unable to confirm",
+    "field_key":"s_3__3_9_general_observations__unable_to_confirm",
+    "field_type":"boolean",
+    "finding_code":"UNABLE_TO_CONFIRM",
+    "default_bucket":"LIMITATION"
+  },
+  {
+    "section":"SECTION 6 | Exceptions, Client Statements & Completion",
+    "subsection":"",
+    "label":"All checklist items completed",
+    "field_key":"s_6__general__all_checklist_items_completed",
+    "field_type":"boolean",
+    "finding_code":"ALL_CHECKLIST_ITEMS_COMPLETED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 6 | Exceptions, Client Statements & Completion",
+    "subsection":"",
+    "label":"All required photos uploaded",
+    "field_key":"s_6__general__all_required_photos_uploaded",
+    "field_type":"boolean",
+    "finding_code":"ALL_REQUIRED_PHOTOS_UPLOADED",
+    "default_bucket":"PLAN_MONITOR"
+  },
+  {
+    "section":"SECTION 6 | Exceptions, Client Statements & Completion",
+    "subsection":"",
+    "label":"No advice or quotations provided",
+    "field_key":"s_6__general__no_advice_or_quotations_provided",
+    "field_type":"boolean",
+    "finding_code":"NO_ADVICE_OR_QUOTATIONS_PROVIDED",
+    "default_bucket":"RECOMMENDED"
+  }
+]

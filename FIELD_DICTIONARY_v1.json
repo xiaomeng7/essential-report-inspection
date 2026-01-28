@@ -1,0 +1,215 @@
+{
+  "version": "1.0",
+  "placeholders": [
+    {
+      "key": "INSPECTION_ID",
+      "placeholder": "{{INSPECTION_ID}}",
+      "type": "string",
+      "required": true,
+      "source": "system.inspection_id",
+      "section": "Front Matter",
+      "description": "Unique inspection identifier (e.g., EH-2026-01-003)",
+      "example": "EH-2026-01-003"
+    },
+    {
+      "key": "PROPERTY_ADDRESS",
+      "placeholder": "{{PROPERTY_ADDRESS}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.property_address",
+      "section": "Front Matter",
+      "description": "Property address",
+      "example": "1 Example St, Adelaide SA 5000"
+    },
+    {
+      "key": "PROPERTY_TYPE",
+      "placeholder": "{{PROPERTY_TYPE}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.property_type",
+      "section": "Front Matter",
+      "description": "Property type (House/Unit/Townhouse/etc.)",
+      "example": "House"
+    },
+    {
+      "key": "ASSESSMENT_PURPOSE",
+      "placeholder": "{{ASSESSMENT_PURPOSE}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.assessment_purpose",
+      "section": "Front Matter",
+      "description": "Assessment purpose (Investment / Pre-purchase / Safety)",
+      "example": "Investment decision support"
+    },
+    {
+      "key": "PREPARED_FOR",
+      "placeholder": "{{PREPARED_FOR}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.client_name",
+      "section": "Front Matter",
+      "description": "Client / landlord name",
+      "example": "John Smith"
+    },
+    {
+      "key": "PREPARED_BY",
+      "placeholder": "{{PREPARED_BY}}",
+      "type": "string",
+      "required": false,
+      "source": "system.prepared_by",
+      "section": "Front Matter",
+      "description": "Company or assessor name",
+      "example": "Better Home Technology Pty Ltd"
+    },
+    {
+      "key": "ASSESSMENT_DATE",
+      "placeholder": "{{ASSESSMENT_DATE}}",
+      "type": "date",
+      "required": false,
+      "source": "system.assessment_date",
+      "section": "Front Matter",
+      "description": "Inspection/assessment date",
+      "example": "2026-01-27"
+    },
+    {
+      "key": "REPORT_VERSION",
+      "placeholder": "{{REPORT_VERSION}}",
+      "type": "string",
+      "required": false,
+      "source": "system.report_version",
+      "section": "Front Matter",
+      "description": "Template/report version",
+      "example": "v1.0"
+    },
+    {
+      "key": "OVERALL_STATUS_BADGE",
+      "placeholder": "{{OVERALL_STATUS_BADGE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.overall_status_badge",
+      "section": "Executive Summary",
+      "description": "Overall status badge text",
+      "example": "🟡 Moderate – Acceptable with planned attention"
+    },
+    {
+      "key": "EXECUTIVE_SUMMARY_PARAGRAPH",
+      "placeholder": "{{EXECUTIVE_SUMMARY_PARAGRAPH}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.executive_summary_paragraph",
+      "section": "Executive Summary",
+      "description": "Executive summary paragraph (may be AI-polished)",
+      "example": "Overall condition is acceptable; no immediate safety hazards observed..."
+    },
+    {
+      "key": "RISK_RATING_BADGE",
+      "placeholder": "{{RISK_RATING_BADGE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.risk_rating_badge",
+      "section": "Risk Rating",
+      "description": "Risk rating label (Low/Moderate/High)",
+      "example": "Moderate"
+    },
+    {
+      "key": "RISK_RATING_FACTORS",
+      "placeholder": "{{RISK_RATING_FACTORS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.risk_rating_factors",
+      "section": "Risk Rating",
+      "description": "Bullet list of key factors supporting the rating",
+      "example": "• Legacy switchboard components\n• Limited access to roof space"
+    },
+    {
+      "key": "IMMEDIATE_FINDINGS",
+      "placeholder": "{{IMMEDIATE_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.immediate",
+      "section": "Findings",
+      "description": "Immediate findings list (each line bullet)",
+      "example": "• Exposed live parts in switchboard\n• No RCD protection on power circuits"
+    },
+    {
+      "key": "RECOMMENDED_FINDINGS",
+      "placeholder": "{{RECOMMENDED_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.recommended",
+      "section": "Findings",
+      "description": "Recommended (0–3 months) findings list",
+      "example": "• Upgrade aging RCDs\n• Address high earth resistance"
+    },
+    {
+      "key": "PLAN_MONITOR_FINDINGS",
+      "placeholder": "{{PLAN_MONITOR_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.plan_monitor",
+      "section": "Findings",
+      "description": "Plan/monitor findings list",
+      "example": "• Re-test insulation resistance in 12 months"
+    },
+    {
+      "key": "LIMITATIONS_SECTION",
+      "placeholder": "{{LIMITATIONS_SECTION}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.limitations",
+      "section": "Scope & Limitations",
+      "description": "Limitations and skipped items with reasons",
+      "example": "Roof space inaccessible due to stored items..."
+    },
+    {
+      "key": "GENERAL_OBSERVATIONS_NOTES",
+      "placeholder": "{{GENERAL_OBSERVATIONS_NOTES}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.general_notes",
+      "section": "Observations",
+      "description": "General observations/notes paragraph",
+      "example": "Installation appears consistent with property age..."
+    },
+    {
+      "key": "TEST_RESULTS_SUMMARY",
+      "placeholder": "{{TEST_RESULTS_SUMMARY}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.test_results_summary",
+      "section": "Appendix",
+      "description": "Summary of test results (table or bullets)",
+      "example": "RCD trip time: ..."
+    },
+    {
+      "key": "TECHNICAL_NOTES",
+      "placeholder": "{{TECHNICAL_NOTES}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.technical_notes",
+      "section": "Appendix",
+      "description": "Additional technical notes",
+      "example": "MEN link confirmed at main switchboard..."
+    },
+    {
+      "key": "CAPITAL_PLANNING_TABLE",
+      "placeholder": "{{CAPITAL_PLANNING_TABLE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.capital_planning_table",
+      "section": "Capital Planning",
+      "description": "Budget planning block (text or table)",
+      "example": "0–3 months: ..."
+    },
+    {
+      "key": "NEXT_STEPS",
+      "placeholder": "{{NEXT_STEPS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.next_steps",
+      "section": "Next Steps",
+      "description": "Next steps / options block",
+      "example": "Retain this report as baseline..."
+    }
+  ]
+}
