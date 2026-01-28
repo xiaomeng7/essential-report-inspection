@@ -70,7 +70,8 @@ export function fixWordTemplate(buffer: Buffer): Buffer {
     
     // General pattern: {{TEXT1</w:t></w:r><w:r><w:t>TEXT2}}
     // This catches any remaining split placeholders
-    const generalPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r><w:t>([A-Z_]+)\}\}/g;
+    // Note: The pattern might have optional whitespace or other XML elements between the parts
+    const generalPattern = /\{\{([A-Z_]+)<\/w:t><\/w:r>(?:<w:r[^>]*>)?<w:t>([A-Z_]+)\}\}/g;
     const generalMatches = xmlContent.match(generalPattern);
     if (generalMatches) {
       console.log(`⚠️ Found ${generalMatches.length} additional split placeholders with general pattern:`);
@@ -100,8 +101,10 @@ export function fixWordTemplate(buffer: Buffer): Buffer {
           const part1 = part1Match[1];
           const part2 = part2Match[1];
           // Common reconstruction patterns
+          // Common reconstruction patterns based on error logs
           if (part1 === "PROP" && part2 === "TYPE") return "{{PROPERTY_TYPE}}";
           if (part1 === "ASSE" && part2 === "DATE") return "{{ASSESSMENT_DATE}}";
+          if (part1 === "ASSE" && part2 === "POSE") return "{{ASSESSMENT_PURPOSE}}";
           if (part1 === "PREP" && part2 === "_FOR") return "{{PREPARED_FOR}}";
           if (part1 === "PREP" && part2 === "D_BY") return "{{PREPARED_BY}}";
           if (part1 === "IMME" && part2 === "INGS") return "{{IMMEDIATE_FINDINGS}}";
@@ -119,7 +122,9 @@ export function fixWordTemplate(buffer: Buffer): Buffer {
           if (part1 === "CAPI" && part2 === "ABLE") return "{{CAPITAL_PLANNING}}";
           if (part1 === "NEXT" && part2 === "TEPS") return "{{NEXT_STEPS}}";
           
-          // Fallback: try to combine parts
+          // Log unknown patterns for debugging
+          console.warn(`⚠️ Unknown split pattern: ${part1} + ${part2}, keeping as-is`);
+          // Fallback: try to combine parts (may not be correct, but better than split)
           return `{{${part1}${part2}}}`;
         }
         return match;

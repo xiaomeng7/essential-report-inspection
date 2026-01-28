@@ -44,14 +44,20 @@ function loadWordTemplate(): Buffer {
       
       console.log("Trying to load template from:", templatePath);
       if (fs.existsSync(templatePath)) {
-        const content = fs.readFileSync(templatePath);
+        let content = fs.readFileSync(templatePath);
         console.log("✅ Successfully loaded Word template from:", templatePath);
         console.log("Template size:", content.length, "bytes");
         
+        // Fix split placeholders before checking
+        console.log("Applying template fix...");
+        content = fixWordTemplate(content);
+        console.log("Template size after fix:", content.length, "bytes");
+        
+        const fixedZip = new PizZip(content);
+        
         // Extract and log all placeholders in the template for debugging
         try {
-          const zip = new PizZip(content);
-          const doc = new Docxtemplater(zip, {
+          const doc = new Docxtemplater(fixedZip, {
             paragraphLoop: true,
             linebreaks: true,
           });
@@ -124,6 +130,7 @@ function loadWordTemplate(): Buffer {
           console.warn("Could not extract placeholders from template:", extractErr);
         }
         
+        // Return the fixed content
         return content;
       }
     } catch (e) {
