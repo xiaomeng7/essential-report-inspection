@@ -72,10 +72,12 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     });
   } else {
     // Try to find any placeholders that might be split differently
+    // First, try the simple pattern: {{TEXT</w:t></w:r>
     const testPattern = /\{\{[A-Z_]+<\/w:t><\/w:r>/g;
     const testMatches = xmlContent.match(testPattern);
+    
     if (testMatches && testMatches.length > 0) {
-      console.log(`⚠️ Found ${testMatches.length} potential split placeholder(s) (open tag pattern) in ${fileName}, but regex didn't match full pattern`);
+      console.log(`⚠️ Found ${testMatches.length} potential split placeholder(s) (open tag pattern) in ${fileName}`);
       console.log(`   Sample: ${testMatches[0]}`);
       
       // Try to find the corresponding close tags and manually fix them
@@ -83,24 +85,32 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       let manualFixCount = 0;
       
       // Process in reverse order to avoid index shifting
-      const sortedOpenTags = [...testMatches].map((openTag, idx) => {
+      const sortedOpenTags = [...testMatches].map((openTag) => {
         const part1Match = openTag.match(/\{\{([A-Z_]+)</);
         const part1 = part1Match ? part1Match[1] : "";
+        // Use lastIndexOf to get the last occurrence (in case there are duplicates)
         const openIndex = xmlContent.lastIndexOf(openTag);
-        return { openTag, part1, openIndex, originalIndex: idx };
-      }).filter(m => m.openIndex >= 0).sort((a, b) => b.openIndex - a.openIndex);
+        return { openTag, part1, openIndex };
+      }).filter(m => m.openIndex >= 0 && m.part1).sort((a, b) => b.openIndex - a.openIndex);
       
-      sortedOpenTags.forEach(({ openTag, part1, openIndex }) => {
-        // Look for close tag within reasonable distance (up to 1000 chars)
+      // Remove duplicates based on openIndex
+      const uniqueOpenTags = sortedOpenTags.filter((tag, idx, arr) => 
+        arr.findIndex(t => t.openIndex === tag.openIndex) === idx
+      );
+      
+      uniqueOpenTags.forEach(({ openTag, part1, openIndex }) => {
+        // Look for close tag within reasonable distance (up to 2000 chars to be safe)
         const searchStart = openIndex + openTag.length;
-        const searchEnd = Math.min(xmlContent.length, searchStart + 1000);
+        const searchEnd = Math.min(xmlContent.length, searchStart + 2000);
         const searchArea = xmlContent.substring(searchStart, searchEnd);
         
         // Try multiple patterns to find the close tag
         const closePatterns = [
           /<w:r[^>]*><w:t[^>]*>([A-Z_]+)\}\}/,
+          /<w:r[^>]*>[\s\S]{0,50}<w:t[^>]*>([A-Z_]+)\}\}/,
           /<w:r[^>]*>[\s\S]{0,100}<w:t[^>]*>([A-Z_]+)\}\}/,
           /<w:r[^>]*>[\s\S]{0,200}<w:t[^>]*>([A-Z_]+)\}\}/,
+          /<w:r[^>]*>[\s\S]{0,500}<w:t[^>]*>([A-Z_]+)\}\}/,
         ];
         
         for (const closePattern of closePatterns) {
@@ -112,12 +122,20 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
             
             if (fullName) {
               // Found a match! Replace the split placeholder
-              const fullSplitPattern = openTag + searchArea.substring(0, searchArea.indexOf(closeMatch[0]) + closeMatch[0].length);
-              const escapedPattern = fullSplitPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              xmlContent = xmlContent.replace(escapedPattern, `{{${fullName}}}`);
-              manualFixCount++;
-              console.log(`     ✅ Manually fixed: ${part1}...${part2} -> {{${fullName}}}`);
-              break; // Found and fixed, move to next
+              const closeMatchStart = searchArea.indexOf(closeMatch[0]);
+              const closeMatchEnd = closeMatchStart + closeMatch[0].length;
+              const fullSplitPattern = openTag + searchArea.substring(0, closeMatchEnd);
+              
+              // Use string replacement instead of regex to be more precise
+              const patternStart = xmlContent.indexOf(fullSplitPattern, openIndex);
+              if (patternStart >= 0 && patternStart === openIndex) {
+                xmlContent = xmlContent.substring(0, patternStart) + 
+                            `{{${fullName}}}` + 
+                            xmlContent.substring(patternStart + fullSplitPattern.length);
+                manualFixCount++;
+                console.log(`     ✅ Manually fixed: ${part1}...${part2} -> {{${fullName}}} (distance: ${closeMatchStart} chars)`);
+                break; // Found and fixed, move to next
+              }
             }
           }
         }
@@ -126,6 +144,8 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       if (manualFixCount > 0) {
         fixCount += manualFixCount;
         console.log(`   ✅ Manually fixed ${manualFixCount} split placeholder(s)`);
+      } else {
+        console.log(`   ⚠️ Found split patterns but couldn't match them to known placeholders`);
       }
     } else {
       console.log(`   ✅ No split placeholder patterns found in ${fileName}`);
