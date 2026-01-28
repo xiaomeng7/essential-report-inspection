@@ -15,6 +15,24 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   
   console.log(`🔍 Analyzing ${fileName} (${originalLength} bytes)...`);
   
+  // First, try a more aggressive approach: look for ANY {{TEXT pattern followed by </w:t></w:r>
+  // This catches split placeholders even if the XML structure is complex
+  const aggressivePattern = /\{\{([A-Z_]{2,})<\/w:t><\/w:r>/g;
+  const aggressiveMatches: Array<{ part1: string; openIndex: number; openTag: string }> = [];
+  let match;
+  aggressivePattern.lastIndex = 0;
+  while ((match = aggressivePattern.exec(xmlContent)) !== null) {
+    aggressiveMatches.push({
+      part1: match[1],
+      openIndex: match.index,
+      openTag: match[0]
+    });
+  }
+  
+  if (aggressiveMatches.length > 0) {
+    console.log(`🔍 Found ${aggressiveMatches.length} potential split placeholder(s) using aggressive pattern`);
+  }
+  
   // More flexible pattern: handles various XML structures between split parts
   // Pattern matches: {{TEXT1</w:t></w:r>...<w:r>...<w:t>TEXT2}}
   // The ... can be any XML content (attributes, other elements, etc.)
@@ -175,6 +193,61 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     "CAPI|ABLE": "CAPITAL_PLANNING",
     "NEXT|TEPS": "NEXT_STEPS",
   };
+  
+  // Process aggressive matches if regex patterns didn't find anything
+  if (matches.length === 0 && aggressiveMatches.length > 0) {
+    console.log(`⚠️ Regex patterns didn't match, trying aggressive approach with ${aggressiveMatches.length} potential splits...`);
+    
+    // Process in reverse order to avoid index shifting
+    const sortedAggressive = [...aggressiveMatches].sort((a, b) => b.openIndex - a.openIndex);
+    
+    sortedAggressive.forEach(({ part1, openIndex, openTag }) => {
+      // Look for close tag within reasonable distance (up to 2000 chars)
+      const searchStart = openIndex + openTag.length;
+      const searchEnd = Math.min(xmlContent.length, searchStart + 2000);
+      const searchArea = xmlContent.substring(searchStart, searchEnd);
+      
+      // Try multiple patterns to find the close tag
+      const closePatterns = [
+        /<w:r[^>]*><w:t[^>]*>([A-Z_]+)\}\}/,
+        /<w:r[^>]*>[\s\S]{0,50}<w:t[^>]*>([A-Z_]+)\}\}/,
+        /<w:r[^>]*>[\s\S]{0,100}<w:t[^>]*>([A-Z_]+)\}\}/,
+        /<w:r[^>]*>[\s\S]{0,200}<w:t[^>]*>([A-Z_]+)\}\}/,
+        /<w:r[^>]*>[\s\S]{0,500}<w:t[^>]*>([A-Z_]+)\}\}/,
+      ];
+      
+      for (const closePattern of closePatterns) {
+        const closeMatch = searchArea.match(closePattern);
+        if (closeMatch) {
+          const part2 = closeMatch[1];
+          const key = `${part1}|${part2}`;
+          const fullName = placeholderMap[key];
+          
+          if (fullName) {
+            // Found a match! Replace the split placeholder
+            const closeMatchStart = searchArea.indexOf(closeMatch[0]);
+            const closeMatchEnd = closeMatchStart + closeMatch[0].length;
+            const fullSplitPattern = openTag + searchArea.substring(0, closeMatchEnd);
+            
+            // Use string replacement
+            const patternStart = xmlContent.indexOf(fullSplitPattern, openIndex);
+            if (patternStart >= 0 && patternStart === openIndex) {
+              xmlContent = xmlContent.substring(0, patternStart) + 
+                          `{{${fullName}}}` + 
+                          xmlContent.substring(patternStart + fullSplitPattern.length);
+              fixCount++;
+              console.log(`  ✅ Aggressively fixed: ${part1}...${part2} -> {{${fullName}}} (distance: ${closeMatchStart} chars)`);
+              break; // Found and fixed, move to next
+            }
+          }
+        }
+      }
+    });
+    
+    if (fixCount > 0) {
+      console.log(`✅ Aggressively fixed ${fixCount} split placeholder(s) in ${fileName}`);
+    }
+  }
   
   // Replace all split placeholders (process in reverse order to avoid index shifting)
   // Sort matches by position (descending) to replace from end to start
