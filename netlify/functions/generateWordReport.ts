@@ -49,10 +49,12 @@ function loadWordTemplate(): Buffer {
         console.log("Template size:", content.length, "bytes");
         
         // Fix split placeholders before checking
-        console.log("Applying template fix (first pass)...");
+        console.log("🔧 STEP 1: Applying template fix (first pass)...");
         const beforeFixSize = content.length;
+        console.log(`   Template size before fix: ${beforeFixSize} bytes`);
         content = fixWordTemplate(content);
-        console.log(`Template size: ${beforeFixSize} -> ${content.length} bytes after fix`);
+        console.log(`   Template size after fix: ${content.length} bytes`);
+        console.log(`✅ STEP 1 completed: Template fix applied`);
         
         const fixedZip = new PizZip(content);
         
@@ -251,9 +253,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     let templateBuffer = loadWordTemplate();
     
     // Fix split placeholders again to ensure they're fixed (in case template was cached)
-    console.log("Fixing split placeholders in Word template (second pass)...");
+    console.log("🔧 STEP 2: Fixing split placeholders in Word template (second pass)...");
+    const beforeSecondFix = templateBuffer.length;
+    console.log(`   Template size before second fix: ${beforeSecondFix} bytes`);
     templateBuffer = fixWordTemplate(templateBuffer);
-    console.log("✅ Template fix completed (second pass)");
+    console.log(`   Template size after second fix: ${templateBuffer.length} bytes`);
+    console.log("✅ STEP 2 completed: Template fix applied (second pass)");
     
     // Format findings as bullet-point text with defaults for empty arrays
     const immediateText = formatFindingsText(

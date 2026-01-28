@@ -136,6 +136,7 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
 }
 
 export function fixWordTemplate(buffer: Buffer): Buffer {
+  console.log("🔧 fixWordTemplate() called, buffer size:", buffer.length, "bytes");
   try {
     const zip = new PizZip(buffer);
     let totalFixCount = 0;
