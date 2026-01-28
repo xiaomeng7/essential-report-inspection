@@ -49,9 +49,10 @@ function loadWordTemplate(): Buffer {
         console.log("Template size:", content.length, "bytes");
         
         // Fix split placeholders before checking
-        console.log("Applying template fix...");
+        console.log("Applying template fix (first pass)...");
+        const beforeFixSize = content.length;
         content = fixWordTemplate(content);
-        console.log("Template size after fix:", content.length, "bytes");
+        console.log(`Template size: ${beforeFixSize} -> ${content.length} bytes after fix`);
         
         const fixedZip = new PizZip(content);
         
