@@ -246,13 +246,13 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       limitations: reportData.limitations.length
     });
     
-    // Load Word template
+    // Load Word template (fixWordTemplate is already called inside loadWordTemplate)
     let templateBuffer = loadWordTemplate();
     
-    // Fix split placeholders in template before using it
-    console.log("Fixing split placeholders in Word template...");
+    // Fix split placeholders again to ensure they're fixed (in case template was cached)
+    console.log("Fixing split placeholders in Word template (second pass)...");
     templateBuffer = fixWordTemplate(templateBuffer);
-    console.log("✅ Template fix completed");
+    console.log("✅ Template fix completed (second pass)");
     
     // Format findings as bullet-point text with defaults for empty arrays
     const immediateText = formatFindingsText(
