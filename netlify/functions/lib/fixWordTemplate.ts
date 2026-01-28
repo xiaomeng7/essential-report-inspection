@@ -24,15 +24,18 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   // - {{PROP</w:t></w:r><w:r><w:rPr>...</w:rPr><w:t>TYPE}}
   // - {{PROP</w:t></w:r><w:r w:rsidR="..."><w:t>TYPE}}
   // Try multiple patterns to catch different XML structures
+  // Based on error logs, placeholders are split like: {{PROP</w:t></w:r>...<w:r>...<w:t>TYPE}}
   const patterns = [
-    // Pattern 1: Simple case with no attributes
+    // Pattern 1: Simple case with no attributes - exact match
     /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r><w:t>([A-Z_]+)\}\}/g,
     // Pattern 2: With attributes on w:r
     /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r[^>]*><w:t>([A-Z_]+)\}\}/g,
     // Pattern 3: With attributes on w:t
     /\{\{([A-Z_]+)<\/w:t><\/w:r><w:r[^>]*><w:t[^>]*>([A-Z_]+)\}\}/g,
-    // Pattern 4: With w:rPr or other elements between
+    // Pattern 4: With w:rPr or other elements between (non-greedy)
     /\{\{([A-Z_]+)<\/w:t><\/w:r>[\s\S]*?<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/g,
+    // Pattern 5: More flexible - allow any XML between, but limit distance (up to 200 chars)
+    /\{\{([A-Z_]+)<\/w:t><\/w:r>[^<]{0,200}<w:r[^>]*>[^<]{0,200}<w:t[^>]*>([A-Z_]+)\}\}/g,
   ];
   
   let allMatches: Array<{ match: string; part1: string; part2: string; patternIndex: number }> = [];
@@ -75,24 +78,55 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       console.log(`⚠️ Found ${testMatches.length} potential split placeholder(s) (open tag pattern) in ${fileName}, but regex didn't match full pattern`);
       console.log(`   Sample: ${testMatches[0]}`);
       
-      // Try to find the corresponding close tags
-      console.log(`   🔍 Attempting to find corresponding close tags...`);
-      testMatches.slice(0, 5).forEach((openTag, i) => {
+      // Try to find the corresponding close tags and manually fix them
+      console.log(`   🔍 Attempting to find and fix corresponding close tags...`);
+      let manualFixCount = 0;
+      
+      // Process in reverse order to avoid index shifting
+      const sortedOpenTags = [...testMatches].map((openTag, idx) => {
         const part1Match = openTag.match(/\{\{([A-Z_]+)</);
-        if (part1Match) {
-          const part1 = part1Match[1];
-          const openIndex = xmlContent.indexOf(openTag);
-          if (openIndex >= 0) {
-            const afterOpen = xmlContent.substring(openIndex + openTag.length, openIndex + openTag.length + 500);
-            const closeMatch = afterOpen.match(/<w:r[^>]*>[\s\S]*?<w:t[^>]*>([A-Z_]+)\}\}/);
-            if (closeMatch) {
-              console.log(`     ${i + 1}. Found: ${part1}...${closeMatch[1]} (distance: ${afterOpen.indexOf(closeMatch[0])} chars)`);
-            } else {
-              console.log(`     ${i + 1}. ${part1}... (no close tag found within 500 chars)`);
+        const part1 = part1Match ? part1Match[1] : "";
+        const openIndex = xmlContent.lastIndexOf(openTag);
+        return { openTag, part1, openIndex, originalIndex: idx };
+      }).filter(m => m.openIndex >= 0).sort((a, b) => b.openIndex - a.openIndex);
+      
+      sortedOpenTags.forEach(({ openTag, part1, openIndex }) => {
+        // Look for close tag within reasonable distance (up to 1000 chars)
+        const searchStart = openIndex + openTag.length;
+        const searchEnd = Math.min(xmlContent.length, searchStart + 1000);
+        const searchArea = xmlContent.substring(searchStart, searchEnd);
+        
+        // Try multiple patterns to find the close tag
+        const closePatterns = [
+          /<w:r[^>]*><w:t[^>]*>([A-Z_]+)\}\}/,
+          /<w:r[^>]*>[\s\S]{0,100}<w:t[^>]*>([A-Z_]+)\}\}/,
+          /<w:r[^>]*>[\s\S]{0,200}<w:t[^>]*>([A-Z_]+)\}\}/,
+        ];
+        
+        for (const closePattern of closePatterns) {
+          const closeMatch = searchArea.match(closePattern);
+          if (closeMatch) {
+            const part2 = closeMatch[1];
+            const key = `${part1}|${part2}`;
+            const fullName = placeholderMap[key];
+            
+            if (fullName) {
+              // Found a match! Replace the split placeholder
+              const fullSplitPattern = openTag + searchArea.substring(0, searchArea.indexOf(closeMatch[0]) + closeMatch[0].length);
+              const escapedPattern = fullSplitPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              xmlContent = xmlContent.replace(escapedPattern, `{{${fullName}}}`);
+              manualFixCount++;
+              console.log(`     ✅ Manually fixed: ${part1}...${part2} -> {{${fullName}}}`);
+              break; // Found and fixed, move to next
             }
           }
         }
       });
+      
+      if (manualFixCount > 0) {
+        fixCount += manualFixCount;
+        console.log(`   ✅ Manually fixed ${manualFixCount} split placeholder(s)`);
+      }
     } else {
       console.log(`   ✅ No split placeholder patterns found in ${fileName}`);
     }
