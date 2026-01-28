@@ -58,14 +58,39 @@ function loadWordTemplate(): Buffer {
           // Use docxtemplater's getTags() method to get all recognized tags
           try {
             const tags = doc.getTags();
-            console.log("📋 Found placeholders via doc.getTags():", tags);
-            if (tags && Array.isArray(tags)) {
-              const tagNames = tags.map((tag: any) => {
-                if (typeof tag === 'string') return tag;
-                if (tag && typeof tag === 'object' && 'tag' in tag) return tag.tag;
-                return String(tag);
-              });
-              console.log("📋 Tag names:", tagNames);
+            console.log("📋 Found placeholders via doc.getTags():", JSON.stringify(tags, null, 2));
+            
+            // Extract tag names from the tags structure
+            const tagNames: string[] = [];
+            if (tags && typeof tags === 'object') {
+              // Check document tags
+              if (tags.document && tags.document.tags) {
+                Object.keys(tags.document.tags).forEach(tag => tagNames.push(tag));
+              }
+              // Check header tags
+              if (tags.headers && Array.isArray(tags.headers)) {
+                tags.headers.forEach((header: any) => {
+                  if (header.tags) {
+                    Object.keys(header.tags).forEach(tag => tagNames.push(tag));
+                  }
+                });
+              }
+              // Check footer tags
+              if (tags.footers && Array.isArray(tags.footers)) {
+                tags.footers.forEach((footer: any) => {
+                  if (footer.tags) {
+                    Object.keys(footer.tags).forEach(tag => tagNames.push(tag));
+                  }
+                });
+              }
+            }
+            
+            console.log("📋 Extracted tag names from template:", tagNames);
+            
+            if (tagNames.length === 0) {
+              console.warn("⚠️ WARNING: No placeholders found in Word template!");
+              console.warn("⚠️ The template file may not contain any {{PLACEHOLDER}} tags.");
+              console.warn("⚠️ Please verify the Word template has placeholders like {{INSPECTION_ID}}, {{IMMEDIATE_FINDINGS}}, etc.");
             }
           } catch (tagsErr) {
             console.log("Could not get tags via doc.getTags():", tagsErr);
@@ -83,7 +108,14 @@ function loadWordTemplate(): Buffer {
             while ((match = placeholderRegex.exec(fullText)) !== null) {
               placeholders.add(match[1].trim());
             }
-            console.log("📋 Found placeholders via regex from fullText:", Array.from(placeholders).sort());
+            
+            const foundPlaceholders = Array.from(placeholders).sort();
+            console.log("📋 Found placeholders via regex from fullText:", foundPlaceholders);
+            
+            if (foundPlaceholders.length === 0) {
+              console.warn("⚠️ WARNING: No {{PLACEHOLDER}} patterns found in template text!");
+              console.warn("⚠️ This suggests the Word template may not have any placeholders, or they are in a format docxtemplater cannot read.");
+            }
           } catch (textErr) {
             console.warn("Could not extract placeholders from full text:", textErr);
           }
@@ -362,58 +394,73 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       throw new Error(detailedErrorMsg);
     }
     
-    console.log("Setting template data...");
-    try {
-      // Log what we're setting
-      console.log("Setting data with keys:", Object.keys(templateData));
-      console.log("Sample values:", {
-        INSPECTION_ID: templateData.INSPECTION_ID,
-        IMMEDIATE_FINDINGS_length: templateData.IMMEDIATE_FINDINGS.length,
-        RECOMMENDED_FINDINGS_length: templateData.RECOMMENDED_FINDINGS.length,
-        PLAN_FINDINGS_length: templateData.PLAN_FINDINGS.length,
-        LIMITATIONS_length: templateData.LIMITATIONS.length,
-      });
-      
-      doc.setData(templateData);
-      console.log("✅ Template data set successfully");
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
-      console.error("❌ Failed to set template data:", errorMsg);
-      console.error("Template data that failed:", JSON.stringify(templateData, null, 2));
-      throw new Error(`Failed to set template data: ${errorMsg}`);
-    }
-    
-    console.log("Rendering template...");
+    console.log("Rendering template with data...");
     try {
       // Before rendering, get all tags that docxtemplater recognizes
       try {
         const tags = doc.getTags();
-        console.log("📋 Tags recognized by docxtemplater before render:", tags);
-        if (tags && Array.isArray(tags)) {
-          const tagNames = tags.map((tag: any) => {
-            if (typeof tag === 'string') return tag;
-            if (tag && typeof tag === 'object' && 'tag' in tag) return tag.tag;
-            return String(tag);
-          });
-          console.log("📋 Tag names before render:", tagNames);
-          
-          // Check which tags we're providing data for
-          const providedTags = Object.keys(templateData);
-          const missingTags = tagNames.filter((tag: string) => !providedTags.includes(tag));
-          const extraTags = providedTags.filter(tag => !tagNames.includes(tag));
-          
-          if (missingTags.length > 0) {
-            console.warn("⚠️ Tags in template but not in data:", missingTags);
+        console.log("📋 Tags recognized by docxtemplater before render:", JSON.stringify(tags, null, 2));
+        
+        // Extract tag names from the tags structure
+        const tagNames: string[] = [];
+        if (tags && typeof tags === 'object') {
+          // Check document tags
+          if (tags.document && tags.document.tags) {
+            Object.keys(tags.document.tags).forEach(tag => tagNames.push(tag));
           }
-          if (extraTags.length > 0) {
-            console.warn("⚠️ Tags in data but not in template:", extraTags);
+          // Check header tags
+          if (tags.headers && Array.isArray(tags.headers)) {
+            tags.headers.forEach((header: any) => {
+              if (header.tags) {
+                Object.keys(header.tags).forEach(tag => tagNames.push(tag));
+              }
+            });
+          }
+          // Check footer tags
+          if (tags.footers && Array.isArray(tags.footers)) {
+            tags.footers.forEach((footer: any) => {
+              if (footer.tags) {
+                Object.keys(footer.tags).forEach(tag => tagNames.push(tag));
+              }
+            });
           }
         }
+        
+        console.log("📋 Extracted tag names:", tagNames);
+        
+        // Check which tags we're providing data for
+        const providedTags = Object.keys(templateData);
+        const missingTags = tagNames.filter((tag: string) => !providedTags.includes(tag));
+        const extraTags = providedTags.filter(tag => !tagNames.includes(tag));
+        
+        if (tagNames.length === 0) {
+          console.warn("⚠️ WARNING: No tags found in Word template! The template may not have any {{PLACEHOLDER}} tags.");
+          console.warn("⚠️ Please check the Word template file and ensure it contains placeholders like {{INSPECTION_ID}}, {{IMMEDIATE_FINDINGS}}, etc.");
+        }
+        
+        if (missingTags.length > 0) {
+          console.warn("⚠️ Tags in template but not in data:", missingTags);
+        }
+        if (extraTags.length > 0) {
+          console.warn("⚠️ Tags in data but not in template:", extraTags);
+          console.warn("⚠️ These tags will be ignored. Please add them to the Word template or remove them from the data.");
+        }
+        
+        // Log what we're providing
+        console.log("Setting data with keys:", Object.keys(templateData));
+        console.log("Sample values:", {
+          INSPECTION_ID: templateData.INSPECTION_ID,
+          IMMEDIATE_FINDINGS_length: templateData.IMMEDIATE_FINDINGS.length,
+          RECOMMENDED_FINDINGS_length: templateData.RECOMMENDED_FINDINGS.length,
+          PLAN_FINDINGS_length: templateData.PLAN_FINDINGS.length,
+          LIMITATIONS_length: templateData.LIMITATIONS.length,
+        });
       } catch (tagErr) {
         console.log("Could not get tags before render:", tagErr);
       }
       
-      doc.render();
+      // Use new API: render() with data directly (setData is deprecated)
+      doc.render(templateData);
       console.log("✅ Template rendered successfully");
       
       // After rendering, check what was actually replaced
