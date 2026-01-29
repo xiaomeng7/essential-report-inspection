@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
  * 独立的占位符修复脚本（完整替换版）
- * 用于修复 Word 模板中被分割的占位符（跨多个 <w:t>）
+ * 用于修复 Word 模板中被分割的占位符（跨多个文本节点）
  *
  * ✅ 改进点：
  * 1) 不再用 acc 删除导致坐标系漂移（一次拼接 + 位置映射，稳定）
  * 2) 支持"占位符前后有其它文字"的场景（保留 prefix/suffix）
  * 3) 仅修复看起来像占位符的内容（默认：{{A-Z0-9_}}），降低误伤
  * 4) fixWordTemplateFromErrors 支持按错误白名单修复（更稳）
+ * 5) 支持所有文本承载节点：<w:t>, <w:instrText>, <w:delText>, <w:fldSimple>
  *
  * 使用方法：
  *   npx tsx scripts/fix-placeholders.ts <模板文件路径> [输出文件路径]
@@ -22,6 +23,7 @@ type DocxZip = PizZip;
 /**
  * 检查占位符是否被分割
  * 扫描 document.xml, header*.xml, footer*.xml
+ * 检查所有文本承载节点：<w:t>, <w:instrText>, <w:delText>, <w:fldSimple> 等
  */
 export function hasSplitPlaceholders(buffer: Buffer): boolean {
   try {
@@ -34,14 +36,23 @@ export function hasSplitPlaceholders(buffer: Buffer): boolean {
         /^word\/footer\d+\.xml$/.test(name)
     );
 
-    // 粗略检测：{{TAG 结束了 w:t 或 TAG}} 结束了 w:t
-    const badPattern = /\{\{[A-Z0-9_]+<\/w:t>|[A-Z0-9_]+\}\}<\/w:t>/;
+    // 检测所有文本节点类型中的分割占位符
+    // 匹配：{{TAG 结束了文本节点 或 TAG}} 结束了文本节点
+    const textNodePatterns = [
+      /\{\{[A-Z0-9_]+<\/w:t>|[A-Z0-9_]+\}\}<\/w:t>/,           // <w:t>
+      /\{\{[A-Z0-9_]+<\/w:instrText>|[A-Z0-9_]+\}\}<\/w:instrText>/, // <w:instrText>
+      /\{\{[A-Z0-9_]+<\/w:delText>|[A-Z0-9_]+\}\}<\/w:delText>/,     // <w:delText>
+      /\{\{[A-Z0-9_]+<\/w:fldSimple[^>]*>|[A-Z0-9_]+\}\}<\/w:fldSimple>/, // <w:fldSimple>
+    ];
 
     for (const fileName of targets) {
       const f = zip.files[fileName];
       if (!f) continue;
       const xml = f.asText();
-      if (badPattern.test(xml)) return true;
+      // 检查是否有任何文本节点类型中存在分割的占位符
+      for (const pattern of textNodePatterns) {
+        if (pattern.test(xml)) return true;
+      }
     }
     return false;
   } catch (e) {
@@ -81,30 +92,45 @@ function escapeXmlTextKeepBraces(text: string): string {
 }
 
 /**
- * <w:t ...>TEXT</w:t> 节点抽取
+ * 提取所有文本承载节点
+ * 支持：<w:t>, <w:instrText>, <w:delText>, <w:fldSimple>
  * 注意：我们只抓最常见的纯文本场景（TEXT 不包含 <）
  * 这对于 Docxtemplater 的占位符修复通常足够。
  */
 function extractTextNodes(xml: string) {
-  const tPattern = /<w:t([^>]*)>([^<]*)<\/w:t>/g;
-
   const nodes: Array<{
     startIndex: number;
     endIndex: number;
     attrs: string;
     text: string;
+    tagName: string; // 't', 'instrText', 'delText', 'fldSimple'
   }> = [];
 
-  let m: RegExpExecArray | null;
-  tPattern.lastIndex = 0;
-  while ((m = tPattern.exec(xml)) !== null) {
-    nodes.push({
-      startIndex: m.index,
-      endIndex: m.index + m[0].length,
-      attrs: m[1] || "",
-      text: m[2] || "",
-    });
+  // 定义所有文本节点类型的模式
+  const textNodePatterns: Array<{ tagName: string; pattern: RegExp }> = [
+    { tagName: 't', pattern: /<w:t([^>]*)>([^<]*)<\/w:t>/g },
+    { tagName: 'instrText', pattern: /<w:instrText([^>]*)>([^<]*)<\/w:instrText>/g },
+    { tagName: 'delText', pattern: /<w:delText([^>]*)>([^<]*)<\/w:delText>/g },
+    { tagName: 'fldSimple', pattern: /<w:fldSimple([^>]*)>([^<]*)<\/w:fldSimple>/g },
+  ];
+
+  // 按顺序提取所有文本节点（保持文档顺序）
+  for (const { tagName, pattern } of textNodePatterns) {
+    pattern.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = pattern.exec(xml)) !== null) {
+      nodes.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        attrs: m[1] || "",
+        text: m[2] || "",
+        tagName,
+      });
+    }
   }
+
+  // 按在文档中的位置排序
+  nodes.sort((a, b) => a.startIndex - b.startIndex);
 
   return nodes;
 }
@@ -112,7 +138,8 @@ function extractTextNodes(xml: string) {
 /**
  * 修复单个 XML 文件中的分割占位符
  *
- * - 将跨多个 <w:t> 的 {{...}} 合并到第一个参与的 <w:t>
+ * - 将跨多个文本节点的 {{...}} 合并到第一个参与的节点
+ * - 支持所有文本承载节点：<w:t>, <w:instrText>, <w:delText>, <w:fldSimple>
  * - 保留第一个节点中占位符之前的文字（prefix）
  * - 保留最后一个节点中占位符之后的文字（suffix）
  * - 中间节点清空
@@ -257,10 +284,12 @@ function fixXmlContent(
       if (i === firstIndex) newInner = newFirstInner;
       else if (i === lastIndex) newInner = newLastInner;
 
+      // 根据节点类型生成正确的标签
+      const tagName = `w:${node.tagName}`;
       ops.push({
         start: node.startIndex,
         end: node.endIndex,
-        replacement: `<w:t${node.attrs}>${newInner}</w:t>`,
+        replacement: `<${tagName}${node.attrs}>${newInner}</${tagName}>`,
       });
 
       touched.add(i);
