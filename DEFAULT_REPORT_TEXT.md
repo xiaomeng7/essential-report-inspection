@@ -42,7 +42,7 @@ No immediate safety risks were identified at the time of inspection.
 1.0
 
 ### OVERALL_STATUS
-Satisfactory
+LOW RISK
 
 ### EXECUTIVE_SUMMARY
 No significant issues identified during this inspection.

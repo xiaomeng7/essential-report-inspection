@@ -8,10 +8,9 @@ The summary is selected based on the calculated RISK_RATING.
 This property presents a low electrical risk profile at the time of inspection.
 No immediate safety hazards or compliance-critical issues were identified.
 
-Minor maintenance-related observations may exist but do not require urgent action.
-From an owner or investor perspective, no immediate capital expenditure is required,
-and the electrical condition of the property is unlikely to impact tenancy,
-insurance, or near-term asset performance.
+From a property owner or investor perspective,
+no immediate capital expenditure is required,
+and the electrical condition of the property is unlikely to impact tenancy, insurance, or near-term asset value.
 
 ## MODERATE RISK
 

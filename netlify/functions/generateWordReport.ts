@@ -568,18 +568,6 @@ export async function buildWordTemplateData(
   // PRIORITY 2: Calculated from findings count
   // ========================================================================
   
-  // OVERALL_STATUS
-  let overallStatus: string;
-  if (reportData.immediate.length > 0) {
-    overallStatus = "Requires Immediate Attention";
-  } else if (reportData.recommended.length > 0) {
-    overallStatus = "Requires Recommended Actions";
-  } else if (reportData.plan.length > 0) {
-    overallStatus = "Satisfactory - Plan Monitoring";
-  } else {
-    overallStatus = defaultText.OVERALL_STATUS; // Priority 3 fallback
-  }
-  
   // RISK_RATING - Calculate based on immediate and recommended findings count
   // Logic: 
   // - If immediate findings exist → HIGH
@@ -601,7 +589,11 @@ export async function buildWordTemplateData(
     riskRating = "LOW"; // Final fallback
   }
   
+  // OVERALL_STATUS - Display as "LOW RISK" / "MODERATE RISK" / "HIGH RISK"
+  const overallStatus = `${riskRating} RISK`;
+  
   // EXECUTIVE_SUMMARY - Load templates and select based on RISK_RATING
+  // For LOW RISK, customize based on whether plan findings exist
   const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
   let executiveSummary: string;
   
@@ -611,8 +603,24 @@ export async function buildWordTemplateData(
   } else if (riskRating === "MODERATE") {
     executiveSummary = executiveSummaryTemplates.MODERATE || defaultText.EXECUTIVE_SUMMARY;
   } else {
-    // LOW or any other value
-    executiveSummary = executiveSummaryTemplates.LOW || defaultText.EXECUTIVE_SUMMARY;
+    // LOW RISK - customize based on plan findings
+    let lowRiskSummary = executiveSummaryTemplates.LOW || defaultText.EXECUTIVE_SUMMARY;
+    
+    // If there are plan findings, insert additional paragraph about maintenance observations
+    if (reportData.plan.length > 0) {
+      // Insert maintenance observations paragraph after the first paragraph
+      const firstParagraphEnd = lowRiskSummary.indexOf("\n\n");
+      if (firstParagraphEnd > 0) {
+        const firstPart = lowRiskSummary.substring(0, firstParagraphEnd);
+        const secondPart = lowRiskSummary.substring(firstParagraphEnd);
+        executiveSummary = `${firstPart}\n\nA small number of non-urgent maintenance observations were noted. These do not require immediate action but should be addressed as part of routine property upkeep to maintain long-term reliability and compliance confidence.\n\n${secondPart}`;
+      } else {
+        // If no double newline found, append the paragraph
+        executiveSummary = `${lowRiskSummary}\n\nA small number of non-urgent maintenance observations were noted. These do not require immediate action but should be addressed as part of routine property upkeep to maintain long-term reliability and compliance confidence.`;
+      }
+    } else {
+      executiveSummary = lowRiskSummary;
+    }
   }
   
   // Ensure EXECUTIVE_SUMMARY is never undefined

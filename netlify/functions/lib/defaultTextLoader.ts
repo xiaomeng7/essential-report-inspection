@@ -168,7 +168,7 @@ function getDefaultTextWithFallbacks(parsed: Partial<DefaultText>): DefaultText 
     
     // Report metadata
     REPORT_VERSION: parsed.REPORT_VERSION || "1.0",
-    OVERALL_STATUS: parsed.OVERALL_STATUS || "Satisfactory",
+    OVERALL_STATUS: parsed.OVERALL_STATUS || "LOW RISK",
     EXECUTIVE_SUMMARY: parsed.EXECUTIVE_SUMMARY || "No significant issues identified during this inspection.",
     RISK_RATING: parsed.RISK_RATING || "LOW",
     RISK_RATING_FACTORS: parsed.RISK_RATING_FACTORS || "No significant risk factors identified",
