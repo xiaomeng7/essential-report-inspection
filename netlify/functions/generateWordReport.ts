@@ -337,6 +337,7 @@ export type WordTemplateData = {
   // Report metadata (Priority 2: calculated from findings count)
   REPORT_VERSION: string;
   OVERALL_STATUS: string;
+  OVERALL_ELECTRICAL_STATUS: string; // Alias for OVERALL_STATUS (for Word template compatibility)
   EXECUTIVE_SUMMARY: string;
   RISK_RATING: string;
   RISK_RATING_FACTORS: string;
@@ -696,6 +697,7 @@ export async function buildWordTemplateData(
     // Report metadata (Priority 2)
     REPORT_VERSION: reportVersion,
     OVERALL_STATUS: overallStatus,
+    OVERALL_ELECTRICAL_STATUS: overallStatus, // Alias for OVERALL_STATUS (for Word template compatibility)
     EXECUTIVE_SUMMARY: executiveSummary,
     RISK_RATING: riskRating,
     RISK_RATING_FACTORS: riskRatingFactors,
@@ -979,10 +981,56 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         
         if (missingTags.length > 0) {
           console.warn("⚠️ Tags in template but not in data:", missingTags);
-          // Add default empty string values for missing tags to prevent "undefined" in output
+          // Add default values for missing tags, with intelligent mapping for common aliases
           missingTags.forEach((tag: string) => {
-            templateData[tag] = "";
-            console.log(`   Added default empty value for missing tag: ${tag}`);
+            // Try to map common alias patterns to existing values
+            let mappedValue: string | undefined;
+            
+            // Map OVERALL_ELECTRICAL_STATUS to OVERALL_STATUS
+            if (tag === "OVERALL_ELECTRICAL_STATUS" && templateData.OVERALL_STATUS) {
+              mappedValue = templateData.OVERALL_STATUS;
+            }
+            // Map ELECTRICAL_STATUS to OVERALL_STATUS
+            else if (tag === "ELECTRICAL_STATUS" && templateData.OVERALL_STATUS) {
+              mappedValue = templateData.OVERALL_STATUS;
+            }
+            // Map RISK_RATING_BADGE to RISK_RATING
+            else if (tag === "RISK_RATING_BADGE" && templateData.RISK_RATING) {
+              mappedValue = templateData.RISK_RATING;
+            }
+            // Map OVERALL_STATUS_BADGE to OVERALL_STATUS
+            else if (tag === "OVERALL_STATUS_BADGE" && templateData.OVERALL_STATUS) {
+              mappedValue = templateData.OVERALL_STATUS;
+            }
+            // Map EXECUTIVE_SUMMARY_PARAGRAPH to EXECUTIVE_SUMMARY
+            else if (tag === "EXECUTIVE_SUMMARY_PARAGRAPH" && templateData.EXECUTIVE_SUMMARY) {
+              mappedValue = templateData.EXECUTIVE_SUMMARY;
+            }
+            // Map PLAN_MONITOR_FINDINGS to PLAN_FINDINGS
+            else if (tag === "PLAN_MONITOR_FINDINGS" && templateData.PLAN_FINDINGS) {
+              mappedValue = templateData.PLAN_FINDINGS;
+            }
+            // Map TEST_RESULTS_SUMMARY to TEST_SUMMARY
+            else if (tag === "TEST_RESULTS_SUMMARY" && templateData.TEST_SUMMARY) {
+              mappedValue = templateData.TEST_SUMMARY;
+            }
+            // Map LIMITATIONS_SECTION to LIMITATIONS
+            else if (tag === "LIMITATIONS_SECTION" && templateData.LIMITATIONS) {
+              mappedValue = templateData.LIMITATIONS;
+            }
+            // Map GENERAL_OBSERVATIONS_NOTES to TECHNICAL_NOTES
+            else if (tag === "GENERAL_OBSERVATIONS_NOTES" && templateData.TECHNICAL_NOTES) {
+              mappedValue = templateData.TECHNICAL_NOTES;
+            }
+            
+            if (mappedValue) {
+              templateData[tag] = mappedValue;
+              console.log(`   Mapped missing tag '${tag}' to existing value: ${mappedValue.substring(0, 50)}...`);
+            } else {
+              // Fallback to empty string if no mapping found
+              templateData[tag] = "";
+              console.log(`   Added default empty value for missing tag: ${tag}`);
+            }
           });
         }
         if (extraTags.length > 0) {
