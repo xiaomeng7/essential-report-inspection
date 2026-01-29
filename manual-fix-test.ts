@@ -11,7 +11,7 @@
 import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
-import { fixWordTemplate } from "./netlify/functions/lib/fixWordTemplate.js";
+import { fixWordTemplate, hasSplitPlaceholders } from "./scripts/fix-placeholders.js";
 
 // 默认模板路径
 const DEFAULT_TEMPLATE = "./netlify/functions/report-template.docx";
@@ -39,27 +39,8 @@ console.log(`   ✅ 文件大小: ${originalBuffer.length} bytes`);
 
 // 检查原始模板中的分割占位符
 console.log("\n📋 步骤 2: 检查原始模板中的分割占位符...");
-const originalZip = new PizZip(originalBuffer);
-const originalXml = originalZip.files["word/document.xml"];
-if (!originalXml) {
-  console.error("❌ 错误: 找不到 word/document.xml");
-  process.exit(1);
-}
-
-const originalXmlContent = originalXml.asText();
-const splitPattern = /\{\{[A-Z_]+<\/w:t><\/w:r>/g;
-const splitMatches = originalXmlContent.match(splitPattern);
-console.log(`   ${splitMatches ? `⚠️  找到 ${splitMatches.length} 个被分割的占位符` : "✅ 没有找到被分割的占位符"}`);
-
-if (splitMatches) {
-  console.log("\n   被分割的占位符列表：");
-  splitMatches.slice(0, 10).forEach((m, i) => {
-    console.log(`   ${i + 1}. ${m}`);
-  });
-  if (splitMatches.length > 10) {
-    console.log(`   ... 还有 ${splitMatches.length - 10} 个`);
-  }
-}
+const hasSplit = hasSplitPlaceholders(originalBuffer);
+console.log(`   ${hasSplit ? `⚠️  找到被分割的占位符` : "✅ 没有找到被分割的占位符"}`);
 
 // 应用修复
 console.log("\n🔧 步骤 3: 应用修复脚本...");
@@ -68,17 +49,10 @@ console.log(`   ✅ 修复后大小: ${fixedBuffer.length} bytes`);
 
 // 检查修复后的模板
 console.log("\n📋 步骤 4: 检查修复后的模板...");
-const fixedZip = new PizZip(fixedBuffer);
-const fixedXml = fixedZip.files["word/document.xml"];
-const fixedXmlContent = fixedXml.asText();
-const remainingSplits = fixedXmlContent.match(splitPattern);
+const stillHasSplit = hasSplitPlaceholders(fixedBuffer);
 
-if (remainingSplits) {
-  console.log(`   ⚠️  仍然找到 ${remainingSplits.length} 个被分割的占位符！`);
-  console.log("\n   剩余的占位符：");
-  remainingSplits.slice(0, 10).forEach((m, i) => {
-    console.log(`   ${i + 1}. ${m}`);
-  });
+if (stillHasSplit) {
+  console.log(`   ⚠️  仍然找到被分割的占位符！`);
 } else {
   console.log("   ✅ 没有找到被分割的占位符！修复成功！");
 }

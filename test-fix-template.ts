@@ -1,6 +1,6 @@
 import fs from "fs";
 import PizZip from "pizzip";
-import { fixWordTemplate } from "./netlify/functions/lib/fixWordTemplate.js";
+import { fixWordTemplate, hasSplitPlaceholders } from "./scripts/fix-placeholders.js";
 
 // Test script to verify template fix logic
 const templatePath = "./report-template-with-placeholders.docx";
@@ -86,15 +86,10 @@ const outputPath = "./report-template-fixed.docx";
 fs.writeFileSync(outputPath, fixedBuffer);
 console.log(`\nFixed template saved to: ${outputPath}`);
 
-// Verify fix by checking XML again
-const fixedZip = new PizZip(fixedBuffer);
-const fixedDocumentXml = fixedZip.files["word/document.xml"];
-if (fixedDocumentXml) {
-  const fixedXmlContent = fixedDocumentXml.asText();
-  const remainingSplits = fixedXmlContent.match(/\{\{[A-Z_]+<\/w:t><\/w:r>/g);
-  if (remainingSplits) {
-    console.log(`\n⚠️ WARNING: Still found ${remainingSplits.length} split placeholders after fix!`);
-  } else {
-    console.log(`\n✅ No split placeholders found after fix!`);
-  }
+// Verify fix by checking again
+const stillHasSplit = hasSplitPlaceholders(fixedBuffer);
+if (stillHasSplit) {
+  console.log(`\n⚠️ WARNING: Still found split placeholders after fix!`);
+} else {
+  console.log(`\n✅ No split placeholders found after fix!`);
 }

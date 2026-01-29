@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
-import { fixWordTemplate, fixWordTemplateFromErrors } from "./lib/fixWordTemplate";
+import { fixWordTemplate, hasSplitPlaceholders } from "../../scripts/fix-placeholders";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -48,13 +48,23 @@ function loadWordTemplate(): Buffer {
         console.log("✅ Successfully loaded Word template from:", templatePath);
         console.log("Template size:", content.length, "bytes");
         
-        // Fix split placeholders before checking
-        console.log("🔧 STEP 1: Applying template fix (first pass)...");
-        const beforeFixSize = content.length;
-        console.log(`   Template size before fix: ${beforeFixSize} bytes`);
-        content = fixWordTemplate(content);
-        console.log(`   Template size after fix: ${content.length} bytes`);
-        console.log(`✅ STEP 1 completed: Template fix applied`);
+        // Check for split placeholders and fix if needed
+        console.log("🔍 Checking for split placeholders...");
+        if (hasSplitPlaceholders(content)) {
+          console.log("⚠️  Found split placeholders, applying fix...");
+          const beforeFixSize = content.length;
+          content = fixWordTemplate(content);
+          console.log(`✅ Fixed template: ${beforeFixSize} -> ${content.length} bytes`);
+          
+          // Verify fix
+          if (hasSplitPlaceholders(content)) {
+            console.warn("⚠️  Warning: Still found split placeholders after fix, but continuing...");
+          } else {
+            console.log("✅ Verification passed: No split placeholders found after fix");
+          }
+        } else {
+          console.log("✅ No split placeholders found, template is clean");
+        }
         
         const fixedZip = new PizZip(content);
         
@@ -156,17 +166,10 @@ function loadWordTemplate(): Buffer {
             console.log(`loadWordTemplate: Found ${duplicateErrors.length} duplicate tag error(s) out of ${errorsArray.length} total`);
             
             if (duplicateErrors.length > 0) {
-              console.log(`🔧 loadWordTemplate: Attempting to fix template based on ${duplicateErrors.length} error(s)...`);
+              console.log(`🔧 loadWordTemplate: Found duplicate tag errors, attempting to fix template...`);
               try {
-                const errorInfo = duplicateErrors.map((err: any) => {
-                  const errProperties = err.properties || {};
-                  return {
-                    id: err.id || errProperties.id,
-                    context: err.context || errProperties.context
-                  };
-                });
-                console.log(`   Sample error info:`, errorInfo.slice(0, 3));
-                const fixedBuffer = fixWordTemplateFromErrors(content, errorInfo);
+                // Use the fix script to repair split placeholders
+                const fixedBuffer = fixWordTemplate(content);
                 
                 // Try again with fixed template
                 const retryZip = new PizZip(fixedBuffer);
@@ -302,16 +305,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       limitations: reportData.limitations.length
     });
     
-    // Load Word template (fixWordTemplate is already called inside loadWordTemplate)
+    // Load Word template (fixWordTemplate is already called inside loadWordTemplate if needed)
     let templateBuffer = loadWordTemplate();
     
-    // Fix split placeholders again to ensure they're fixed (in case template was cached)
-    console.log("🔧 STEP 2: Fixing split placeholders in Word template (second pass)...");
-    const beforeSecondFix = templateBuffer.length;
-    console.log(`   Template size before second fix: ${beforeSecondFix} bytes`);
-    templateBuffer = fixWordTemplate(templateBuffer);
-    console.log(`   Template size after second fix: ${templateBuffer.length} bytes`);
-    console.log("✅ STEP 2 completed: Template fix applied (second pass)");
+    // Double-check for split placeholders before generating
+    console.log("🔍 Final check for split placeholders before generating...");
+    if (hasSplitPlaceholders(templateBuffer)) {
+      console.log("⚠️  Found split placeholders in final check, applying fix...");
+      const beforeFix = templateBuffer.length;
+      templateBuffer = fixWordTemplate(templateBuffer);
+      console.log(`✅ Fixed template: ${beforeFix} -> ${templateBuffer.length} bytes`);
+      
+      // Verify again
+      if (hasSplitPlaceholders(templateBuffer)) {
+        console.warn("⚠️  Warning: Still found split placeholders after final fix");
+      } else {
+        console.log("✅ Final verification passed: No split placeholders found");
+      }
+    } else {
+      console.log("✅ Final check passed: No split placeholders found");
+    }
     
     // Format findings as bullet-point text with defaults for empty arrays
     const immediateText = formatFindingsText(
@@ -452,19 +465,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         });
         
         if (duplicateErrors.length > 0) {
-          // Try to fix the template using error information
-          console.log(`🔧 Attempting to fix template based on ${duplicateErrors.length} error(s)...`);
-          console.log(`   Sample errors:`, duplicateErrors.slice(0, 3).map((e: any) => ({
-            id: e.id || e.properties?.id,
-            context: e.context || e.properties?.context
-          })));
+          // Try to fix the template using the fix script
+          console.log(`🔧 Attempting to fix template based on ${duplicateErrors.length} duplicate tag error(s)...`);
           try {
-            // Extract error info in the format expected by fixWordTemplateFromErrors
-            const errorInfo = duplicateErrors.map((err: any) => ({
-              id: err.id || err.properties?.id,
-              context: err.context || err.properties?.context
-            }));
-            const fixedBuffer = fixWordTemplateFromErrors(templateBuffer, errorInfo);
+            const fixedBuffer = fixWordTemplate(templateBuffer);
             
             // Try again with the fixed template
             console.log("🔧 Retrying Docxtemplater creation with fixed template...");
