@@ -733,18 +733,31 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {/* Empty state for mappings */}
       {activeTab === "mapping" && editMode === "visual" && configData && (!editedMappings || editedMappings.length === 0) && (
-        <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
-          <p style={{ fontSize: "16px", color: "#666" }}>
-            {loading ? "加载中..." : "暂无数据。请点击「🔄 重新加载」按钮从文件系统加载。"}
+        <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#fff3cd", borderRadius: "8px", border: "2px solid #ffc107" }}>
+          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ 数据未加载</h3>
+          <p style={{ fontSize: "16px", color: "#856404", marginBottom: "20px" }}>
+            {loading ? "正在加载数据..." : "可视化编辑需要先加载数据。请点击下方按钮从文件系统加载。"}
           </p>
-          <button 
-            onClick={() => loadConfig(authToken, activeTab, true)} 
-            className="btn-primary" 
-            disabled={loading}
-            style={{ marginTop: "16px" }}
-          >
-            {loading ? "加载中..." : "🔄 从文件系统重新加载"}
-          </button>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <button 
+              onClick={() => loadConfig(authToken, activeTab, true)} 
+              className="btn-primary" 
+              disabled={loading}
+            >
+              {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+            </button>
+            <button 
+              onClick={() => setEditMode("raw")} 
+              className="btn-secondary"
+            >
+              切换到 JSON 编辑器
+            </button>
+          </div>
+          {configData && (
+            <p style={{ fontSize: "12px", color: "#856404", marginTop: "16px" }}>
+              调试信息: parsed keys = {configData.parsed ? Object.keys(configData.parsed).join(", ") : "null"}, mappings = {configData.parsed?.mappings ? configData.parsed.mappings.length : 0}
+            </p>
+          )}
         </div>
       )}
 
