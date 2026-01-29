@@ -25,8 +25,8 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     combinedName: string;
   }> = [];
   
-  // Find all occurrences of {{ followed by </w:t> (indicating a split)
-  // But exclude cases where the placeholder is already complete ({{TEXT}})
+  // Strategy 1: Find placeholders that start with {{ but are split across <w:t> tags
+  // Pattern: {{TEXT</w:t>...<w:t>MORE_TEXT}}
   const openPattern = /\{\{([^<]*?)<\/w:t>/g;
   let openMatch;
   
@@ -47,7 +47,6 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     // Extract all text parts from <w:t> tags until we find }}
     const textParts = [firstPart];
     const textPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    let textMatch;
     let foundClosing = false;
     let endOffset = 0;
     
@@ -90,6 +89,158 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       }
     }
   }
+  
+  // Strategy 2: Find placeholders that start with {{ in one <w:t> tag and end with }} in another
+  // This handles cases where the entire opening {{ is in one tag and closing }} is in another
+  // Pattern: <w:t>{{TEXT</w:t>...<w:t>MORE_TEXT}}</w:t>
+  const strategy2Pattern = /<w:t[^>]*>\{\{([^<}]*?)<\/w:t>/g;
+  let strategy2Match;
+  
+  while ((strategy2Match = strategy2Pattern.exec(xmlContent)) !== null) {
+    const startIndex = strategy2Match.index;
+    const firstPart = strategy2Match[1];
+    
+    // Skip if this is already a complete placeholder
+    if (firstPart.includes('}}')) {
+      continue;
+    }
+    
+    // Search forward to find the closing }}
+    const searchStart = strategy2Match.index + strategy2Match[0].length;
+    const searchEnd = Math.min(xmlContent.length, searchStart + 2000);
+    const searchArea = xmlContent.substring(searchStart, searchEnd);
+    
+    // Look for }} in subsequent <w:t> tags
+    const textParts = [firstPart];
+    const textPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let foundClosing = false;
+    let endOffset = 0;
+    
+    textPattern.lastIndex = 0;
+    const searchAreaMatches = searchArea.matchAll(textPattern);
+    
+    for (const match of searchAreaMatches) {
+      const text = match[1];
+      if (text.includes('}}')) {
+        const closingIndex = text.indexOf('}}');
+        textParts.push(text.substring(0, closingIndex));
+        foundClosing = true;
+        // Calculate the end position relative to searchStart
+        endOffset = match.index! + match[0].indexOf('}}') + 2;
+        break;
+      } else {
+        textParts.push(text);
+      }
+    }
+    
+    if (foundClosing && textParts.length > 1) {
+      const combinedName = textParts.join('');
+      
+      if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
+        const endIndex = searchStart + endOffset;
+        const fullMatch = xmlContent.substring(startIndex, endIndex);
+        
+        // Check if this is already in our list (avoid duplicates)
+        const isDuplicate = splitPlaceholders.some(sp => 
+          sp.startIndex === startIndex && sp.endIndex === endIndex
+        );
+        
+        if (!isDuplicate) {
+          splitPlaceholders.push({
+            startIndex,
+            endIndex,
+            fullMatch,
+            textParts,
+            combinedName
+          });
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Find incomplete opening tags {{TEXT that don't have closing }}
+  // and incomplete closing tags TEXT}} that don't have opening {{
+  // This handles cases where {{ and }} are in separate <w:t> tags
+  // Pattern: <w:t>{{PROP</w:t>...<w:t>TYPE}}</w:t>
+  const incompleteOpenPattern = /<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/g;
+  const incompleteClosePattern = /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/g;
+  
+  const openFragments: Array<{ index: number; text: string; matchEnd: number }> = [];
+  const closeFragments: Array<{ index: number; text: string; matchEnd: number }> = [];
+  
+  let match;
+  while ((match = incompleteOpenPattern.exec(xmlContent)) !== null) {
+    openFragments.push({
+      index: match.index,
+      text: match[1],
+      matchEnd: match.index + match[0].length
+    });
+  }
+  
+  while ((match = incompleteClosePattern.exec(xmlContent)) !== null) {
+    closeFragments.push({
+      index: match.index,
+      text: match[1],
+      matchEnd: match.index + match[0].length
+    });
+  }
+  
+  // Try to match open and close fragments that are close to each other
+  // and form a valid placeholder name when combined
+  openFragments.forEach(openFrag => {
+    closeFragments.forEach(closeFrag => {
+      // Check if they're within reasonable distance (e.g., 2000 chars)
+      const distance = closeFrag.index - openFrag.matchEnd;
+      if (distance > 0 && distance < 2000) {
+        // Extract the content between the fragments
+        const between = xmlContent.substring(openFrag.matchEnd, closeFrag.index);
+        
+        // Check if between contains only XML tags (no other text content)
+        // This ensures we're matching fragments that are part of the same placeholder
+        const betweenText = between.replace(/<[^>]+>/g, '').trim();
+        if (betweenText.length > 0 && !betweenText.match(/^[A-Z0-9_]*$/)) {
+          // If there's non-placeholder text between, skip this match
+          return;
+        }
+        
+        // Extract all text parts between the fragments
+        const textParts = [openFrag.text];
+        const betweenTextPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+        let betweenMatch;
+        while ((betweenMatch = betweenTextPattern.exec(between)) !== null) {
+          const text = betweenMatch[1].trim();
+          if (text && text.match(/^[A-Z0-9_]*$/)) {
+            textParts.push(text);
+          }
+        }
+        textParts.push(closeFrag.text);
+        
+        const combinedName = textParts.join('');
+        
+        // Validate: must be a valid placeholder name
+        if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
+          const startIndex = openFrag.index;
+          const endIndex = closeFrag.matchEnd;
+          
+          // Check if this is already in our list (avoid duplicates)
+          const isDuplicate = splitPlaceholders.some(sp => 
+            Math.abs(sp.startIndex - startIndex) < 50 && 
+            Math.abs(sp.endIndex - endIndex) < 50
+          );
+          
+          if (!isDuplicate) {
+            splitPlaceholders.push({
+              startIndex,
+              endIndex,
+              fullMatch: xmlContent.substring(startIndex, endIndex),
+              textParts,
+              combinedName
+            });
+          }
+        }
+      }
+    });
+  });
   
   if (splitPlaceholders.length > 0) {
     console.log(`📋 Found ${splitPlaceholders.length} split placeholder(s) in ${fileName}:`);
@@ -181,15 +332,17 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
       "RECO|INGS": "RECOMMENDED_FINDINGS",
       "PLAN|INGS": "PLAN_FINDINGS",
       "URGE|INGS": "URGENT_FINDINGS",
-      "EXEC|RAPH": "EXECUTIVE_SUMMARY_PARAGRAPH",
-      "OVER|ADGE": "OVERALL_STATUS_BADGE",
-      "RISK|ADGE": "RISK_RATING_BADGE",
+      "EXEC|RAPH": "EXECUTIVE_SUMMARY",
+      "OVER|ADGE": "OVERALL_STATUS",
+      "RISK|ADGE": "RISK_RATING",
       "RISK|TORS": "RISK_RATING_FACTORS",
       "LIMI|TION": "LIMITATIONS",
       "LIMI|TIONS": "LIMITATIONS",
-      "TEST|MARY": "TEST_RESULTS_SUMMARY",
+      "TEST|MARY": "TEST_SUMMARY",
       "TECH|OTES": "TECHNICAL_NOTES",
-      "CAPI|ABLE": "CAPITAL_PLANNING_TABLE",
+      "CAPI|ABLE": "CAPABLE",
+      "NEXT|TEPS": "NEXT_STEPS",
+      "GENE|OTES": "GENERAL_NOTES",
     };
     
     // Find and fix split placeholders
@@ -198,18 +351,63 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
     openTags.forEach((openPart) => {
       closeTags.forEach((closePart) => {
         const key = `${openPart}|${closePart}`;
-        const fullName = knownMappings[key];
+        let fullName = knownMappings[key];
+        
+        // If not in known mappings, try to construct the name directly
+        if (!fullName) {
+          // Try direct combination: OPEN_PART + CLOSE_PART
+          const combined = `${openPart}${closePart}`;
+          if (/^[A-Z0-9_]{2,}$/.test(combined)) {
+            fullName = combined;
+            console.log(`   ℹ️  No known mapping for ${key}, trying direct combination: ${fullName}`);
+          } else {
+            // Try with underscore: OPEN_PART + _ + CLOSE_PART
+            const combinedWithUnderscore = `${openPart}_${closePart}`;
+            if (/^[A-Z0-9_]{2,}$/.test(combinedWithUnderscore)) {
+              fullName = combinedWithUnderscore;
+              console.log(`   ℹ️  No known mapping for ${key}, trying with underscore: ${fullName}`);
+            }
+          }
+        }
         
         if (fullName) {
-          // Create a pattern to find the split placeholder
-          // Pattern: {{OPEN_PART</w:t>...<w:t>CLOSE_PART}}
-          const pattern = new RegExp(
-            `\\{\\{${openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`,
+          // Escape special regex characters
+          const escapedOpen = openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedClose = closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          
+          // Create patterns to find the split placeholder in different formats
+          // Pattern 1: {{OPEN_PART</w:t>...<w:t>CLOSE_PART}}
+          // This matches: {{OPEN</w:t>...<w:t>CLOSE}}
+          const pattern1 = new RegExp(
+            `\\{\\{${escapedOpen}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${escapedClose}\\}\\}`,
+            'g'
+          );
+          
+          // Pattern 2: <w:t>{{OPEN_PART</w:t>...<w:t>CLOSE_PART}}</w:t>
+          const pattern2 = new RegExp(
+            `<w:t[^>]*>\\{\\{${escapedOpen}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${escapedClose}\\}\\}</w:t>`,
+            'g'
+          );
+          
+          // Pattern 3: {{OPEN_PART</w:t>...<w:t>...<w:t>CLOSE_PART}}
+          // This handles cases where there are multiple <w:t> tags in between
+          const pattern3 = new RegExp(
+            `\\{\\{${escapedOpen}</w:t>(?:[\\s\\S]{0,500}<w:t[^>]*>[A-Z0-9_]*</w:t>)*[\\s\\S]{0,500}<w:t[^>]*>${escapedClose}\\}\\}`,
             'g'
           );
           
           fixes.push({
-            pattern,
+            pattern: pattern1,
+            replacement: `{{${fullName}}}`
+          });
+          
+          fixes.push({
+            pattern: pattern2,
+            replacement: `<w:t>{{${fullName}}}</w:t>`
+          });
+          
+          fixes.push({
+            pattern: pattern3,
             replacement: `{{${fullName}}}`
           });
           
