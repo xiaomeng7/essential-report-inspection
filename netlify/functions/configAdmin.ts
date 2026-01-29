@@ -196,6 +196,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   // GET: Load configuration
   if (event.httpMethod === "GET") {
     try {
+      console.log(`📥 Loading ${configType}, forceReload: ${forceReload}`);
       let content: string;
       let source: "file" | "blob";
       
@@ -210,17 +211,21 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           filePath = findResponsesPath();
         }
         
+        console.log(`🔍 Looking for file at: ${filePath}`);
         if (fs.existsSync(filePath)) {
           content = fs.readFileSync(filePath, "utf8");
           source = "file";
-          console.log(`🔄 Force reloaded ${configType} from file: ${filePath} (${content.length} chars)`);
+          console.log(`✅ Force reloaded ${configType} from file: ${filePath} (${content.length} chars)`);
         } else {
-          throw new Error(`File not found: ${filePath}`);
+          const errorMsg = `File not found: ${filePath}`;
+          console.error(`❌ ${errorMsg}`);
+          throw new Error(errorMsg);
         }
       } else {
         const result = await loadConfig(event, configType);
         content = result.content;
         source = result.source;
+        console.log(`✅ Loaded ${configType} from ${source} (${content.length} chars)`);
       }
       
       if (configType === "mapping") {
@@ -255,13 +260,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         }
       }
     } catch (e) {
-      console.error(`Error loading ${configType}:`, e);
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      const errorStack = e instanceof Error ? e.stack : undefined;
+      console.error(`❌ Error loading ${configType}:`, errorMsg);
+      console.error(`Stack:`, errorStack);
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           error: `Failed to load ${configType}`, 
-          message: e instanceof Error ? e.message : String(e) 
+          message: errorMsg,
+          ...(process.env.NETLIFY_DEV && { stack: errorStack }),
         }),
       };
     }
