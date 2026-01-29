@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
-import { fixWordTemplate, hasSplitPlaceholders } from "../../scripts/fix-placeholders";
+import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -168,8 +168,15 @@ function loadWordTemplate(): Buffer {
             if (duplicateErrors.length > 0) {
               console.log(`🔧 loadWordTemplate: Found duplicate tag errors, attempting to fix template...`);
               try {
-                // Use the fix script to repair split placeholders
-                const fixedBuffer = fixWordTemplate(content);
+                // 首先尝试常规修复
+                let fixedBuffer = fixWordTemplate(content);
+                
+                // 如果常规修复没有效果，使用基于错误信息的修复
+                const errorInfo = duplicateErrors.map((err: any) => ({
+                  id: err.id || err.properties?.id,
+                  context: err.context || err.properties?.context
+                }));
+                fixedBuffer = fixWordTemplateFromErrors(fixedBuffer, errorInfo);
                 
                 // Try again with fixed template
                 const retryZip = new PizZip(fixedBuffer);
@@ -468,7 +475,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           // Try to fix the template using the fix script
           console.log(`🔧 Attempting to fix template based on ${duplicateErrors.length} duplicate tag error(s)...`);
           try {
-            const fixedBuffer = fixWordTemplate(templateBuffer);
+            // 首先尝试常规修复
+            let fixedBuffer = fixWordTemplate(templateBuffer);
+            
+            // 如果常规修复没有效果，使用基于错误信息的修复
+            const errorInfo = duplicateErrors.map((err: any) => ({
+              id: err.id || err.properties?.id,
+              context: err.context || err.properties?.context
+            }));
+            fixedBuffer = fixWordTemplateFromErrors(fixedBuffer, errorInfo);
             
             // Try again with the fixed template
             console.log("🔧 Retrying Docxtemplater creation with fixed template...");

@@ -14,6 +14,7 @@ import PizZip from "pizzip";
 
 /**
  * 检查占位符是否被分割
+ * 使用多种模式来检测被分割的占位符
  */
 export function hasSplitPlaceholders(buffer: Buffer): boolean {
   try {
@@ -24,9 +25,42 @@ export function hasSplitPlaceholders(buffer: Buffer): boolean {
     }
     
     const xmlContent = documentXml.asText();
-    // 查找被分割的占位符模式：{{TEXT</w:t>...<w:t>MORE_TEXT}}
-    const splitPattern = /\{\{[A-Z0-9_]+<\/w:t>/g;
-    return splitPattern.test(xmlContent);
+    
+    // 模式1: {{TEXT</w:t> 或 <w:t>{{TEXT</w:t>
+    const pattern1 = /(?:<w:t[^>]*>)?\{\{[A-Z0-9_]+<\/w:t>/g;
+    if (pattern1.test(xmlContent)) {
+      return true;
+    }
+    
+    // 模式2: TEXT}}</w:t> 或 <w:t>TEXT}}</w:t>
+    const pattern2 = /[A-Z0-9_]+\}\}<\/w:t>/g;
+    if (pattern2.test(xmlContent)) {
+      // 检查前面是否有对应的开始标签
+      const matches = xmlContent.match(pattern2);
+      if (matches) {
+        for (const match of matches) {
+          const closePart = match.replace(/}}\<\/w:t>/, '');
+          // 查找前面是否有对应的开始部分
+          const beforeMatch = xmlContent.substring(0, xmlContent.indexOf(match));
+          if (beforeMatch.match(new RegExp(`\\{\\{[A-Z0-9_]*${closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<\\/w:t>`))) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    // 模式3: 查找不完整的开始标签和结束标签对
+    const incompleteOpenPattern = /<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/g;
+    const incompleteClosePattern = /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/g;
+    
+    const openMatches = Array.from(xmlContent.matchAll(incompleteOpenPattern));
+    const closeMatches = Array.from(xmlContent.matchAll(incompleteClosePattern));
+    
+    if (openMatches.length > 0 || closeMatches.length > 0) {
+      return true;
+    }
+    
+    return false;
   } catch (e) {
     console.error("检查占位符时出错:", e);
     return false;
@@ -164,73 +198,94 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   }
   
   // 策略3: 查找不完整的开始和结束标签
-  const incompleteOpenPattern = /<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/g;
+  // 改进：更准确地匹配开始和结束片段
+  const incompleteOpenPattern = /(?:<w:t[^>]*>)?\{\{([A-Z0-9_]+)<\/w:t>/g;
   const incompleteClosePattern = /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/g;
   
-  const openFragments: Array<{ index: number; text: string; matchEnd: number }> = [];
-  const closeFragments: Array<{ index: number; text: string; matchEnd: number }> = [];
+  const openFragments: Array<{ index: number; text: string; matchEnd: number; fullMatch: string }> = [];
+  const closeFragments: Array<{ index: number; text: string; matchEnd: number; fullMatch: string }> = [];
   
   let match;
+  incompleteOpenPattern.lastIndex = 0;
   while ((match = incompleteOpenPattern.exec(xmlContent)) !== null) {
     openFragments.push({
       index: match.index,
       text: match[1],
-      matchEnd: match.index + match[0].length
+      matchEnd: match.index + match[0].length,
+      fullMatch: match[0]
     });
   }
   
+  incompleteClosePattern.lastIndex = 0;
   while ((match = incompleteClosePattern.exec(xmlContent)) !== null) {
     closeFragments.push({
       index: match.index,
       text: match[1],
-      matchEnd: match.index + match[0].length
+      matchEnd: match.index + match[0].length,
+      fullMatch: match[0]
     });
   }
   
+  // 改进匹配逻辑：更智能地匹配开始和结束片段
   openFragments.forEach(openFrag => {
-    closeFragments.forEach(closeFrag => {
+    // 查找最近的结束片段
+    const nearbyCloses = closeFragments
+      .filter(closeFrag => {
+        const distance = closeFrag.index - openFrag.matchEnd;
+        return distance > 0 && distance < 2000;
+      })
+      .sort((a, b) => a.index - b.index);
+    
+    for (const closeFrag of nearbyCloses) {
       const distance = closeFrag.index - openFrag.matchEnd;
-      if (distance > 0 && distance < 2000) {
-        const between = xmlContent.substring(openFrag.matchEnd, closeFrag.index);
-        const betweenText = between.replace(/<[^>]+>/g, '').trim();
-        if (betweenText.length > 0 && !betweenText.match(/^[A-Z0-9_]*$/)) {
-          return;
-        }
-        
-        const textParts = [openFrag.text];
-        const betweenTextPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-        let betweenMatch;
-        while ((betweenMatch = betweenTextPattern.exec(between)) !== null) {
-          const text = betweenMatch[1].trim();
-          if (text && text.match(/^[A-Z0-9_]*$/)) {
-            textParts.push(text);
-          }
-        }
-        textParts.push(closeFrag.text);
-        
-        const combinedName = textParts.join('');
-        
-        if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
-          const startIndex = openFrag.index;
-          const endIndex = closeFrag.matchEnd;
-          
-          const isDuplicate = splitPlaceholders.some(sp => 
-            Math.abs(sp.startIndex - startIndex) < 50 && 
-            Math.abs(sp.endIndex - endIndex) < 50
-          );
-          
-          if (!isDuplicate) {
-            splitPlaceholders.push({
-              startIndex,
-              endIndex,
-              fullMatch: xmlContent.substring(startIndex, endIndex),
-              textParts,
-              combinedName
-            });
-          }
+      const between = xmlContent.substring(openFrag.matchEnd, closeFrag.index);
+      
+      // 检查中间是否只有 XML 标签和占位符文本
+      const betweenText = between.replace(/<[^>]+>/g, '').trim();
+      const hasNonPlaceholderText = betweenText.length > 0 && !betweenText.match(/^[A-Z0-9_\s]*$/);
+      
+      if (hasNonPlaceholderText) {
+        continue; // 跳过，中间有其他文本
+      }
+      
+      // 提取中间的所有文本部分
+      const textParts = [openFrag.text];
+      const betweenTextPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+      let betweenMatch;
+      betweenTextPattern.lastIndex = 0;
+      while ((betweenMatch = betweenTextPattern.exec(between)) !== null) {
+        const text = betweenMatch[1].trim();
+        if (text && text.match(/^[A-Z0-9_]*$/)) {
+          textParts.push(text);
         }
       }
-    });
+      textParts.push(closeFrag.text);
+      
+      const combinedName = textParts.join('');
+      
+      // 验证组合后的名称是否有效
+      if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
+        const startIndex = openFrag.index;
+        const endIndex = closeFrag.matchEnd;
+        
+        // 检查是否已经存在类似的修复
+        const isDuplicate = splitPlaceholders.some(sp => 
+          Math.abs(sp.startIndex - startIndex) < 50 && 
+          Math.abs(sp.endIndex - endIndex) < 50
+        );
+        
+        if (!isDuplicate) {
+          splitPlaceholders.push({
+            startIndex,
+            endIndex,
+            fullMatch: xmlContent.substring(startIndex, endIndex),
+            textParts,
+            combinedName
+          });
+          break; // 找到匹配后跳出，避免重复匹配
+        }
+      }
+    }
   });
   
   if (splitPlaceholders.length > 0) {
@@ -254,6 +309,159 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   } else {
     console.log(`✅ ${fileName} 中没有发现被分割的占位符`);
     return { fixed: xmlContent, count: 0 };
+  }
+}
+
+/**
+ * 基于错误信息修复占位符
+ * 当检测函数无法识别时，使用 Docxtemplater 的错误信息来修复
+ */
+export function fixWordTemplateFromErrors(
+  buffer: Buffer, 
+  errors: Array<{ id?: string; context?: string }>
+): Buffer {
+  try {
+    const zip = new PizZip(buffer);
+    const documentXml = zip.files["word/document.xml"];
+    if (!documentXml) {
+      return buffer;
+    }
+    
+    let xmlContent = documentXml.asText();
+    let fixCount = 0;
+    
+    // 提取开始和结束片段
+    const openTags = new Set<string>();
+    const closeTags = new Set<string>();
+    
+    errors.forEach((err) => {
+      if (err.id === "duplicate_open_tag" && err.context) {
+        let fragment = err.context.replace("{{", "").trim();
+        if (fragment) {
+          openTags.add(fragment);
+        }
+      } else if (err.id === "duplicate_close_tag" && err.context) {
+        let fragment = err.context.replace("}}", "").trim();
+        if (fragment) {
+          closeTags.add(fragment);
+        }
+      }
+    });
+    
+    // 已知的占位符映射
+    const knownMappings: Record<string, string> = {
+      "PROP|TYPE": "PROPERTY_TYPE",
+      "ASSE|POSE": "ASSESSMENT_PURPOSE",
+      "ASSE|DATE": "ASSESSMENT_DATE",
+      "PREP|_FOR": "PREPARED_FOR",
+      "PREP|D_BY": "PREPARED_BY",
+      "IMME|INGS": "IMMEDIATE_FINDINGS",
+      "RECO|INGS": "RECOMMENDED_FINDINGS",
+      "PLAN|INGS": "PLAN_FINDINGS",
+      "URGE|INGS": "URGENT_FINDINGS",
+      "EXEC|RAPH": "EXECUTIVE_SUMMARY",
+      "OVER|ADGE": "OVERALL_STATUS",
+      "RISK|ADGE": "RISK_RATING",
+      "RISK|TORS": "RISK_RATING_FACTORS",
+      "LIMI|TION": "LIMITATIONS",
+      "LIMI|TIONS": "LIMITATIONS",
+      "TEST|MARY": "TEST_SUMMARY",
+      "TECH|OTES": "TECHNICAL_NOTES",
+      "CAPI|ABLE": "CAPABLE",
+      "NEXT|TEPS": "NEXT_STEPS",
+      "GENE|OTES": "GENERAL_NOTES",
+    };
+    
+    // 匹配开始和结束片段
+    const matchedPairs: Array<{ openPart: string; closePart: string; fullName: string }> = [];
+    
+    openTags.forEach((openPart) => {
+      closeTags.forEach((closePart) => {
+        const key = `${openPart}|${closePart}`;
+        let fullName = knownMappings[key];
+        
+        if (!fullName) {
+          // 尝试直接组合
+          const combined = `${openPart}${closePart}`;
+          if (/^[A-Z0-9_]{2,}$/.test(combined)) {
+            fullName = combined;
+          } else {
+            // 尝试用下划线连接
+            const combinedWithUnderscore = `${openPart}_${closePart}`;
+            if (/^[A-Z0-9_]{2,}$/.test(combinedWithUnderscore)) {
+              fullName = combinedWithUnderscore;
+            }
+          }
+        }
+        
+        if (fullName) {
+          matchedPairs.push({ openPart, closePart, fullName });
+        }
+      });
+    });
+    
+    // 应用修复
+    const fixes: Array<{ start: number; end: number; replacement: string }> = [];
+    
+    matchedPairs.forEach(({ openPart, closePart, fullName }) => {
+      const escapedOpen = openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedClose = closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // 多种模式匹配
+      const patterns = [
+        // {{OPEN</w:t>...<w:t>CLOSE}}
+        new RegExp(`\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}`, 'g'),
+        // <w:t>{{OPEN</w:t>...<w:t>CLOSE}}</w:t>
+        new RegExp(`<w:t[^>]*>\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}</w:t>`, 'g'),
+      ];
+      
+      patterns.forEach((pattern) => {
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(xmlContent)) !== null) {
+          fixes.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            replacement: pattern === patterns[1] ? `<w:t>{{${fullName}}}</w:t>` : `{{${fullName}}}`
+          });
+        }
+      });
+    });
+    
+    // 从后往前应用修复
+    fixes.sort((a, b) => b.start - a.start);
+    
+    // 去重（相同位置只修复一次）
+    const uniqueFixes: typeof fixes = [];
+    const seenStarts = new Set<number>();
+    fixes.forEach(fix => {
+      if (!seenStarts.has(fix.start)) {
+        seenStarts.add(fix.start);
+        uniqueFixes.push(fix);
+      }
+    });
+    
+    uniqueFixes.forEach(fix => {
+      xmlContent = xmlContent.substring(0, fix.start) + 
+                  fix.replacement + 
+                  xmlContent.substring(fix.end);
+      fixCount++;
+    });
+    
+    if (fixCount > 0) {
+      zip.file("word/document.xml", xmlContent);
+      const fixedBuffer = zip.generate({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+      });
+      console.log(`✅ 基于错误信息修复了 ${fixCount} 个占位符`);
+      return fixedBuffer;
+    }
+    
+    return buffer;
+  } catch (e) {
+    console.error("基于错误信息修复时出错:", e);
+    return buffer;
   }
 }
 
