@@ -107,9 +107,9 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   
   // 从后往前处理段落，避免索引偏移
   paragraphs.reverse().forEach(({ match: paraMatch, startIndex, endIndex }) => {
-    // 提取段落内的所有 <w:t> 节点
+    // 提取段落内的所有 <w:t> 节点（使用相对于段落的索引）
     const tPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    const tNodes: Array<{ match: string; text: string; startIndex: number; endIndex: number; attrs: string }> = [];
+    const tNodes: Array<{ match: string; text: string; relativeIndex: number; attrs: string }> = [];
     
     let tMatch;
     tPattern.lastIndex = 0;
@@ -118,8 +118,7 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       tNodes.push({
         match: tMatch[0],
         text: tMatch[1],
-        startIndex: startIndex + tMatch.index,
-        endIndex: startIndex + tMatch.index + tMatch[0].length,
+        relativeIndex: tMatch.index,
         attrs
       });
     }
@@ -139,7 +138,7 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       return;
     }
     
-    // 检查是否有占位符被修复
+    // 检查是否有占位符
     const hasPlaceholders = /\{\{[^}]+\}\}/.test(fullText);
     if (!hasPlaceholders) {
       return; // 没有占位符，跳过
@@ -154,20 +153,19 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     // 从后往前替换，避免索引偏移
     for (let i = tNodes.length - 1; i >= 0; i--) {
       const tNode = tNodes[i];
-      const relativeIndex = tNode.startIndex - startIndex;
       
       if (i === 0) {
         // 第一个节点：写入完整文本
         const newTNode = `<w:t${tNode.attrs}>${fixedText}</w:t>`;
-        newParagraph = newParagraph.substring(0, relativeIndex) + 
+        newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
                       newTNode + 
-                      newParagraph.substring(relativeIndex + tNode.match.length);
+                      newParagraph.substring(tNode.relativeIndex + tNode.match.length);
       } else {
         // 其余节点：清空文本
         const newTNode = `<w:t${tNode.attrs}></w:t>`;
-        newParagraph = newParagraph.substring(0, relativeIndex) + 
+        newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
                       newTNode + 
-                      newParagraph.substring(relativeIndex + tNode.match.length);
+                      newParagraph.substring(tNode.relativeIndex + tNode.match.length);
       }
     }
     
