@@ -14,7 +14,7 @@ import PizZip from "pizzip";
 
 /**
  * 检查占位符是否被分割
- * 使用多种模式来检测被分割的占位符
+ * 使用段落级别检测：如果段落中合并后的文本包含完整的占位符，但原始 XML 中占位符被分割，则返回 true
  */
 export function hasSplitPlaceholders(buffer: Buffer): boolean {
   try {
@@ -26,38 +26,46 @@ export function hasSplitPlaceholders(buffer: Buffer): boolean {
     
     const xmlContent = documentXml.asText();
     
-    // 模式1: {{TEXT</w:t> 或 <w:t>{{TEXT</w:t>
-    const pattern1 = /(?:<w:t[^>]*>)?\{\{[A-Z0-9_]+<\/w:t>/g;
-    if (pattern1.test(xmlContent)) {
-      return true;
-    }
+    // 检查所有段落：如果段落中有多个 <w:t> 节点，且合并后的文本包含占位符，则可能被分割
+    const paragraphPattern = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
+    let match;
     
-    // 模式2: TEXT}}</w:t> 或 <w:t>TEXT}}</w:t>
-    const pattern2 = /[A-Z0-9_]+\}\}<\/w:t>/g;
-    if (pattern2.test(xmlContent)) {
-      // 检查前面是否有对应的开始标签
-      const matches = xmlContent.match(pattern2);
-      if (matches) {
-        for (const match of matches) {
-          const closePart = match.replace(/}}\<\/w:t>/, '');
-          // 查找前面是否有对应的开始部分
-          const beforeMatch = xmlContent.substring(0, xmlContent.indexOf(match));
-          if (beforeMatch.match(new RegExp(`\\{\\{[A-Z0-9_]*${closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<\\/w:t>`))) {
+    while ((match = paragraphPattern.exec(xmlContent)) !== null) {
+      const paraContent = match[1];
+      
+      // 提取段落中的所有 <w:t> 节点
+      const tPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+      const tNodes: string[] = [];
+      let tMatch;
+      
+      while ((tMatch = tPattern.exec(paraContent)) !== null) {
+        tNodes.push(tMatch[1]);
+      }
+      
+      // 如果有多个文本节点，检查合并后是否有占位符
+      if (tNodes.length > 1) {
+        const mergedText = tNodes.join('');
+        
+        // 检查合并后的文本是否包含完整的占位符
+        if (/\{\{[^}]+\}\}/.test(mergedText)) {
+          // 检查原始 XML 中占位符是否被分割
+          // 模式1: {{TEXT</w:t> 或 <w:t>{{TEXT</w:t>
+          if (/(?:<w:t[^>]*>)?\{\{[A-Z0-9_]+<\/w:t>/.test(paraContent)) {
+            return true;
+          }
+          
+          // 模式2: TEXT}}</w:t>
+          if (/[A-Z0-9_]+\}\}<\/w:t>/.test(paraContent)) {
+            return true;
+          }
+          
+          // 模式3: 不完整的开始和结束标签
+          if (/<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/.test(paraContent) || 
+              /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/.test(paraContent)) {
             return true;
           }
         }
       }
-    }
-    
-    // 模式3: 查找不完整的开始标签和结束标签对
-    const incompleteOpenPattern = /<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/g;
-    const incompleteClosePattern = /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/g;
-    
-    const openMatches = Array.from(xmlContent.matchAll(incompleteOpenPattern));
-    const closeMatches = Array.from(xmlContent.matchAll(incompleteClosePattern));
-    
-    if (openMatches.length > 0 || closeMatches.length > 0) {
-      return true;
     }
     
     return false;
@@ -133,46 +141,51 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
     // 规范化占位符（去掉内部空白）
     const fixedText = normalizePlaceholderText(fullText);
     
-    // 如果文本没有变化，跳过
-    if (fullText === fixedText) {
-      return;
-    }
-    
-    // 检查是否有占位符
+    // 检查是否有占位符被分割
+    // 如果合并后的文本包含完整占位符，但原始 XML 中占位符被分割，则需要修复
     const hasPlaceholders = /\{\{[^}]+\}\}/.test(fullText);
-    if (!hasPlaceholders) {
-      return; // 没有占位符，跳过
-    }
+    const hasSplitInOriginal = /(?:<w:t[^>]*>)?\{\{[A-Z0-9_]+<\/w:t>/.test(paraMatch) || 
+                                /[A-Z0-9_]+\}\}<\/w:t>/.test(paraMatch) ||
+                                /<w:t[^>]*>\{\{([A-Z0-9_]+)<\/w:t>/.test(paraMatch) ||
+                                /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/.test(paraMatch);
     
-    modified = true;
-    fixCount++;
-    
-    // 构建新的段落：保留第一个 <w:t> 的属性和完整文本，其余 <w:t> 清空
-    let newParagraph = paraMatch;
-    
-    // 从后往前替换，避免索引偏移
-    for (let i = tNodes.length - 1; i >= 0; i--) {
-      const tNode = tNodes[i];
+    // 如果有占位符且被分割，或者文本被规范化了，则需要修复
+    if (hasPlaceholders && (hasSplitInOriginal || fullText !== fixedText)) {
+      modified = true;
+      fixCount++;
       
-      if (i === 0) {
-        // 第一个节点：写入完整文本
-        const newTNode = `<w:t${tNode.attrs}>${fixedText}</w:t>`;
-        newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
-                      newTNode + 
-                      newParagraph.substring(tNode.relativeIndex + tNode.match.length);
-      } else {
-        // 其余节点：清空文本
-        const newTNode = `<w:t${tNode.attrs}></w:t>`;
-        newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
-                      newTNode + 
-                      newParagraph.substring(tNode.relativeIndex + tNode.match.length);
+      // 构建新的段落：保留第一个 <w:t> 的属性和完整文本，其余 <w:t> 清空
+      let newParagraph = paraMatch;
+      
+      // 从后往前替换，避免索引偏移
+      for (let i = tNodes.length - 1; i >= 0; i--) {
+        const tNode = tNodes[i];
+        
+        if (i === 0) {
+          // 第一个节点：写入完整规范化后的文本
+          // 转义 XML 特殊字符
+          const escapedText = fixedText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          const newTNode = `<w:t${tNode.attrs}>${escapedText}</w:t>`;
+          newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
+                        newTNode + 
+                        newParagraph.substring(tNode.relativeIndex + tNode.match.length);
+        } else {
+          // 其余节点：清空文本
+          const newTNode = `<w:t${tNode.attrs}></w:t>`;
+          newParagraph = newParagraph.substring(0, tNode.relativeIndex) + 
+                        newTNode + 
+                        newParagraph.substring(tNode.relativeIndex + tNode.match.length);
+        }
       }
+      
+      // 替换原段落
+      fixedXml = fixedXml.substring(0, startIndex) + 
+                 newParagraph + 
+                 fixedXml.substring(endIndex);
     }
-    
-    // 替换原段落
-    fixedXml = fixedXml.substring(0, startIndex) + 
-               newParagraph + 
-               fixedXml.substring(endIndex);
   });
   
   if (modified) {
