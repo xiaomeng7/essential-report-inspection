@@ -546,25 +546,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Prepare template data - use real inspection data
     // Note: Ensure placeholder names match exactly what's in the Word template
+    // Ensure all values are strings (never undefined/null)
     const templateData: Record<string, string> = {
-      INSPECTION_ID: inspection_id,
-      ASSESSMENT_DATE: assessmentDate,
-      PREPARED_FOR: preparedFor,
-      PREPARED_BY: preparedBy,
-      PROPERTY_ADDRESS: propertyAddress,
-      PROPERTY_TYPE: propertyType,
-      IMMEDIATE_FINDINGS: immediateText,
-      RECOMMENDED_FINDINGS: recommendedText,
-      PLAN_FINDINGS: planText,
-      LIMITATIONS: limitationsText,
+      INSPECTION_ID: inspection_id || "",
+      ASSESSMENT_DATE: assessmentDate || "",
+      PREPARED_FOR: preparedFor || "",
+      PREPARED_BY: preparedBy || "",
+      PROPERTY_ADDRESS: propertyAddress || "",
+      PROPERTY_TYPE: propertyType || "",
+      IMMEDIATE_FINDINGS: immediateText || "",
+      RECOMMENDED_FINDINGS: recommendedText || "",
+      PLAN_FINDINGS: planText || "",
+      LIMITATIONS: limitationsText || "",
       REPORT_VERSION: "1.0",
-      OVERALL_STATUS: overallStatus,
-      EXECUTIVE_SUMMARY: executiveSummary,
-      RISK_RATING: riskRating,
-      RISK_RATING_FACTORS: riskRatingFactors,
-      URGENT_FINDINGS: urgentFindings,
-      TEST_SUMMARY: testSummary,
-      TECHNICAL_NOTES: technicalNotes,
+      OVERALL_STATUS: overallStatus || "",
+      EXECUTIVE_SUMMARY: executiveSummary || "",
+      RISK_RATING: riskRating || "",
+      RISK_RATING_FACTORS: riskRatingFactors || "",
+      URGENT_FINDINGS: urgentFindings || "",
+      TEST_SUMMARY: testSummary || "",
+      TECHNICAL_NOTES: technicalNotes || "",
     };
     
     // Log all template data for debugging
@@ -746,23 +747,48 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         
         if (missingTags.length > 0) {
           console.warn("⚠️ Tags in template but not in data:", missingTags);
+          // Add default empty string values for missing tags to prevent "undefined" in output
+          missingTags.forEach((tag: string) => {
+            templateData[tag] = "";
+            console.log(`   Added default empty value for missing tag: ${tag}`);
+          });
         }
         if (extraTags.length > 0) {
           console.warn("⚠️ Tags in data but not in template:", extraTags);
           console.warn("⚠️ These tags will be ignored. Please add them to the Word template or remove them from the data.");
         }
         
+        // Ensure all values are strings (convert undefined/null to empty string)
+        Object.keys(templateData).forEach(key => {
+          const value = templateData[key];
+          if (value == null || value === undefined) {
+            templateData[key] = "";
+            console.log(`   Converted undefined/null to empty string for: ${key}`);
+          } else if (typeof value !== "string") {
+            templateData[key] = String(value);
+          }
+        });
+        
         // Log what we're providing
         console.log("Setting data with keys:", Object.keys(templateData));
         console.log("Sample values:", {
           INSPECTION_ID: templateData.INSPECTION_ID,
-          IMMEDIATE_FINDINGS_length: templateData.IMMEDIATE_FINDINGS.length,
-          RECOMMENDED_FINDINGS_length: templateData.RECOMMENDED_FINDINGS.length,
-          PLAN_FINDINGS_length: templateData.PLAN_FINDINGS.length,
-          LIMITATIONS_length: templateData.LIMITATIONS.length,
+          IMMEDIATE_FINDINGS_length: templateData.IMMEDIATE_FINDINGS?.length || 0,
+          RECOMMENDED_FINDINGS_length: templateData.RECOMMENDED_FINDINGS?.length || 0,
+          PLAN_FINDINGS_length: templateData.PLAN_FINDINGS?.length || 0,
+          LIMITATIONS_length: templateData.LIMITATIONS?.length || 0,
         });
       } catch (tagErr) {
         console.log("Could not get tags before render:", tagErr);
+        // Even if we can't get tags, ensure all values are strings
+        Object.keys(templateData).forEach(key => {
+          const value = templateData[key];
+          if (value == null || value === undefined) {
+            templateData[key] = "";
+          } else if (typeof value !== "string") {
+            templateData[key] = String(value);
+          }
+        });
       }
       
       // Use new API: render() with data directly (setData is deprecated)
