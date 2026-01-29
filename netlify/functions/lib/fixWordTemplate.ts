@@ -140,17 +140,28 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
     const closeTags = new Set<string>();
     
     errors.forEach((err) => {
-      if (err.id === "duplicate_open_tag" && err.context) {
-        // Remove {{ from context to get the fragment
-        const fragment = err.context.replace(/^\{\{/, "");
+      const errId = err.id;
+      const errContext = err.context;
+      
+      if (errId === "duplicate_open_tag" && errContext) {
+        // Context might be "{{PROP" or "PROP", handle both cases
+        let fragment = errContext;
+        if (fragment.startsWith("{{")) {
+          fragment = fragment.substring(2);
+        }
         if (fragment) {
           openTags.add(fragment);
+          console.log(`   Extracted open tag fragment: "${fragment}" from context "${errContext}"`);
         }
-      } else if (err.id === "duplicate_close_tag" && err.context) {
-        // Remove }} from context to get the fragment
-        const fragment = err.context.replace(/\}\}$/, "");
+      } else if (errId === "duplicate_close_tag" && errContext) {
+        // Context might be "TYPE}}" or "TYPE", handle both cases
+        let fragment = errContext;
+        if (fragment.endsWith("}}")) {
+          fragment = fragment.substring(0, fragment.length - 2);
+        }
         if (fragment) {
           closeTags.add(fragment);
+          console.log(`   Extracted close tag fragment: "${fragment}" from context "${errContext}"`);
         }
       }
     });
@@ -170,14 +181,15 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
       "RECO|INGS": "RECOMMENDED_FINDINGS",
       "PLAN|INGS": "PLAN_FINDINGS",
       "URGE|INGS": "URGENT_FINDINGS",
-      "EXEC|RAPH": "EXECUTIVE_SUMMARY",
-      "OVER|ADGE": "OVERALL_STATUS",
-      "RISK|ADGE": "RISK_RATING",
+      "EXEC|RAPH": "EXECUTIVE_SUMMARY_PARAGRAPH",
+      "OVER|ADGE": "OVERALL_STATUS_BADGE",
+      "RISK|ADGE": "RISK_RATING_BADGE",
       "RISK|TORS": "RISK_RATING_FACTORS",
       "LIMI|TION": "LIMITATIONS",
       "LIMI|TIONS": "LIMITATIONS",
-      "TEST|MARY": "TEST_SUMMARY",
+      "TEST|MARY": "TEST_RESULTS_SUMMARY",
       "TECH|OTES": "TECHNICAL_NOTES",
+      "CAPI|ABLE": "CAPITAL_PLANNING_TABLE",
     };
     
     // Find and fix split placeholders

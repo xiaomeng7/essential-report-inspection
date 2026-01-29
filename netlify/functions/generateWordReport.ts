@@ -400,9 +400,18 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         
         if (duplicateErrors.length > 0) {
           // Try to fix the template using error information
-          console.log("🔧 Attempting to fix template based on error information...");
+          console.log(`🔧 Attempting to fix template based on ${duplicateErrors.length} error(s)...`);
+          console.log(`   Sample errors:`, duplicateErrors.slice(0, 3).map((e: any) => ({
+            id: e.id || e.properties?.id,
+            context: e.context || e.properties?.context
+          })));
           try {
-            const fixedBuffer = fixWordTemplateFromErrors(templateBuffer, duplicateErrors);
+            // Extract error info in the format expected by fixWordTemplateFromErrors
+            const errorInfo = duplicateErrors.map((err: any) => ({
+              id: err.id || err.properties?.id,
+              context: err.context || err.properties?.context
+            }));
+            const fixedBuffer = fixWordTemplateFromErrors(templateBuffer, errorInfo);
             
             // Try again with the fixed template
             console.log("🔧 Retrying Docxtemplater creation with fixed template...");
