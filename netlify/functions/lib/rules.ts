@@ -3,6 +3,29 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 
+// Type definitions for mapping configuration
+type Condition = {
+  field: string;
+  operator: "eq" | "ne" | "gt" | "lt" | "gte" | "lte" | "in" | "not_in";
+  value: unknown;
+  coerce?: "string" | "number" | "boolean";
+};
+
+type MappingRule = {
+  finding: string;
+  condition?: Condition;
+  conditions?: {
+    all?: Condition[];
+    any?: Condition[];
+  };
+};
+
+type ChecklistToFindingsMap = {
+  version: string;
+  description: string;
+  mappings: MappingRule[];
+};
+
 // Get __dirname equivalent for ES modules (with error handling)
 let __dirname: string;
 try {
@@ -145,9 +168,132 @@ type Rules = {
 };
 
 let rulesCache: Rules | null = null;
+let mappingCache: ChecklistToFindingsMap | null = null;
 
 export function clearRulesCache(): void {
   rulesCache = null;
+  mappingCache = null;
+}
+
+/**
+ * Find the path to CHECKLIST_TO_FINDINGS_MAP.json
+ */
+function findMappingPath(): string {
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "CHECKLIST_TO_FINDINGS_MAP.json"),
+    path.join(process.cwd(), "CHECKLIST_TO_FINDINGS_MAP.json"),
+    path.join(process.cwd(), "netlify", "functions", "CHECKLIST_TO_FINDINGS_MAP.json"),
+    "/opt/build/repo/CHECKLIST_TO_FINDINGS_MAP.json",
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  return possiblePaths[0]; // Return first as fallback
+}
+
+/**
+ * Load CHECKLIST_TO_FINDINGS_MAP.json
+ */
+function loadMapping(): ChecklistToFindingsMap {
+  if (mappingCache) return mappingCache;
+
+  const actualPath = findMappingPath();
+  let mapping: ChecklistToFindingsMap;
+
+  if (fs.existsSync(actualPath)) {
+    try {
+      const raw = fs.readFileSync(actualPath, "utf8");
+      mapping = JSON.parse(raw) as ChecklistToFindingsMap;
+      console.log("✅ Checklist-to-findings mapping loaded from:", actualPath);
+    } catch (e) {
+      console.error("❌ Failed to load mapping file:", e);
+      // Fallback to empty mapping
+      mapping = { version: "1.0", description: "Empty mapping", mappings: [] };
+    }
+  } else {
+    console.warn("⚠️ CHECKLIST_TO_FINDINGS_MAP.json not found at", actualPath, ", using empty mapping");
+    mapping = { version: "1.0", description: "Empty mapping", mappings: [] };
+  }
+
+  mappingCache = mapping;
+  return mappingCache;
+}
+
+/**
+ * Coerce value to specified type
+ */
+function coerceValue(value: unknown, type?: string): unknown {
+  if (!type) return value;
+  if (type === "number") {
+    if (typeof value === "string") return Number(value);
+    if (typeof value === "number") return value;
+    return Number(value) || 0;
+  }
+  if (type === "boolean") {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value === "true" || value === "yes";
+    return Boolean(value);
+  }
+  if (type === "string") {
+    return String(value ?? "");
+  }
+  return value;
+}
+
+/**
+ * Evaluate a single condition against facts
+ */
+function evaluateCondition(condition: Condition, facts: Record<string, unknown>): boolean {
+  const fieldValue = getAt(facts, condition.field);
+  const actualValue = condition.coerce ? coerceValue(fieldValue, condition.coerce) : fieldValue;
+  const expectedValue = condition.coerce ? coerceValue(condition.value, condition.coerce) : condition.value;
+
+  switch (condition.operator) {
+    case "eq":
+      return actualValue === expectedValue;
+    case "ne":
+      return actualValue !== expectedValue;
+    case "gt":
+      return Number(actualValue) > Number(expectedValue);
+    case "lt":
+      return Number(actualValue) < Number(expectedValue);
+    case "gte":
+      return Number(actualValue) >= Number(expectedValue);
+    case "lte":
+      return Number(actualValue) <= Number(expectedValue);
+    case "in":
+      return Array.isArray(expectedValue) && expectedValue.includes(actualValue);
+    case "not_in":
+      return Array.isArray(expectedValue) && !expectedValue.includes(actualValue);
+    default:
+      console.warn(`Unknown operator: ${condition.operator}`);
+      return false;
+  }
+}
+
+/**
+ * Evaluate a mapping rule against facts
+ */
+function evaluateMappingRule(rule: MappingRule, facts: Record<string, unknown>): boolean {
+  // Single condition
+  if (rule.condition) {
+    return evaluateCondition(rule.condition, facts);
+  }
+
+  // Multiple conditions (all/any)
+  if (rule.conditions) {
+    if (rule.conditions.all) {
+      return rule.conditions.all.every((cond) => evaluateCondition(cond, facts));
+    }
+    if (rule.conditions.any) {
+      return rule.conditions.any.some((cond) => evaluateCondition(cond, facts));
+    }
+  }
+
+  return false;
 }
 
 function loadRules(): Rules {
@@ -229,41 +375,19 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
   return out;
 }
 
+/**
+ * Convert facts (checklist answers) to finding codes using configurable mapping rules
+ */
 function factsToFindings(facts: Record<string, unknown>): string[] {
   const ids: string[] = [];
-  const r = loadRules();
-  const findings = r.findings ?? {};
+  const mapping = loadMapping();
 
-  if (getAt(facts, "switchboard.asbestos_suspected") === "yes") ids.push("ASBESTOS_RISK");
-  if (getAt(facts, "switchboard.signs_of_overheating") === "yes") ids.push("THERMAL_STRESS_ACTIVE");
-  if (getAt(facts, "switchboard.burn_marks_or_carbon") === "yes") ids.push("ARCING_EVIDENCE_PRESENT");
-  if (getAt(facts, "switchboard.water_ingress") === "yes") ids.push("MATERIAL_DEGRADATION");
-  if (getAt(facts, "earthing.men_link_confirmed") === "no") ids.push("MEN_NOT_VERIFIED");
-  if (getAt(facts, "earthing.main_earth_conductor_intact") === "no") ids.push("EARTH_DEGRADED");
-  if (getAt(facts, "switchboard.board_at_capacity") === "yes") ids.push("BOARD_AT_CAPACITY");
-  if (getAt(facts, "switchboard.spare_ways_available") === "no") ids.push("NO_EXPANSION_MARGIN");
-  if (getAt(facts, "switchboard.labelling_quality") === "poor") ids.push("LABELING_POOR");
-  if (getAt(facts, "switchboard.non_standard_or_diy_observed") === "yes") ids.push("NON_STANDARD_WORK");
-
-  const rcdPerformed = getAt(facts, "rcd_tests.performed") === true;
-  const rcdFail = Number(getAt(facts, "rcd_tests.summary.total_fail") ?? 0) > 0;
-  if (!rcdPerformed) ids.push("NO_RCD_PROTECTION");
-  else if (rcdFail) ids.push("GPO_EARTH_FAULT");
-
-  const gpoWarm = getAt(facts, "gpo_tests.any_warm_loose_damaged") === true;
-  if (gpoWarm) ids.push("GPO_MECHANICAL_LOOSE");
-
-  const lighting = getAt(facts, "lighting.issues_observed");
-  if (lighting === "heat_damage") ids.push("FITTING_OVERHEAT");
-  if (lighting === "flicker") ids.push("SWITCH_ARCING");
-
-  const hasSolar = getAt(facts, "assets.has_solar_pv") === true;
-  const hasBattery = getAt(facts, "assets.has_battery") === true;
-  const hasEv = getAt(facts, "assets.has_ev_charger") === true;
-  const assetsIssues = getAt(facts, "assets.any_issues_observed") === true;
-  if (hasBattery && assetsIssues) ids.push("BATTERY_THERMAL");
-  if (hasEv && assetsIssues) ids.push("EV_UNSEGREGATED_LOAD");
-  if (hasSolar && assetsIssues) ids.push("PV_ISOLATION_UNVERIFIED");
+  // Evaluate each mapping rule
+  for (const rule of mapping.mappings) {
+    if (evaluateMappingRule(rule, facts)) {
+      ids.push(rule.finding);
+    }
+  }
 
   return [...new Set(ids)];
 }
