@@ -143,18 +143,29 @@ function loadWordTemplate(): Buffer {
           }
           
           if (errorsArray && errorsArray.length > 0) {
+            console.log(`loadWordTemplate: Found ${errorsArray.length} error(s), checking for duplicate tags...`);
             const duplicateErrors = errorsArray.filter((err: any) => {
               const errId = err.id || err.properties?.id;
-              return errId === "duplicate_open_tag" || errId === "duplicate_close_tag";
+              const isDuplicate = errId === "duplicate_open_tag" || errId === "duplicate_close_tag";
+              if (isDuplicate) {
+                console.log(`   Found duplicate error: id=${errId}, context=${err.context || err.properties?.context}`);
+              }
+              return isDuplicate;
             });
+            
+            console.log(`loadWordTemplate: Found ${duplicateErrors.length} duplicate tag error(s) out of ${errorsArray.length} total`);
             
             if (duplicateErrors.length > 0) {
               console.log(`🔧 loadWordTemplate: Attempting to fix template based on ${duplicateErrors.length} error(s)...`);
               try {
-                const errorInfo = duplicateErrors.map((err: any) => ({
-                  id: err.id || err.properties?.id,
-                  context: err.context || err.properties?.context
-                }));
+                const errorInfo = duplicateErrors.map((err: any) => {
+                  const errProperties = err.properties || {};
+                  return {
+                    id: err.id || errProperties.id,
+                    context: err.context || errProperties.context
+                  };
+                });
+                console.log(`   Sample error info:`, errorInfo.slice(0, 3));
                 const fixedBuffer = fixWordTemplateFromErrors(content, errorInfo);
                 
                 // Try again with fixed template
