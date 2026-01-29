@@ -246,6 +246,30 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   };
 
+  const handleExportBackup = () => {
+    if (!configData || !content) {
+      setError("没有可导出的内容");
+      return;
+    }
+    const blob = new Blob([content], { 
+      type: activeTab === "mapping" ? "application/json" : "text/yaml" 
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const extension = activeTab === "mapping" ? "json" : "yml";
+    const filename = activeTab === "mapping" 
+      ? `CHECKLIST_TO_FINDINGS_MAP.backup.${new Date().toISOString().split('T')[0]}.json`
+      : `${activeTab}.backup.${new Date().toISOString().split('T')[0]}.yml`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+  };
+
   const handleTestReport = async () => {
     if (!testInspectionId.trim()) {
       setError("请输入 Inspection ID");
@@ -479,9 +503,17 @@ export function ConfigAdmin({ onBack }: Props) {
               来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
             </p>
             {configData.source === "blob" && (
-              <p style={{ margin: "4px 0", fontSize: "12px", color: "#28a745", fontWeight: 600 }}>
-                💡 提示：您的修改保存在 Blob Store 中，Git 推送不会覆盖这些修改
-              </p>
+              <div style={{ marginTop: "8px", padding: "8px", backgroundColor: "#d1ecf1", borderRadius: "4px", border: "1px solid #bee5eb" }}>
+                <p style={{ margin: "4px 0", fontSize: "12px", color: "#0c5460", fontWeight: 600 }}>
+                  💡 数据安全提示：
+                </p>
+                <ul style={{ margin: "4px 0 0 0", paddingLeft: "20px", fontSize: "12px", color: "#0c5460" }}>
+                  <li>您的修改保存在 Netlify Blob Store（云端持久化存储）</li>
+                  <li>Blob Store 数据不会自动过期，会永久保存</li>
+                  <li>Git 推送不会覆盖 Blob Store 中的修改</li>
+                  <li>建议定期使用「导出备份」功能下载备份文件</li>
+                </ul>
+              </div>
             )}
           </div>
         )}
@@ -832,6 +864,13 @@ export function ConfigAdmin({ onBack }: Props) {
               >
                 {loading ? "加载中..." : "🔄 重新加载"}
               </button>
+              <button 
+                onClick={handleExportBackup} 
+                className="btn-secondary"
+                title="导出当前内容为备份文件"
+              >
+                💾 导出备份
+              </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
                 {saving ? "保存中..." : "保存"}
               </button>
@@ -1009,6 +1048,13 @@ export function ConfigAdmin({ onBack }: Props) {
                 disabled={loading}
               >
                 {loading ? "加载中..." : "🔄 重新加载"}
+              </button>
+              <button 
+                onClick={handleExportBackup} 
+                className="btn-secondary"
+                title="导出当前内容为备份文件"
+              >
+                💾 导出备份
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
                 {saving ? "保存中..." : "保存"}
