@@ -116,6 +116,128 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   return { fixed: xmlContent, count: fixCount };
 }
 
+/**
+ * Fix split placeholders based on docxtemplater error information
+ * This function extracts placeholder fragments from error messages and fixes them
+ */
+export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ context?: string; id?: string }>): Buffer {
+  console.log("🔧 fixWordTemplateFromErrors() called, buffer size:", buffer.length, "bytes");
+  console.log(`   Processing ${errors.length} error(s)...`);
+  
+  try {
+    const zip = new PizZip(buffer);
+    const documentXml = zip.files["word/document.xml"];
+    if (!documentXml) {
+      console.warn("⚠️ word/document.xml not found in template");
+      return buffer;
+    }
+    
+    let xmlContent = documentXml.asText();
+    let fixCount = 0;
+    
+    // Extract placeholder fragments from errors
+    const openTags = new Set<string>();
+    const closeTags = new Set<string>();
+    
+    errors.forEach((err) => {
+      if (err.id === "duplicate_open_tag" && err.context) {
+        // Remove {{ from context to get the fragment
+        const fragment = err.context.replace(/^\{\{/, "");
+        if (fragment) {
+          openTags.add(fragment);
+        }
+      } else if (err.id === "duplicate_close_tag" && err.context) {
+        // Remove }} from context to get the fragment
+        const fragment = err.context.replace(/\}\}$/, "");
+        if (fragment) {
+          closeTags.add(fragment);
+        }
+      }
+    });
+    
+    console.log(`   Found ${openTags.size} open tag fragment(s): ${Array.from(openTags).join(", ")}`);
+    console.log(`   Found ${closeTags.size} close tag fragment(s): ${Array.from(closeTags).join(", ")}`);
+    
+    // Try to match open and close fragments to form complete placeholders
+    // Common patterns: PROP + TYPE = PROPERTY_TYPE, ASSE + DATE = ASSESSMENT_DATE, etc.
+    const knownMappings: Record<string, string> = {
+      "PROP|TYPE": "PROPERTY_TYPE",
+      "ASSE|DATE": "ASSESSMENT_DATE",
+      "ASSE|POSE": "ASSESSMENT_PURPOSE",
+      "PREP|_FOR": "PREPARED_FOR",
+      "PREP|D_BY": "PREPARED_BY",
+      "IMME|INGS": "IMMEDIATE_FINDINGS",
+      "RECO|INGS": "RECOMMENDED_FINDINGS",
+      "PLAN|INGS": "PLAN_FINDINGS",
+      "URGE|INGS": "URGENT_FINDINGS",
+      "EXEC|RAPH": "EXECUTIVE_SUMMARY",
+      "OVER|ADGE": "OVERALL_STATUS",
+      "RISK|ADGE": "RISK_RATING",
+      "RISK|TORS": "RISK_RATING_FACTORS",
+      "LIMI|TION": "LIMITATIONS",
+      "LIMI|TIONS": "LIMITATIONS",
+      "TEST|MARY": "TEST_SUMMARY",
+      "TECH|OTES": "TECHNICAL_NOTES",
+    };
+    
+    // Find and fix split placeholders
+    const fixes: Array<{ pattern: RegExp; replacement: string }> = [];
+    
+    openTags.forEach((openPart) => {
+      closeTags.forEach((closePart) => {
+        const key = `${openPart}|${closePart}`;
+        const fullName = knownMappings[key];
+        
+        if (fullName) {
+          // Create a pattern to find the split placeholder
+          // Pattern: {{OPEN_PART</w:t>...<w:t>CLOSE_PART}}
+          const pattern = new RegExp(
+            `\\{\\{${openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`,
+            'g'
+          );
+          
+          fixes.push({
+            pattern,
+            replacement: `{{${fullName}}}`
+          });
+          
+          console.log(`   ✅ Will fix: ${openPart}...${closePart} -> {{${fullName}}}`);
+        }
+      });
+    });
+    
+    // Apply fixes
+    fixes.forEach(({ pattern, replacement }) => {
+      const matches = xmlContent.match(pattern);
+      if (matches) {
+        xmlContent = xmlContent.replace(pattern, replacement);
+        fixCount += matches.length;
+        console.log(`   ✅ Fixed ${matches.length} occurrence(s) of split placeholder`);
+      }
+    });
+    
+    if (fixCount > 0) {
+      zip.file("word/document.xml", xmlContent);
+      
+      const fixedBuffer = zip.generate({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+      });
+      
+      console.log(`✅ Fixed ${fixCount} split placeholder(s) based on error information`);
+      console.log(`✅ Template fixed: ${buffer.length} -> ${fixedBuffer.length} bytes`);
+      return fixedBuffer;
+    } else {
+      console.log("ℹ️ No fixes applied based on error information");
+      return buffer;
+    }
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    console.error("❌ Error fixing Word template from errors:", errorMsg);
+    return buffer;
+  }
+}
+
 export function fixWordTemplate(buffer: Buffer): Buffer {
   console.log("🔧 fixWordTemplate() called, buffer size:", buffer.length, "bytes");
   try {

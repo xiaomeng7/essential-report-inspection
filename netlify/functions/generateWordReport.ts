@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
-import { fixWordTemplate } from "./lib/fixWordTemplate";
+import { fixWordTemplate, fixWordTemplateFromErrors } from "./lib/fixWordTemplate";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -399,20 +399,43 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         });
         
         if (duplicateErrors.length > 0) {
-          detailedErrorMsg = 
-            `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
-            `Please check Netlify function logs for details. ` +
-            `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
-            `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
-            `\n\nError details:\n${errorDetails.join('\n')}`;
+          // Try to fix the template using error information
+          console.log("🔧 Attempting to fix template based on error information...");
+          try {
+            const fixedBuffer = fixWordTemplateFromErrors(templateBuffer, duplicateErrors);
+            
+            // Try again with the fixed template
+            console.log("🔧 Retrying Docxtemplater creation with fixed template...");
+            const fixedZip = new PizZip(fixedBuffer);
+            const retryDoc = new Docxtemplater(fixedZip, {
+              paragraphLoop: true,
+              linebreaks: true,
+            });
+            
+            console.log("✅ Successfully fixed template and created Docxtemplater instance!");
+            doc = retryDoc;
+            zip = fixedZip; // Update zip reference for later use
+            templateBuffer = fixedBuffer; // Update buffer reference
+          } catch (retryError: any) {
+            console.error("❌ Retry after fix failed:", retryError.message);
+            detailedErrorMsg = 
+              `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
+              `Automatic fix attempted but failed. ` +
+              `Please check Netlify function logs for details. ` +
+              `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
+              `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
+              `\n\nError details:\n${errorDetails.join('\n')}`;
+            throw new Error(detailedErrorMsg);
+          }
         } else {
           detailedErrorMsg = 
             `Docxtemplater error: ${errorMsg}\n\n` +
             `Found ${errorsArray.length} error(s) in template:\n${errorDetails.join('\n')}`;
+          throw new Error(detailedErrorMsg);
         }
+      } else {
+        throw new Error(detailedErrorMsg);
       }
-      
-      throw new Error(detailedErrorMsg);
     }
     
     console.log("Rendering template with data...");
