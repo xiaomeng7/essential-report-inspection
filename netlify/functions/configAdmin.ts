@@ -276,6 +276,43 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
   }
 
+  // Convert JSON to YAML endpoint
+  const pathRaw = event.path ?? "";
+  if (event.httpMethod === "POST" && (pathRaw.includes("/json-to-yaml") || pathRaw.includes("/json-to-yaml"))) {
+    try {
+      const body = JSON.parse(event.body ?? "{}");
+      const { data } = body;
+      if (!data || typeof data !== "object") {
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Missing or invalid data object" }),
+        };
+      }
+      
+      const yamlContent = yaml.dump(data, { 
+        indent: 2, 
+        lineWidth: 120, 
+        quotingType: '"',
+        noRefs: true,
+        sortKeys: false,
+      });
+      
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yaml: yamlContent }),
+      };
+    } catch (e) {
+      console.error("Error converting to YAML:", e);
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Failed to convert to YAML", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
+
   // POST: Save configuration
   if (event.httpMethod === "POST") {
     try {

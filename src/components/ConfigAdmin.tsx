@@ -14,10 +14,32 @@ type ConfigData = {
   source: "file" | "blob";
 };
 
+type ResponseFinding = {
+  title: string;
+  why_it_matters: string;
+  recommended_action: string;
+  planning_guidance: string;
+  disclaimer_line: string;
+};
+
+type MappingRule = {
+  finding: string;
+  condition?: {
+    field: string;
+    operator: string;
+    value: string;
+  };
+  conditions?: {
+    all?: Array<{ field: string; operator: string; value: string }>;
+    any?: Array<{ field: string; operator: string; value: string }>;
+  };
+};
+
 export function ConfigAdmin({ onBack }: Props) {
   console.log("🔧 ConfigAdmin component rendered at:", window.location.pathname);
   
   const [activeTab, setActiveTab] = useState<ConfigType>("rules");
+  const [editMode, setEditMode] = useState<"visual" | "raw">("visual");
   const [configData, setConfigData] = useState<ConfigData | null>(null);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,6 +51,11 @@ export function ConfigAdmin({ onBack }: Props) {
   const [isAuthError, setIsAuthError] = useState(false);
   const [testInspectionId, setTestInspectionId] = useState("");
   const [testing, setTesting] = useState(false);
+  
+  // Visual editing state
+  const [editedResponses, setEditedResponses] = useState<Record<string, ResponseFinding>>({});
+  const [editedMappings, setEditedMappings] = useState<MappingRule[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
     try {
@@ -56,6 +83,13 @@ export function ConfigAdmin({ onBack }: Props) {
       setContent(data.content);
       setAuthToken(token);
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
+      
+      // Initialize visual editing state
+      if (type === "responses" && data.parsed?.findings) {
+        setEditedResponses(data.parsed.findings);
+      } else if (type === "mapping" && data.parsed?.mappings) {
+        setEditedMappings(data.parsed.mappings);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -101,13 +135,46 @@ export function ConfigAdmin({ onBack }: Props) {
       setSaving(true);
       setError(null);
       setSuccess(false);
+      
+      let contentToSave = content;
+      
+      // If in visual mode, convert edited data back to YAML/JSON
+      if (editMode === "visual") {
+        if (activeTab === "responses" && editedResponses) {
+          const updatedParsed = {
+            ...configData?.parsed,
+            findings: editedResponses,
+          };
+          // Convert to YAML (we'll need to send to backend for conversion)
+          const res = await fetch("/api/configAdmin/json-to-yaml", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ data: updatedParsed }),
+          });
+          if (!res.ok) {
+            throw new Error("Failed to convert to YAML");
+          }
+          const { yaml: yamlContent } = await res.json();
+          contentToSave = yamlContent;
+        } else if (activeTab === "mapping" && editedMappings) {
+          const updatedParsed = {
+            ...configData?.parsed,
+            mappings: editedMappings,
+          };
+          contentToSave = JSON.stringify(updatedParsed, null, 2);
+        }
+      }
+      
       const res = await fetch(`/api/configAdmin/${activeTab}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: contentToSave }),
       });
       if (!res.ok) {
         const errorData = (await res.json()) as { error?: string; message?: string };
@@ -116,7 +183,6 @@ export function ConfigAdmin({ onBack }: Props) {
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-      // Reload config to get updated version
       await loadConfig(authToken, activeTab);
     } catch (e) {
       setError((e as Error).message);
@@ -162,9 +228,40 @@ export function ConfigAdmin({ onBack }: Props) {
 
   const handleTabChange = (newTab: ConfigType) => {
     setActiveTab(newTab);
+    setEditMode("visual");
+    setSearchTerm("");
     if (authToken) {
       loadConfig(authToken, newTab);
     }
+  };
+
+  const updateResponse = (findingCode: string, field: keyof ResponseFinding, value: string) => {
+    setEditedResponses((prev) => ({
+      ...prev,
+      [findingCode]: {
+        ...prev[findingCode],
+        [field]: value,
+      },
+    }));
+  };
+
+  const updateMapping = (index: number, field: string, value: any) => {
+    setEditedMappings((prev) => {
+      const updated = [...prev];
+      if (field === "finding") {
+        updated[index] = { ...updated[index], finding: value };
+      } else if (field.startsWith("condition.")) {
+        const subField = field.split(".")[1];
+        updated[index] = {
+          ...updated[index],
+          condition: {
+            ...updated[index].condition,
+            [subField]: value,
+          } as any,
+        };
+      }
+      return updated;
+    });
   };
 
   if (loading && !configData) {
@@ -242,6 +339,18 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   };
 
+  const filteredFindings = activeTab === "responses" && editedResponses
+    ? Object.entries(editedResponses).filter(([code]) =>
+        searchTerm ? code.toLowerCase().includes(searchTerm.toLowerCase()) : true
+      )
+    : [];
+
+  const filteredMappings = activeTab === "mapping" && editedMappings
+    ? editedMappings.filter((m) =>
+        searchTerm ? m.finding.toLowerCase().includes(searchTerm.toLowerCase()) : true
+      )
+    : [];
+
   return (
     <div className="app" style={{ maxWidth: 1400, margin: "0 auto", padding: "20px" }}>
       <div style={{ 
@@ -306,8 +415,310 @@ export function ConfigAdmin({ onBack }: Props) {
         )}
       </div>
 
-      {/* Editor */}
-      {configData && (
+      {/* Edit Mode Toggle - only for responses and mapping */}
+      {(activeTab === "responses" || activeTab === "mapping") && configData && (
+        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
+          <button
+            onClick={() => setEditMode("visual")}
+            style={{
+              padding: "10px 20px",
+              border: "none",
+              background: editMode === "visual" ? "#2c3e50" : "transparent",
+              color: editMode === "visual" ? "white" : "#666",
+              cursor: "pointer",
+              borderTopLeftRadius: "8px",
+              borderTopRightRadius: "8px",
+              fontWeight: editMode === "visual" ? 600 : 400,
+            }}
+          >
+            可视化编辑
+          </button>
+          <button
+            onClick={() => setEditMode("raw")}
+            style={{
+              padding: "10px 20px",
+              border: "none",
+              background: editMode === "raw" ? "#2c3e50" : "transparent",
+              color: editMode === "raw" ? "white" : "#666",
+              cursor: "pointer",
+              borderTopLeftRadius: "8px",
+              borderTopRightRadius: "8px",
+              fontWeight: editMode === "raw" ? 600 : 400,
+            }}
+          >
+            {activeTab === "mapping" ? "JSON 编辑器" : "YAML 编辑器"}
+          </button>
+        </div>
+      )}
+
+      {/* Visual Editor for Responses */}
+      {activeTab === "responses" && editMode === "visual" && configData && editedResponses && (
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h2>文案编辑 ({Object.keys(editedResponses).length} 个 findings)</h2>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button 
+                onClick={() => loadConfig(authToken, activeTab, true)} 
+                className="btn-secondary" 
+                disabled={loading}
+              >
+                {loading ? "加载中..." : "🔄 重新加载"}
+              </button>
+              <button onClick={handleSave} className="btn-primary" disabled={saving}>
+                {saving ? "保存中..." : "保存所有更改"}
+              </button>
+            </div>
+          </div>
+          
+          {/* Search */}
+          <div style={{ marginBottom: "16px" }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜索 finding code..."
+              style={{
+                width: "100%",
+                padding: "10px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
+            />
+          </div>
+
+          {/* Findings List */}
+          <div style={{ maxHeight: "600px", overflowY: "auto", border: "1px solid #ddd", borderRadius: "8px" }}>
+            {filteredFindings.map(([findingCode, finding], idx) => (
+              <div
+                key={findingCode}
+                style={{
+                  padding: "20px",
+                  borderBottom: idx < filteredFindings.length - 1 ? "1px solid #eee" : "none",
+                  backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa",
+                }}
+              >
+                <h3 style={{ margin: "0 0 16px 0", color: "#1976d2", fontFamily: "monospace", fontSize: "16px" }}>
+                  {findingCode}
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                      标题 (Title)
+                    </label>
+                    <input
+                      type="text"
+                      value={finding.title || ""}
+                      onChange={(e) => updateResponse(findingCode, "title", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                      重要性说明 (Why It Matters)
+                    </label>
+                    <textarea
+                      value={finding.why_it_matters || ""}
+                      onChange={(e) => updateResponse(findingCode, "why_it_matters", e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                      建议行动 (Recommended Action)
+                    </label>
+                    <textarea
+                      value={finding.recommended_action || ""}
+                      onChange={(e) => updateResponse(findingCode, "recommended_action", e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                      规划指导 (Planning Guidance)
+                    </label>
+                    <textarea
+                      value={finding.planning_guidance || ""}
+                      onChange={(e) => updateResponse(findingCode, "planning_guidance", e.target.value)}
+                      rows={2}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Visual Editor for Mappings */}
+      {activeTab === "mapping" && editMode === "visual" && configData && editedMappings && (
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h2>映射规则编辑 ({editedMappings.length} 条规则)</h2>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button 
+                onClick={() => loadConfig(authToken, activeTab, true)} 
+                className="btn-secondary" 
+                disabled={loading}
+              >
+                {loading ? "加载中..." : "🔄 重新加载"}
+              </button>
+              <button onClick={handleSave} className="btn-primary" disabled={saving}>
+                {saving ? "保存中..." : "保存所有更改"}
+              </button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{ marginBottom: "16px" }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜索 finding code..."
+              style={{
+                width: "100%",
+                padding: "10px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
+            />
+          </div>
+
+          {/* Mappings List */}
+          <div style={{ maxHeight: "600px", overflowY: "auto", border: "1px solid #ddd", borderRadius: "8px" }}>
+            {filteredMappings.map((mapping, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: "20px",
+                  borderBottom: idx < filteredMappings.length - 1 ? "1px solid #eee" : "none",
+                  backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa",
+                }}
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px", alignItems: "end" }}>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                      Finding Code
+                    </label>
+                    <input
+                      type="text"
+                      value={mapping.finding || ""}
+                      onChange={(e) => updateMapping(idx, "finding", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ccc",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "monospace",
+                      }}
+                    />
+                  </div>
+                  {mapping.condition && (
+                    <>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                          字段 (Field)
+                        </label>
+                        <input
+                          type="text"
+                          value={mapping.condition.field || ""}
+                          onChange={(e) => updateMapping(idx, "condition.field", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            fontSize: "14px",
+                            fontFamily: "monospace",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                          操作符 (Operator)
+                        </label>
+                        <select
+                          value={mapping.condition.operator || "eq"}
+                          onChange={(e) => updateMapping(idx, "condition.operator", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <option value="eq">等于 (eq)</option>
+                          <option value="ne">不等于 (ne)</option>
+                          <option value="gt">大于 (gt)</option>
+                          <option value="lt">小于 (lt)</option>
+                          <option value="gte">大于等于 (gte)</option>
+                          <option value="lte">小于等于 (lte)</option>
+                          <option value="in">包含 (in)</option>
+                          <option value="not_in">不包含 (not_in)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
+                          值 (Value)
+                        </label>
+                        <input
+                          type="text"
+                          value={mapping.condition.value || ""}
+                          onChange={(e) => updateMapping(idx, "condition.value", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "8px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Raw Editor */}
+      {editMode === "raw" && configData && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h2>{getTabLabel(activeTab)}</h2>
@@ -316,9 +727,8 @@ export function ConfigAdmin({ onBack }: Props) {
                 onClick={() => loadConfig(authToken, activeTab, true)} 
                 className="btn-secondary" 
                 disabled={loading}
-                title="从文件系统重新加载（忽略已保存的版本）"
               >
-                {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+                {loading ? "加载中..." : "🔄 重新加载"}
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
                 {saving ? "保存中..." : "保存"}
@@ -343,6 +753,42 @@ export function ConfigAdmin({ onBack }: Props) {
           <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
             修改内容后，点击"保存"按钮保存更改。保存后会自动创建版本备份。
           </p>
+        </div>
+      )}
+
+      {/* Rules tab - always raw editor */}
+      {activeTab === "rules" && configData && (
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <h2>{getTabLabel(activeTab)}</h2>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button 
+                onClick={() => loadConfig(authToken, activeTab, true)} 
+                className="btn-secondary" 
+                disabled={loading}
+              >
+                {loading ? "加载中..." : "🔄 重新加载"}
+              </button>
+              <button onClick={handleSave} className="btn-primary" disabled={saving}>
+                {saving ? "保存中..." : "保存"}
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            style={{
+              width: "100%",
+              minHeight: "600px",
+              fontFamily: "monospace",
+              fontSize: "13px",
+              padding: "15px",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              lineHeight: "1.5",
+            }}
+            spellCheck={false}
+          />
         </div>
       )}
 
