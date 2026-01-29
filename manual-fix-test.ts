@@ -65,23 +65,33 @@ console.log(`   ✅ 已保存到: ${outputPath}`);
 
 // 显示一些 XML 样本
 console.log("\n📄 步骤 6: 显示 XML 样本（前 500 字符）...");
-const sampleIndex = originalXmlContent.indexOf("{{PROP");
-if (sampleIndex >= 0) {
-  const sample = originalXmlContent.substring(
-    Math.max(0, sampleIndex - 50),
-    Math.min(originalXmlContent.length, sampleIndex + 200)
-  );
-  console.log("\n   原始 XML 样本：");
-  console.log("   " + sample.replace(/\n/g, "\n   "));
-  
-  const fixedSampleIndex = fixedXmlContent.indexOf("{{PROP");
-  if (fixedSampleIndex >= 0) {
-    const fixedSample = fixedXmlContent.substring(
-      Math.max(0, fixedSampleIndex - 50),
-      Math.min(fixedXmlContent.length, fixedSampleIndex + 200)
+const originalZip = new PizZip(originalBuffer);
+const originalXml = originalZip.files["word/document.xml"];
+if (originalXml) {
+  const originalXmlContent = originalXml.asText();
+  const sampleIndex = originalXmlContent.indexOf("{{PROP");
+  if (sampleIndex >= 0) {
+    const sample = originalXmlContent.substring(
+      Math.max(0, sampleIndex - 50),
+      Math.min(originalXmlContent.length, sampleIndex + 200)
     );
-    console.log("\n   修复后 XML 样本：");
-    console.log("   " + fixedSample.replace(/\n/g, "\n   "));
+    console.log("\n   原始 XML 样本：");
+    console.log("   " + sample.replace(/\n/g, "\n   "));
+    
+    const fixedZip = new PizZip(fixedBuffer);
+    const fixedXml = fixedZip.files["word/document.xml"];
+    if (fixedXml) {
+      const fixedXmlContent = fixedXml.asText();
+      const fixedSampleIndex = fixedXmlContent.indexOf("{{PROP");
+      if (fixedSampleIndex >= 0) {
+        const fixedSample = fixedXmlContent.substring(
+          Math.max(0, fixedSampleIndex - 50),
+          Math.min(fixedXmlContent.length, fixedSampleIndex + 200)
+        );
+        console.log("\n   修复后 XML 样本：");
+        console.log("   " + fixedSample.replace(/\n/g, "\n   "));
+      }
+    }
   }
 }
 
