@@ -257,7 +257,6 @@ export function ConfigAdmin({ onBack }: Props) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const extension = activeTab === "mapping" ? "json" : "yml";
     const filename = activeTab === "mapping" 
       ? `CHECKLIST_TO_FINDINGS_MAP.backup.${new Date().toISOString().split('T')[0]}.json`
       : `${activeTab}.backup.${new Date().toISOString().split('T')[0]}.yml`;
