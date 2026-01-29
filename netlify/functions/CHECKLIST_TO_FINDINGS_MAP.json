@@ -1,0 +1,187 @@
+{
+  "version": "1.0",
+  "description": "Mapping rules from checklist fields to finding codes",
+  "mappings": [
+    {
+      "finding": "ASBESTOS_RISK",
+      "condition": {
+        "field": "switchboard.asbestos_suspected",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "THERMAL_STRESS_ACTIVE",
+      "condition": {
+        "field": "switchboard.signs_of_overheating",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "ARCING_EVIDENCE_PRESENT",
+      "condition": {
+        "field": "switchboard.burn_marks_or_carbon",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "MATERIAL_DEGRADATION",
+      "condition": {
+        "field": "switchboard.water_ingress",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "MEN_NOT_VERIFIED",
+      "condition": {
+        "field": "earthing.men_link_confirmed",
+        "operator": "eq",
+        "value": "no"
+      }
+    },
+    {
+      "finding": "EARTH_DEGRADED",
+      "condition": {
+        "field": "earthing.main_earth_conductor_intact",
+        "operator": "eq",
+        "value": "no"
+      }
+    },
+    {
+      "finding": "BOARD_AT_CAPACITY",
+      "condition": {
+        "field": "switchboard.board_at_capacity",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "NO_EXPANSION_MARGIN",
+      "condition": {
+        "field": "switchboard.spare_ways_available",
+        "operator": "eq",
+        "value": "no"
+      }
+    },
+    {
+      "finding": "LABELING_POOR",
+      "condition": {
+        "field": "switchboard.labelling_quality",
+        "operator": "eq",
+        "value": "poor"
+      }
+    },
+    {
+      "finding": "NON_STANDARD_WORK",
+      "condition": {
+        "field": "switchboard.non_standard_or_diy_observed",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "NO_RCD_PROTECTION",
+      "condition": {
+        "field": "rcd_tests.performed",
+        "operator": "ne",
+        "value": true
+      }
+    },
+    {
+      "finding": "GPO_EARTH_FAULT",
+      "conditions": {
+        "all": [
+          {
+            "field": "rcd_tests.performed",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "rcd_tests.summary.total_fail",
+            "operator": "gt",
+            "value": 0,
+            "coerce": "number"
+          }
+        ]
+      }
+    },
+    {
+      "finding": "GPO_MECHANICAL_LOOSE",
+      "condition": {
+        "field": "gpo_tests.any_warm_loose_damaged",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "FITTING_OVERHEAT",
+      "condition": {
+        "field": "lighting.issues_observed",
+        "operator": "eq",
+        "value": "heat_damage"
+      }
+    },
+    {
+      "finding": "SWITCH_ARCING",
+      "condition": {
+        "field": "lighting.issues_observed",
+        "operator": "eq",
+        "value": "flicker"
+      }
+    },
+    {
+      "finding": "BATTERY_THERMAL",
+      "conditions": {
+        "all": [
+          {
+            "field": "assets.has_battery",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "assets.any_issues_observed",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "finding": "EV_UNSEGREGATED_LOAD",
+      "conditions": {
+        "all": [
+          {
+            "field": "assets.has_ev_charger",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "assets.any_issues_observed",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "finding": "PV_ISOLATION_UNVERIFIED",
+      "conditions": {
+        "all": [
+          {
+            "field": "assets.has_solar_pv",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "assets.any_issues_observed",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      }
+    }
+  ]
+}
