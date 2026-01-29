@@ -9,7 +9,8 @@
     "./netlify/functions/report-template.html",
     "./netlify/functions/rules.yml",
     "./netlify/functions/responses.yml",
-    "./netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json"
+    "./netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json",
+    "./netlify/functions/DEFAULT_REPORT_TEXT.md"
   ]
 
 [[redirects]]

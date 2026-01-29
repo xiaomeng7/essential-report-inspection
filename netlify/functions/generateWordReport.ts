@@ -7,6 +7,7 @@ import PizZip from "pizzip";
 import yaml from "js-yaml";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
+import { loadDefaultText } from "./lib/defaultTextLoader";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -312,10 +313,53 @@ export type ReportData = {
   limitations: string[];
 };
 
+/**
+ * Word template placeholder data structure
+ * All fields must be strings, never undefined/null
+ */
+export type WordTemplateData = {
+  // Basic information (Priority 1: from inspection.raw)
+  INSPECTION_ID: string;
+  ASSESSMENT_DATE: string;
+  PREPARED_FOR: string;
+  PREPARED_BY: string;
+  PROPERTY_ADDRESS: string;
+  PROPERTY_TYPE: string;
+  
+  // Findings sections (Priority 1: from findings + responses.yml)
+  IMMEDIATE_FINDINGS: string;
+  RECOMMENDED_FINDINGS: string;
+  PLAN_FINDINGS: string;
+  LIMITATIONS: string;
+  URGENT_FINDINGS: string;
+  
+  // Report metadata (Priority 2: calculated from findings count)
+  REPORT_VERSION: string;
+  OVERALL_STATUS: string;
+  EXECUTIVE_SUMMARY: string;
+  RISK_RATING: string;
+  RISK_RATING_FACTORS: string;
+  
+  // Priority interpretations (Priority 2: calculated)
+  PRIORITY_IMMEDIATE_DESC: string;
+  PRIORITY_IMMEDIATE_INTERP: string;
+  PRIORITY_RECOMMENDED_DESC: string;
+  PRIORITY_RECOMMENDED_INTERP: string;
+  PRIORITY_PLAN_DESC: string;
+  PRIORITY_PLAN_INTERP: string;
+  
+  // Technical sections (Priority 1/2/3)
+  TEST_SUMMARY: string;
+  TECHNICAL_NOTES: string;
+};
+
+/**
+ * Build report data from inspection - unified data structure for HTML and Word
+ * Returns findings grouped by priority
+ */
 export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent): Promise<ReportData> {
   const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
-  const defaults = responses.defaults || {};
   
   // Group findings by priority and use standardized text from responses.yml
   const immediate: string[] = [];
@@ -349,6 +393,256 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     recommended,
     plan,
     limitations: inspection.limitations || [],
+  };
+}
+
+/**
+ * Build Word template data with three-tier priority system:
+ * 
+ * Priority 1 (Highest):
+ * - inspection.raw (basic fields)
+ * - findings + responses.yml (title + why_it_matters + recommended_action)
+ * 
+ * Priority 2 (Calculated):
+ * - Calculated from findings count:
+ *   OVERALL_STATUS, RISK_RATING, EXECUTIVE_SUMMARY, PRIORITY_*_INTERP
+ * 
+ * Priority 3 (Fallback):
+ * - DEFAULT_REPORT_TEXT.md default values
+ * 
+ * @param inspection Inspection data
+ * @param reportData Findings grouped by priority
+ * @param event Optional HandlerEvent for loading configs
+ * @returns Complete Word template data with all placeholders as strings
+ */
+export async function buildWordTemplateData(
+  inspection: StoredInspection,
+  reportData: ReportData,
+  event?: HandlerEvent
+): Promise<WordTemplateData> {
+  // Load all data sources
+  const defaultText = await loadDefaultText(event);
+  const responses = await loadResponses(event);
+  const findingsMap = responses.findings || {};
+  const raw = inspection.raw;
+  
+  // ========================================================================
+  // PRIORITY 1: inspection.raw (basic fields)
+  // ========================================================================
+  const inspectionId = inspection.inspection_id || defaultText.INSPECTION_ID;
+  
+  const createdAt = getFieldValue(raw, "created_at");
+  const assessmentDate = createdAt 
+    ? new Date(createdAt).toISOString().split('T')[0]
+    : (new Date().toISOString().split('T')[0] || defaultText.ASSESSMENT_DATE);
+  
+  const propertyAddress = getFieldValue(raw, "job.address") || defaultText.PROPERTY_ADDRESS;
+  const propertyType = getFieldValue(raw, "job.property_type") || defaultText.PROPERTY_TYPE;
+  const preparedFor = getFieldValue(raw, "client.name") || getFieldValue(raw, "client.client_type") || defaultText.PREPARED_FOR;
+  const preparedBy = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
+  
+  // ========================================================================
+  // PRIORITY 1: findings + responses.yml (title + why_it_matters + recommended_action)
+  // ========================================================================
+  
+  /**
+   * Format finding with full details from responses.yml
+   */
+  function formatFindingWithDetails(finding: { id: string; title?: string; priority: string }): string {
+    const findingCode = finding.id;
+    const findingResponse = findingsMap[findingCode];
+    
+    // Build finding text with title, why_it_matters, and recommended_action
+    const parts: string[] = [];
+    
+    // Title (Priority 1)
+    const title = findingResponse?.title || finding.title || findingCode.replace(/_/g, " ");
+    parts.push(title);
+    
+    // Why it matters (Priority 1, if available)
+    if (findingResponse?.why_it_matters) {
+      parts.push(`\nWhy it matters: ${findingResponse.why_it_matters}`);
+    }
+    
+    // Recommended action (Priority 1, if available)
+    if (findingResponse?.recommended_action) {
+      parts.push(`\nRecommended action: ${findingResponse.recommended_action}`);
+    }
+    
+    return parts.join("");
+  }
+  
+  // Format findings by priority
+  const immediateFindings: string[] = [];
+  const recommendedFindings: string[] = [];
+  const planFindings: string[] = [];
+  
+  inspection.findings.forEach((finding) => {
+    const formattedFinding = formatFindingWithDetails(finding);
+    
+    if (finding.priority === "IMMEDIATE") {
+      immediateFindings.push(formattedFinding);
+    } else if (finding.priority === "RECOMMENDED_0_3_MONTHS") {
+      recommendedFindings.push(formattedFinding);
+    } else if (finding.priority === "PLAN_MONITOR") {
+      planFindings.push(formattedFinding);
+    }
+  });
+  
+  // Format as bullet-point text
+  const immediateText = immediateFindings.length > 0
+    ? immediateFindings.map(f => `• ${f}`).join("\n\n")
+    : defaultText.IMMEDIATE_FINDINGS;
+  
+  const recommendedText = recommendedFindings.length > 0
+    ? recommendedFindings.map(f => `• ${f}`).join("\n\n")
+    : defaultText.RECOMMENDED_FINDINGS;
+  
+  const planText = planFindings.length > 0
+    ? planFindings.map(f => `• ${f}`).join("\n\n")
+    : defaultText.PLAN_FINDINGS;
+  
+  // Limitations
+  const limitationsText = reportData.limitations.length > 0
+    ? reportData.limitations.map(l => `• ${l}`).join("\n")
+    : defaultText.LIMITATIONS;
+  
+  // Urgent findings (same as immediate)
+  const urgentFindings = immediateText || defaultText.URGENT_FINDINGS;
+  
+  // ========================================================================
+  // PRIORITY 2: Calculated from findings count
+  // ========================================================================
+  
+  // OVERALL_STATUS
+  let overallStatus: string;
+  if (reportData.immediate.length > 0) {
+    overallStatus = "Requires Immediate Attention";
+  } else if (reportData.recommended.length > 0) {
+    overallStatus = "Requires Recommended Actions";
+  } else if (reportData.plan.length > 0) {
+    overallStatus = "Satisfactory - Plan Monitoring";
+  } else {
+    overallStatus = defaultText.OVERALL_STATUS; // Priority 3 fallback
+  }
+  
+  // RISK_RATING
+  let riskRating: string;
+  if (reportData.immediate.length > 0) {
+    riskRating = "HIGH";
+  } else if (reportData.recommended.length > 0) {
+    riskRating = "MODERATE";
+  } else {
+    riskRating = defaultText.RISK_RATING; // Priority 3 fallback
+  }
+  
+  // EXECUTIVE_SUMMARY
+  const executiveSummaryParts: string[] = [];
+  if (reportData.immediate.length > 0) {
+    executiveSummaryParts.push(`${reportData.immediate.length} immediate safety concern(s) identified requiring urgent attention.`);
+  }
+  if (reportData.recommended.length > 0) {
+    executiveSummaryParts.push(`${reportData.recommended.length} recommended action(s) for short-term planning.`);
+  }
+  if (reportData.plan.length > 0) {
+    executiveSummaryParts.push(`${reportData.plan.length} item(s) identified for ongoing monitoring.`);
+  }
+  const executiveSummary = executiveSummaryParts.length > 0
+    ? executiveSummaryParts.join(" ")
+    : defaultText.EXECUTIVE_SUMMARY; // Priority 3 fallback
+  
+  // RISK_RATING_FACTORS
+  const riskFactors: string[] = [];
+  if (reportData.immediate.length > 0) {
+    riskFactors.push(`${reportData.immediate.length} immediate safety concern(s)`);
+  }
+  if (reportData.recommended.length > 0) {
+    riskFactors.push(`${reportData.recommended.length} recommended action(s)`);
+  }
+  const riskRatingFactors = riskFactors.length > 0
+    ? riskFactors.join(", ")
+    : defaultText.RISK_RATING_FACTORS; // Priority 3 fallback
+  
+  // PRIORITY_*_INTERP (Priority interpretations)
+  const priorityImmediateDesc = reportData.immediate.length > 0
+    ? `Immediate safety concerns require urgent attention to prevent potential hazards.`
+    : defaultText.PRIORITY_IMMEDIATE_DESC || "No immediate safety concerns identified.";
+  
+  const priorityImmediateInterp = reportData.immediate.length > 0
+    ? `These items pose immediate safety risks and should be addressed as soon as possible, typically within 24-48 hours.`
+    : defaultText.PRIORITY_IMMEDIATE_INTERP || "No immediate action required.";
+  
+  const priorityRecommendedDesc = reportData.recommended.length > 0
+    ? `Recommended actions should be planned and completed within 0-3 months to maintain safety standards.`
+    : defaultText.PRIORITY_RECOMMENDED_DESC || "No recommended actions identified.";
+  
+  const priorityRecommendedInterp = reportData.recommended.length > 0
+    ? `These items require attention in the short term to prevent potential issues from developing into more serious problems.`
+    : defaultText.PRIORITY_RECOMMENDED_INTERP || "No short-term actions required.";
+  
+  const priorityPlanDesc = reportData.plan.length > 0
+    ? `Items identified for ongoing monitoring and future planning.`
+    : defaultText.PRIORITY_PLAN_DESC || "No items identified for planning or monitoring.";
+  
+  const priorityPlanInterp = reportData.plan.length > 0
+    ? `These items can be monitored over time and addressed during routine maintenance or future upgrades.`
+    : defaultText.PRIORITY_PLAN_INTERP || "No ongoing monitoring required.";
+  
+  // ========================================================================
+  // PRIORITY 3: Default values (fallback)
+  // ========================================================================
+  
+  // REPORT_VERSION (hardcoded, but can be overridden by defaultText)
+  const reportVersion = defaultText.REPORT_VERSION || "1.0";
+  
+  // TEST_SUMMARY (Priority 3 fallback)
+  const testSummary = defaultText.TEST_SUMMARY;
+  
+  // TECHNICAL_NOTES (combine limitations with default)
+  const technicalNotesParts: string[] = [];
+  if (reportData.limitations.length > 0) {
+    technicalNotesParts.push(`Limitations: ${reportData.limitations.join("; ")}`);
+  }
+  technicalNotesParts.push(defaultText.TECHNICAL_NOTES);
+  const technicalNotes = technicalNotesParts.join(" ");
+  
+  // ========================================================================
+  // Return complete Word template data
+  // ========================================================================
+  return {
+    // Basic information (Priority 1)
+    INSPECTION_ID: inspectionId,
+    ASSESSMENT_DATE: assessmentDate,
+    PREPARED_FOR: preparedFor,
+    PREPARED_BY: preparedBy,
+    PROPERTY_ADDRESS: propertyAddress,
+    PROPERTY_TYPE: propertyType,
+    
+    // Findings sections (Priority 1)
+    IMMEDIATE_FINDINGS: immediateText,
+    RECOMMENDED_FINDINGS: recommendedText,
+    PLAN_FINDINGS: planText,
+    LIMITATIONS: limitationsText,
+    URGENT_FINDINGS: urgentFindings,
+    
+    // Report metadata (Priority 2)
+    REPORT_VERSION: reportVersion,
+    OVERALL_STATUS: overallStatus,
+    EXECUTIVE_SUMMARY: executiveSummary,
+    RISK_RATING: riskRating,
+    RISK_RATING_FACTORS: riskRatingFactors,
+    
+    // Priority interpretations (Priority 2)
+    PRIORITY_IMMEDIATE_DESC: priorityImmediateDesc,
+    PRIORITY_IMMEDIATE_INTERP: priorityImmediateInterp,
+    PRIORITY_RECOMMENDED_DESC: priorityRecommendedDesc,
+    PRIORITY_RECOMMENDED_INTERP: priorityRecommendedInterp,
+    PRIORITY_PLAN_DESC: priorityPlanDesc,
+    PRIORITY_PLAN_INTERP: priorityPlanInterp,
+    
+    // Technical sections (Priority 1/2/3)
+    TEST_SUMMARY: testSummary,
+    TECHNICAL_NOTES: technicalNotes,
   };
 }
 
@@ -411,7 +705,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       limitations_count: inspection.limitations.length
     });
     
-    // Build unified report data
+    // Build unified report data (for HTML report)
     const reportData = await buildReportData(inspection, event);
     console.log("Report data built:", {
       immediate: reportData.immediate.length,
@@ -419,6 +713,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       plan: reportData.plan.length,
       limitations: reportData.limitations.length
     });
+    
+    // Build Word template data with three-tier priority system
+    const templateData = await buildWordTemplateData(inspection, reportData, event);
+    console.log("Word template data built with all placeholders:", Object.keys(templateData));
     
     // Load Word template (fixWordTemplate is already called inside loadWordTemplate if needed)
     let templateBuffer = loadWordTemplate();
@@ -441,149 +739,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       console.log("✅ Final check passed: No split placeholders found");
     }
     
-    // Load responses for default text
-    const responses = await loadResponses(event);
-    const defaults = responses.defaults || {};
-    
-    // Format findings as bullet-point text with defaults from responses.yml
-    const immediateText = formatFindingsText(
-      reportData.immediate,
-      defaults.no_immediate || "No immediate safety risks were identified at the time of inspection."
-    );
-    
-    const recommendedText = formatFindingsText(
-      reportData.recommended,
-      defaults.no_recommended || "No items requiring short-term planned action were identified at the time of inspection."
-    );
-    
-    const planText = formatFindingsText(
-      reportData.plan,
-      defaults.no_plan || "No additional items were identified for planning or monitoring at this time."
-    );
-    
-    const limitationsText = formatFindingsText(
-      reportData.limitations,
-      defaults.limitations || "This assessment is non-invasive and limited to accessible areas only."
-    );
-    
-    // Extract data from inspection.raw
-    const raw = inspection.raw;
-    
-    // Extract basic information
-    const propertyAddress = getFieldValue(raw, "job.address") || "";
-    const propertyType = getFieldValue(raw, "job.property_type") || "";
-    const preparedFor = getFieldValue(raw, "client.name") || getFieldValue(raw, "client.client_type") || "";
-    const preparedBy = getFieldValue(raw, "signoff.technician_name") || "Better Home Technology Pty Ltd";
-    
-    // Extract assessment date (use created_at from raw or current date)
-    const createdAt = getFieldValue(raw, "created_at");
-    const assessmentDate = createdAt 
-      ? new Date(createdAt).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
-    
-    // Calculate overall status based on findings
-    let overallStatus = "";
-    if (reportData.immediate.length > 0) {
-      overallStatus = "Requires Immediate Attention";
-    } else if (reportData.recommended.length > 0) {
-      overallStatus = "Requires Recommended Actions";
-    } else if (reportData.plan.length > 0) {
-      overallStatus = "Satisfactory - Plan Monitoring";
-    } else {
-      overallStatus = "Satisfactory";
-    }
-    
-    // Generate executive summary
-    const executiveSummaryParts: string[] = [];
-    if (reportData.immediate.length > 0) {
-      executiveSummaryParts.push(`${reportData.immediate.length} immediate safety concern(s) identified requiring urgent attention.`);
-    }
-    if (reportData.recommended.length > 0) {
-      executiveSummaryParts.push(`${reportData.recommended.length} recommended action(s) for short-term planning.`);
-    }
-    if (reportData.plan.length > 0) {
-      executiveSummaryParts.push(`${reportData.plan.length} item(s) identified for ongoing monitoring.`);
-    }
-    const executiveSummary = executiveSummaryParts.length > 0 
-      ? executiveSummaryParts.join(" ") 
-      : "No significant issues identified during this inspection.";
-    
-    // Calculate risk rating
-    let riskRating = "";
-    if (reportData.immediate.length > 0) {
-      riskRating = "HIGH";
-    } else if (reportData.recommended.length > 0) {
-      riskRating = "MODERATE";
-    } else {
-      riskRating = "LOW";
-    }
-    
-    // Generate risk rating factors
-    const riskFactors: string[] = [];
-    if (reportData.immediate.length > 0) {
-      riskFactors.push(`${reportData.immediate.length} immediate safety concern(s)`);
-    }
-    if (reportData.recommended.length > 0) {
-      riskFactors.push(`${reportData.recommended.length} recommended action(s)`);
-    }
-    const riskRatingFactors = riskFactors.length > 0 
-      ? riskFactors.join(", ")
-      : "No significant risk factors identified";
-    
-    // Use immediate findings as urgent findings (they are the same)
-    const urgentFindings = immediateText;
-    
-    // Generate test summary from inspection data
-    const testSummary = "Electrical safety inspection completed in accordance with applicable standards.";
-    
-    // Generate technical notes
-    const technicalNotesParts: string[] = [];
-    if (reportData.limitations.length > 0) {
-      technicalNotesParts.push(`Limitations: ${reportData.limitations.join("; ")}`);
-    }
-    technicalNotesParts.push("This is a non-invasive visual inspection limited to accessible areas.");
-    const technicalNotes = technicalNotesParts.join(" ");
-    
-    // Prepare template data - use real inspection data
-    // Note: Ensure placeholder names match exactly what's in the Word template
-    // Ensure all values are strings (never undefined/null)
-    const templateData: Record<string, string> = {
-      INSPECTION_ID: inspection_id || "",
-      ASSESSMENT_DATE: assessmentDate || "",
-      PREPARED_FOR: preparedFor || "",
-      PREPARED_BY: preparedBy || "",
-      PROPERTY_ADDRESS: propertyAddress || "",
-      PROPERTY_TYPE: propertyType || "",
-      IMMEDIATE_FINDINGS: immediateText || "",
-      RECOMMENDED_FINDINGS: recommendedText || "",
-      PLAN_FINDINGS: planText || "",
-      LIMITATIONS: limitationsText || "",
-      REPORT_VERSION: "1.0",
-      OVERALL_STATUS: overallStatus || "",
-      EXECUTIVE_SUMMARY: executiveSummary || "",
-      RISK_RATING: riskRating || "",
-      RISK_RATING_FACTORS: riskRatingFactors || "",
-      URGENT_FINDINGS: urgentFindings || "",
-      TEST_SUMMARY: testSummary || "",
-      TECHNICAL_NOTES: technicalNotes || "",
-    };
-    
-    // Log all template data for debugging
+    // Log template data for debugging
     console.log("Template data prepared:", Object.keys(templateData));
-    console.log("Template data values:", {
+    console.log("Template data sample:", {
       INSPECTION_ID: templateData.INSPECTION_ID,
       IMMEDIATE_FINDINGS: templateData.IMMEDIATE_FINDINGS.substring(0, 200),
       RECOMMENDED_FINDINGS: templateData.RECOMMENDED_FINDINGS.substring(0, 200),
       PLAN_FINDINGS: templateData.PLAN_FINDINGS.substring(0, 200),
-      LIMITATIONS: templateData.LIMITATIONS.substring(0, 200),
-    });
-    
-    // Log findings counts for verification
-    console.log("Findings counts:", {
-      immediate: reportData.immediate.length,
-      recommended: reportData.recommended.length,
-      plan: reportData.plan.length,
-      limitations: reportData.limitations.length
+      OVERALL_STATUS: templateData.OVERALL_STATUS,
+      RISK_RATING: templateData.RISK_RATING,
     });
     
     // Generate Word document
@@ -792,7 +956,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
       
       // Use new API: render() with data directly (setData is deprecated)
-      doc.render(templateData);
+      // Convert WordTemplateData to Record<string, string> for docxtemplater
+      const renderData: Record<string, string> = { ...templateData };
+      doc.render(renderData);
       console.log("✅ Template rendered successfully");
       
       // After rendering, check what was actually replaced
