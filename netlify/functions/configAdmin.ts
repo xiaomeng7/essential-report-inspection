@@ -187,26 +187,71 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
 
   const pathRaw = event.path ?? "";
   const configType = pathRaw.includes("/mapping") ? "mapping" : pathRaw.includes("/responses") ? "responses" : "rules";
+  
+  // Check for force reload from file system
+  const queryParams = new URLSearchParams(event.queryStringParameters || "");
+  const forceReload = queryParams.get("forceReload") === "true";
 
   // GET: Load configuration
   if (event.httpMethod === "GET") {
     try {
-      const { content, source } = await loadConfig(event, configType);
+      let content: string;
+      let source: "file" | "blob";
+      
+      if (forceReload) {
+        // Force reload from file system, ignore blob store
+        let filePath: string;
+        if (configType === "rules") {
+          filePath = findRulesPath();
+        } else if (configType === "mapping") {
+          filePath = findMappingPath();
+        } else {
+          filePath = findResponsesPath();
+        }
+        
+        if (fs.existsSync(filePath)) {
+          content = fs.readFileSync(filePath, "utf8");
+          source = "file";
+          console.log(`🔄 Force reloaded ${configType} from file: ${filePath} (${content.length} chars)`);
+        } else {
+          throw new Error(`File not found: ${filePath}`);
+        }
+      } else {
+        const result = await loadConfig(event, configType);
+        content = result.content;
+        source = result.source;
+      }
       
       if (configType === "mapping") {
-        const parsed = JSON.parse(content);
-        return {
-          statusCode: 200,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, parsed, source }),
-        };
+        try {
+          const parsed = JSON.parse(content);
+          return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content, parsed, source }),
+          };
+        } catch (e) {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Invalid JSON", message: e instanceof Error ? e.message : String(e) }),
+          };
+        }
       } else {
-        const parsed = yaml.load(content);
-        return {
-          statusCode: 200,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, parsed, source }),
-        };
+        try {
+          const parsed = yaml.load(content);
+          return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content, parsed, source }),
+          };
+        } catch (e) {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Invalid YAML", message: e instanceof Error ? e.message : String(e) }),
+          };
+        }
       }
     } catch (e) {
       console.error(`Error loading ${configType}:`, e);

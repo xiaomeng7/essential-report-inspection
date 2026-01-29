@@ -30,12 +30,15 @@ export function ConfigAdmin({ onBack }: Props) {
   const [testInspectionId, setTestInspectionId] = useState("");
   const [testing, setTesting] = useState(false);
 
-  const loadConfig = useCallback(async (token: string, type: ConfigType) => {
+  const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
     try {
       setLoading(true);
       setError(null);
       setIsAuthError(false);
-      const res = await fetch(`/api/configAdmin/${type}`, {
+      const url = forceReload 
+        ? `/api/configAdmin/${type}?forceReload=true`
+        : `/api/configAdmin/${type}`;
+      const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -308,7 +311,15 @@ export function ConfigAdmin({ onBack }: Props) {
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h2>{getTabLabel(activeTab)}</h2>
-            <div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button 
+                onClick={() => loadConfig(authToken, activeTab, true)} 
+                className="btn-secondary" 
+                disabled={loading}
+                title="从文件系统重新加载（忽略已保存的版本）"
+              >
+                {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+              </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
                 {saving ? "保存中..." : "保存"}
               </button>
