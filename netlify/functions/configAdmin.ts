@@ -189,8 +189,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   const configType = pathRaw.includes("/mapping") ? "mapping" : pathRaw.includes("/responses") ? "responses" : "rules";
   
   // Check for force reload from file system
-  const queryParams = new URLSearchParams(event.queryStringParameters || "");
-  const forceReload = queryParams.get("forceReload") === "true";
+  // Netlify Functions queryStringParameters is an object, not a string
+  const forceReload = event.queryStringParameters?.forceReload === "true" || 
+                      (event.queryStringParameters && Object.values(event.queryStringParameters).includes("true"));
 
   // GET: Load configuration
   if (event.httpMethod === "GET") {
