@@ -129,8 +129,50 @@ function loadWordTemplate(): Buffer {
           } catch (textErr) {
             console.warn("Could not extract placeholders from full text:", textErr);
           }
-        } catch (extractErr) {
+        } catch (extractErr: any) {
           console.warn("Could not extract placeholders from template:", extractErr);
+          
+          // Try to fix template using error information if it's a duplicate tag error
+          const errorMsg = extractErr instanceof Error ? extractErr.message : String(extractErr);
+          let errorsArray: any[] | null = null;
+          
+          if (extractErr.properties && extractErr.properties.errors && Array.isArray(extractErr.properties.errors)) {
+            errorsArray = extractErr.properties.errors;
+          } else if (extractErr.errors && Array.isArray(extractErr.errors)) {
+            errorsArray = extractErr.errors;
+          }
+          
+          if (errorsArray && errorsArray.length > 0) {
+            const duplicateErrors = errorsArray.filter((err: any) => {
+              const errId = err.id || err.properties?.id;
+              return errId === "duplicate_open_tag" || errId === "duplicate_close_tag";
+            });
+            
+            if (duplicateErrors.length > 0) {
+              console.log(`🔧 loadWordTemplate: Attempting to fix template based on ${duplicateErrors.length} error(s)...`);
+              try {
+                const errorInfo = duplicateErrors.map((err: any) => ({
+                  id: err.id || err.properties?.id,
+                  context: err.context || err.properties?.context
+                }));
+                const fixedBuffer = fixWordTemplateFromErrors(content, errorInfo);
+                
+                // Try again with fixed template
+                const retryZip = new PizZip(fixedBuffer);
+                const retryDoc = new Docxtemplater(retryZip, {
+                  paragraphLoop: true,
+                  linebreaks: true,
+                });
+                
+                console.log("✅ loadWordTemplate: Successfully fixed template and created Docxtemplater instance!");
+                // Return the fixed content
+                return fixedBuffer;
+              } catch (retryError: any) {
+                console.error("❌ loadWordTemplate: Retry after fix failed:", retryError.message);
+                // Continue to return original content, let main handler try again
+              }
+            }
+          }
         }
         
         // Return the fixed content
