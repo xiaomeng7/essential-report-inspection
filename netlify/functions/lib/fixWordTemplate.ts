@@ -345,85 +345,104 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
       "GENE|OTES": "GENERAL_NOTES",
     };
     
-    // Find and fix split placeholders
-    const fixes: Array<{ pattern: RegExp; replacement: string }> = [];
+    // Apply fixes using a more robust approach
+    // Build matched pairs first
+    const matchedPairs: Array<{ openPart: string; closePart: string; fullName: string }> = [];
     
     openTags.forEach((openPart) => {
       closeTags.forEach((closePart) => {
         const key = `${openPart}|${closePart}`;
         let fullName = knownMappings[key];
         
-        // If not in known mappings, try to construct the name directly
         if (!fullName) {
-          // Try direct combination: OPEN_PART + CLOSE_PART
           const combined = `${openPart}${closePart}`;
           if (/^[A-Z0-9_]{2,}$/.test(combined)) {
             fullName = combined;
-            console.log(`   ℹ️  No known mapping for ${key}, trying direct combination: ${fullName}`);
           } else {
-            // Try with underscore: OPEN_PART + _ + CLOSE_PART
             const combinedWithUnderscore = `${openPart}_${closePart}`;
             if (/^[A-Z0-9_]{2,}$/.test(combinedWithUnderscore)) {
               fullName = combinedWithUnderscore;
-              console.log(`   ℹ️  No known mapping for ${key}, trying with underscore: ${fullName}`);
             }
           }
         }
         
         if (fullName) {
-          // Escape special regex characters
-          const escapedOpen = openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const escapedClose = closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          
-          // Create patterns to find the split placeholder in different formats
-          // Pattern 1: {{OPEN_PART</w:t>...<w:t>CLOSE_PART}}
-          // This matches: {{OPEN</w:t>...<w:t>CLOSE}}
-          const pattern1 = new RegExp(
-            `\\{\\{${escapedOpen}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${escapedClose}\\}\\}`,
-            'g'
-          );
-          
-          // Pattern 2: <w:t>{{OPEN_PART</w:t>...<w:t>CLOSE_PART}}</w:t>
-          const pattern2 = new RegExp(
-            `<w:t[^>]*>\\{\\{${escapedOpen}</w:t>[\\s\\S]{0,2000}<w:t[^>]*>${escapedClose}\\}\\}</w:t>`,
-            'g'
-          );
-          
-          // Pattern 3: {{OPEN_PART</w:t>...<w:t>...<w:t>CLOSE_PART}}
-          // This handles cases where there are multiple <w:t> tags in between
-          const pattern3 = new RegExp(
-            `\\{\\{${escapedOpen}</w:t>(?:[\\s\\S]{0,500}<w:t[^>]*>[A-Z0-9_]*</w:t>)*[\\s\\S]{0,500}<w:t[^>]*>${escapedClose}\\}\\}`,
-            'g'
-          );
-          
-          fixes.push({
-            pattern: pattern1,
-            replacement: `{{${fullName}}}`
-          });
-          
-          fixes.push({
-            pattern: pattern2,
-            replacement: `<w:t>{{${fullName}}}</w:t>`
-          });
-          
-          fixes.push({
-            pattern: pattern3,
-            replacement: `{{${fullName}}}`
-          });
-          
+          matchedPairs.push({ openPart, closePart, fullName });
           console.log(`   ✅ Will fix: ${openPart}...${closePart} -> {{${fullName}}}`);
         }
       });
     });
     
-    // Apply fixes
-    fixes.forEach(({ pattern, replacement }) => {
-      const matches = xmlContent.match(pattern);
-      if (matches) {
-        xmlContent = xmlContent.replace(pattern, replacement);
-        fixCount += matches.length;
-        console.log(`   ✅ Fixed ${matches.length} occurrence(s) of split placeholder`);
+    // Collect all matches first, then replace from end to start to avoid index shifting
+    const matchesToFix: Array<{ start: number; end: number; replacement: string; description: string }> = [];
+    
+    matchedPairs.forEach(({ openPart, closePart, fullName }) => {
+      const escapedOpen = openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedClose = closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // Try multiple patterns to catch different XML structures
+      const patterns = [
+        // Pattern 1: {{OPEN</w:t>...<w:t>CLOSE}}
+        {
+          regex: new RegExp(`\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}`, 'g'),
+          replacement: `{{${fullName}}}`,
+          desc: `{{${openPart}}...${closePart}}`
+        },
+        // Pattern 2: <w:t>{{OPEN</w:t>...<w:t>CLOSE}}</w:t>
+        {
+          regex: new RegExp(`<w:t[^>]*>\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}</w:t>`, 'g'),
+          replacement: `<w:t>{{${fullName}}}</w:t>`,
+          desc: `<w:t>{{${openPart}}...${closePart}}</w:t>`
+        },
+        // Pattern 3: OPEN</w:t>...<w:t>CLOSE}} (missing opening {{)
+        {
+          regex: new RegExp(`${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}`, 'g'),
+          replacement: `{{${fullName}}}`,
+          desc: `${openPart}...${closePart}}`
+        },
+        // Pattern 4: {{OPEN</w:t>...<w:t>CLOSE (missing closing }})
+        {
+          regex: new RegExp(`\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}`, 'g'),
+          replacement: `{{${fullName}}}`,
+          desc: `{{${openPart}}...${closePart}`
+        },
+      ];
+      
+      patterns.forEach(({ regex, replacement, desc }) => {
+        let match;
+        // Reset regex lastIndex
+        regex.lastIndex = 0;
+        while ((match = regex.exec(xmlContent)) !== null) {
+          matchesToFix.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            replacement,
+            description: `${openPart}...${closePart} -> ${fullName} (${desc})`
+          });
+        }
+      });
+    });
+    
+    // Sort by start index descending to replace from end to start
+    matchesToFix.sort((a, b) => b.start - a.start);
+    
+    // Remove duplicates (same start position)
+    const uniqueMatches: typeof matchesToFix = [];
+    const seenStarts = new Set<number>();
+    matchesToFix.forEach(match => {
+      if (!seenStarts.has(match.start)) {
+        seenStarts.add(match.start);
+        uniqueMatches.push(match);
       }
+    });
+    
+    // Apply fixes from end to start
+    uniqueMatches.forEach(match => {
+      xmlContent = xmlContent.substring(0, match.start) + 
+                  match.replacement + 
+                  xmlContent.substring(match.end);
+      fixCount++;
+      console.log(`   ✅ Fixed: ${match.description}`);
     });
     
     if (fixCount > 0) {
@@ -439,6 +458,21 @@ export function fixWordTemplateFromErrors(buffer: Buffer, errors: Array<{ contex
       return fixedBuffer;
     } else {
       console.log("ℹ️ No fixes applied based on error information");
+      // Add debug logging
+      if (matchedPairs.length > 0) {
+        console.log(`   Debug: Found ${matchedPairs.length} potential fix(es), but none matched XML structure`);
+        // Log sample XML around first error location
+        const sampleStart = Math.max(0, 130);
+        const sampleEnd = Math.min(xmlContent.length, 170);
+        console.log(`   Sample XML (chars ${sampleStart}-${sampleEnd}):`, JSON.stringify(xmlContent.substring(sampleStart, sampleEnd)));
+        // Also try to find the actual structure
+        const propIndex = xmlContent.indexOf('PROP');
+        if (propIndex >= 0) {
+          const contextStart = Math.max(0, propIndex - 20);
+          const contextEnd = Math.min(xmlContent.length, propIndex + 50);
+          console.log(`   Context around 'PROP' (index ${propIndex}):`, JSON.stringify(xmlContent.substring(contextStart, contextEnd)));
+        }
+      }
       return buffer;
     }
   } catch (e) {
