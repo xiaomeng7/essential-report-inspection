@@ -442,31 +442,83 @@ export async function buildWordTemplateData(
   const preparedBy = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
   
   // ========================================================================
-  // PRIORITY 1: findings + responses.yml (title + why_it_matters + recommended_action)
+  // PRIORITY 1: findings + responses.yml
+  // Uses all available fields: title, why_it_matters, recommended_action, planning_guidance
+  // Format varies based on finding.priority:
+  //   - IMMEDIATE: Emphasizes why_it_matters + recommended_action (urgent)
+  //   - RECOMMENDED_0_3_MONTHS: Includes all fields, emphasizes recommended_action + planning_guidance
+  //   - PLAN_MONITOR: Emphasizes planning_guidance, includes why_it_matters + recommended_action
   // ========================================================================
   
   /**
    * Format finding with full details from responses.yml
+   * Uses all available fields: title, why_it_matters, recommended_action, planning_guidance
+   * Format varies based on finding priority
    */
   function formatFindingWithDetails(finding: { id: string; title?: string; priority: string }): string {
     const findingCode = finding.id;
     const findingResponse = findingsMap[findingCode];
     
-    // Build finding text with title, why_it_matters, and recommended_action
+    // Get title (always required)
+    const title = findingResponse?.title || finding.title || findingCode.replace(/_/g, " ");
+    
+    // Build finding text based on priority
     const parts: string[] = [];
     
-    // Title (Priority 1)
-    const title = findingResponse?.title || finding.title || findingCode.replace(/_/g, " ");
+    // Always start with title
     parts.push(title);
     
-    // Why it matters (Priority 1, if available)
-    if (findingResponse?.why_it_matters) {
-      parts.push(`\nWhy it matters: ${findingResponse.why_it_matters}`);
-    }
+    // Get priority for conditional formatting
+    const priority = finding.priority;
     
-    // Recommended action (Priority 1, if available)
-    if (findingResponse?.recommended_action) {
-      parts.push(`\nRecommended action: ${findingResponse.recommended_action}`);
+    // IMMEDIATE: Emphasize why_it_matters and recommended_action (urgent)
+    if (priority === "IMMEDIATE") {
+      if (findingResponse?.why_it_matters) {
+        parts.push(`\n\nWhy it matters: ${findingResponse.why_it_matters}`);
+      }
+      if (findingResponse?.recommended_action) {
+        parts.push(`\n\nRecommended action: ${findingResponse.recommended_action}`);
+      }
+      // Planning guidance is less critical for immediate items, but include if available
+      if (findingResponse?.planning_guidance) {
+        parts.push(`\n\nPlanning guidance: ${findingResponse.planning_guidance}`);
+      }
+    }
+    // RECOMMENDED_0_3_MONTHS: Include all fields with emphasis on recommended_action and planning_guidance
+    else if (priority === "RECOMMENDED_0_3_MONTHS") {
+      if (findingResponse?.why_it_matters) {
+        parts.push(`\n\nWhy it matters: ${findingResponse.why_it_matters}`);
+      }
+      if (findingResponse?.recommended_action) {
+        parts.push(`\n\nRecommended action: ${findingResponse.recommended_action}`);
+      }
+      if (findingResponse?.planning_guidance) {
+        parts.push(`\n\nPlanning guidance: ${findingResponse.planning_guidance}`);
+      }
+    }
+    // PLAN_MONITOR: Emphasize planning_guidance, include why_it_matters and recommended_action
+    else if (priority === "PLAN_MONITOR") {
+      if (findingResponse?.why_it_matters) {
+        parts.push(`\n\nWhy it matters: ${findingResponse.why_it_matters}`);
+      }
+      if (findingResponse?.planning_guidance) {
+        parts.push(`\n\nPlanning guidance: ${findingResponse.planning_guidance}`);
+      }
+      if (findingResponse?.recommended_action) {
+        parts.push(`\n\nRecommended action: ${findingResponse.recommended_action}`);
+      }
+    }
+    // Fallback: Include all fields if priority doesn't match
+    else {
+      if (findingResponse?.why_it_matters) {
+        parts.push(`\n\nWhy it matters: ${findingResponse.why_it_matters}`);
+      }
+      if (findingResponse?.recommended_action) {
+        parts.push(`\n\nRecommended action: ${findingResponse.recommended_action}`);
+      }
+      if (findingResponse?.planning_guidance) {
+        parts.push(`\n\nPlanning guidance: ${findingResponse.planning_guidance}`);
+      }
     }
     
     return parts.join("");
