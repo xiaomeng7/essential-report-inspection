@@ -85,10 +85,24 @@ export function ConfigAdmin({ onBack }: Props) {
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
       
       // Initialize visual editing state
+      console.log(`📦 Loaded ${type} data:`, {
+        hasParsed: !!data.parsed,
+        parsedKeys: data.parsed ? Object.keys(data.parsed) : [],
+        findingsCount: data.parsed?.findings ? Object.keys(data.parsed.findings).length : 0,
+        mappingsCount: data.parsed?.mappings ? data.parsed.mappings.length : 0,
+      });
+      
       if (type === "responses" && data.parsed?.findings) {
+        console.log(`✅ Initializing editedResponses with ${Object.keys(data.parsed.findings).length} findings`);
         setEditedResponses(data.parsed.findings);
       } else if (type === "mapping" && data.parsed?.mappings) {
+        console.log(`✅ Initializing editedMappings with ${data.parsed.mappings.length} mappings`);
         setEditedMappings(data.parsed.mappings);
+      } else {
+        console.warn(`⚠️ No data to initialize for ${type}:`, {
+          hasFindings: !!data.parsed?.findings,
+          hasMappings: !!data.parsed?.mappings,
+        });
       }
     } catch (e) {
       setError((e as Error).message);
@@ -452,7 +466,7 @@ export function ConfigAdmin({ onBack }: Props) {
       )}
 
       {/* Visual Editor for Responses */}
-      {activeTab === "responses" && editMode === "visual" && configData && editedResponses && (
+      {activeTab === "responses" && editMode === "visual" && configData && editedResponses && Object.keys(editedResponses).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h2>文案编辑 ({Object.keys(editedResponses).length} 个 findings)</h2>
@@ -581,7 +595,7 @@ export function ConfigAdmin({ onBack }: Props) {
       )}
 
       {/* Visual Editor for Mappings */}
-      {activeTab === "mapping" && editMode === "visual" && configData && editedMappings && (
+      {activeTab === "mapping" && editMode === "visual" && configData && editedMappings && editedMappings.length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h2>映射规则编辑 ({editedMappings.length} 条规则)</h2>
@@ -714,6 +728,23 @@ export function ConfigAdmin({ onBack }: Props) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Empty state for mappings */}
+      {activeTab === "mapping" && editMode === "visual" && configData && (!editedMappings || editedMappings.length === 0) && (
+        <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
+          <p style={{ fontSize: "16px", color: "#666" }}>
+            {loading ? "加载中..." : "暂无数据。请点击「🔄 重新加载」按钮从文件系统加载。"}
+          </p>
+          <button 
+            onClick={() => loadConfig(authToken, activeTab, true)} 
+            className="btn-primary" 
+            disabled={loading}
+            style={{ marginTop: "16px" }}
+          >
+            {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+          </button>
         </div>
       )}
 
