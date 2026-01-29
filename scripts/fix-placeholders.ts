@@ -1,31 +1,40 @@
 #!/usr/bin/env node
 /**
- * 独立的占位符修复脚本
- * 用于修复 Word 模板中被分割的占位符
- * 
+ * 独立的占位符修复脚本（完整替换版）
+ * 用于修复 Word 模板中被分割的占位符（跨多个 <w:t>）
+ *
+ * ✅ 改进点：
+ * 1) 不再用 acc 删除导致坐标系漂移（一次拼接 + 位置映射，稳定）
+ * 2) 支持"占位符前后有其它文字"的场景（保留 prefix/suffix）
+ * 3) 仅修复看起来像占位符的内容（默认：{{A-Z0-9_}}），降低误伤
+ * 4) fixWordTemplateFromErrors 支持按错误白名单修复（更稳）
+ *
  * 使用方法：
  *   npx tsx scripts/fix-placeholders.ts <模板文件路径> [输出文件路径]
  *   如果不提供输出路径，会覆盖原文件
  */
 
 import fs from "fs";
-import path from "path";
 import PizZip from "pizzip";
+
+type DocxZip = PizZip;
 
 /**
  * 检查占位符是否被分割
- * 扫描所有 XML 文件（document.xml, header*.xml, footer*.xml）
+ * 扫描 document.xml, header*.xml, footer*.xml
  */
 export function hasSplitPlaceholders(buffer: Buffer): boolean {
   try {
     const zip = new PizZip(buffer);
 
-    const targets = Object.keys(zip.files).filter((name) =>
-      name === "word/document.xml" ||
-      (/^word\/header\d+\.xml$/.test(name)) ||
-      (/^word\/footer\d+\.xml$/.test(name))
+    const targets = Object.keys(zip.files).filter(
+      (name) =>
+        name === "word/document.xml" ||
+        /^word\/header\d+\.xml$/.test(name) ||
+        /^word\/footer\d+\.xml$/.test(name)
     );
 
+    // 粗略检测：{{TAG 结束了 w:t 或 TAG}} 结束了 w:t
     const badPattern = /\{\{[A-Z0-9_]+<\/w:t>|[A-Z0-9_]+\}\}<\/w:t>/;
 
     for (const fileName of targets) {
@@ -45,197 +54,308 @@ export function hasSplitPlaceholders(buffer: Buffer): boolean {
  * 规范化占位符文本：去掉 {{...}} 内部的所有空白字符
  */
 function normalizePlaceholderText(text: string): string {
-  // 匹配 {{...}} 并去掉内部的所有空白（空格、换行、Tab等）
-  return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, inner) => {
-    // 去掉内部所有空白字符
-    const cleaned = inner.replace(/\s+/g, '');
+  return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, inner) => {
+    const cleaned = String(inner).replace(/\s+/g, "");
     return `{{${cleaned}}}`;
   });
 }
 
 /**
- * 修复单个 XML 文件中的分割占位符
- * 只合并 <w:t> 内容，不破坏 XML 结构
+ * 判断一个 {{...}} 是否像"我们的占位符"
+ * 你可以按需放宽/收紧规则
  */
-function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; count: number } {
-  let fixCount = 0;
-  
-  // 1. 用正则提取所有 <w:t ...>TEXT</w:t> 的 match 列表（记录 start/end/text）
+function isPlaceholderLike(mustache: string): boolean {
+  const normalized = normalizePlaceholderText(mustache);
+  const inner = normalized.slice(2, -2);
+  return /^[A-Z0-9_]+$/.test(inner);
+}
+
+/**
+ * 只转义要插入的"新占位符文本"，不要对原 prefix/suffix 二次转义
+ */
+function escapeXmlTextKeepBraces(text: string): string {
+  return text
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * <w:t ...>TEXT</w:t> 节点抽取
+ * 注意：我们只抓最常见的纯文本场景（TEXT 不包含 <）
+ * 这对于 Docxtemplater 的占位符修复通常足够。
+ */
+function extractTextNodes(xml: string) {
   const tPattern = /<w:t([^>]*)>([^<]*)<\/w:t>/g;
-  const tNodes: Array<{
-    fullMatch: string;
+
+  const nodes: Array<{
     startIndex: number;
     endIndex: number;
     attrs: string;
     text: string;
   }> = [];
-  
-  let match;
+
+  let m: RegExpExecArray | null;
   tPattern.lastIndex = 0;
-  while ((match = tPattern.exec(xmlContent)) !== null) {
-    tNodes.push({
-      fullMatch: match[0],
-      startIndex: match.index,
-      endIndex: match.index + match[0].length,
-      attrs: match[1] || '',
-      text: match[2] || ''
+  while ((m = tPattern.exec(xml)) !== null) {
+    nodes.push({
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      attrs: m[1] || "",
+      text: m[2] || "",
     });
   }
-  
-  if (tNodes.length === 0) {
-    return { fixed: xmlContent, count: 0 };
-  }
-  
-  // 2. 顺序扫描，把文本拼到一个缓冲区 acc
-  // 3. 一旦 acc 中出现 {{ 并且后面出现 }}，就识别出一个完整 tag
-  // 4. 将 tag 写入第一个参与的 <w:t>，将后续参与的 <w:t> 清空
-  
-  const fixes: Array<{
-    firstIndex: number;
-    lastIndex: number;
-    placeholder: string;
-  }> = [];
-  
-  let acc = '';
-  let charOffset = 0; // 当前在 acc 中的字符偏移
-  
-  // 顺序扫描所有 <w:t> 节点
-  for (let i = 0; i < tNodes.length; i++) {
-    const tNode = tNodes[i];
-    const text = tNode.text;
-    
-    // 将当前文本添加到缓冲区
-    acc += text;
-    
-    // 检查 acc 中是否有完整的占位符 {{...}}
-    const placeholderRegex = /\{\{([^}]+)\}\}/g;
-    let placeholderMatch;
-    
-    while ((placeholderMatch = placeholderRegex.exec(acc)) !== null) {
-      const fullPlaceholder = placeholderMatch[0];
-      const placeholderStart = placeholderMatch.index;
-      const placeholderEnd = placeholderStart + fullPlaceholder.length;
-      
-      // 规范化占位符（去掉内部空白）
-      const normalizedPlaceholder = normalizePlaceholderText(fullPlaceholder);
-      
-      // 找到参与这个占位符的所有 <w:t> 节点
-      let charPos = 0;
-      let firstTIndex = -1;
-      let lastTIndex = -1;
-      
-      // 从前往后找，确定哪些节点参与了这个占位符
-      for (let j = 0; j <= i; j++) {
-        const nodeText = tNodes[j].text;
-        const nodeStart = charPos;
-        const nodeEnd = charPos + nodeText.length;
-        
-        // 检查这个节点是否参与占位符
-        if (nodeStart < placeholderEnd && nodeEnd > placeholderStart) {
-          if (firstTIndex === -1) firstTIndex = j;
-          lastTIndex = j;
-        }
-        
-        charPos += nodeText.length;
-      }
-      
-      if (firstTIndex !== -1 && lastTIndex !== -1 && firstTIndex !== lastTIndex) {
-        // 找到被分割的占位符，记录修复信息
-        fixes.push({
-          firstIndex: firstTIndex,
-          lastIndex: lastTIndex,
-          placeholder: normalizedPlaceholder
-        });
-        
-        // 从 acc 中移除已处理的占位符，避免重复匹配
-        acc = acc.substring(0, placeholderStart) + acc.substring(placeholderEnd);
-        placeholderRegex.lastIndex = 0; // 重置正则
-        break; // 处理完一个占位符后，重新扫描
-      }
-    }
-  }
-  
-  if (fixes.length === 0) {
-    console.log(`✅ ${fileName} 中没有发现需要修复的占位符`);
-    return { fixed: xmlContent, count: 0 };
-  }
-  
-  // 应用修复：从后往前替换，避免索引偏移
-  let fixedXml = xmlContent;
-  
-  // 按 lastIndex 从大到小排序，确保从后往前处理
-  fixes.sort((a, b) => b.lastIndex - a.lastIndex);
-  
-  fixes.forEach(({ firstIndex, lastIndex, placeholder }) => {
-    // 转义 XML 特殊字符（但保留 {{ 和 }}）
-    const escapedText = placeholder
-      .replace(/&(?!amp;|lt;|gt;)/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    
-    // 从后往前替换，避免索引偏移
-    for (let j = lastIndex; j >= firstIndex; j--) {
-      const node = tNodes[j];
-      
-      if (j === firstIndex) {
-        // 第一个节点：写入完整规范化后的占位符
-        const newTNode = `<w:t${node.attrs}>${escapedText}</w:t>`;
-        fixedXml = fixedXml.substring(0, node.startIndex) + 
-                  newTNode + 
-                  fixedXml.substring(node.endIndex);
-      } else {
-        // 后续节点：清空文本
-        const newTNode = `<w:t${node.attrs}></w:t>`;
-        fixedXml = fixedXml.substring(0, node.startIndex) + 
-                  newTNode + 
-                  fixedXml.substring(node.endIndex);
-      }
-    }
-    
-    fixCount++;
-  });
-  
-  console.log(`✅ 在 ${fileName} 中修复了 ${fixCount} 个被分割的占位符`);
-  return { fixed: fixedXml, count: fixCount };
+
+  return nodes;
 }
 
 /**
- * 基于错误信息修复占位符
- * 当检测函数无法识别时，使用 Docxtemplater 的错误信息来修复
+ * 修复单个 XML 文件中的分割占位符
+ *
+ * - 将跨多个 <w:t> 的 {{...}} 合并到第一个参与的 <w:t>
+ * - 保留第一个节点中占位符之前的文字（prefix）
+ * - 保留最后一个节点中占位符之后的文字（suffix）
+ * - 中间节点清空
+ *
+ * @param allowedPlaceholders 可选白名单（如从 errors 推导），不传则修复所有"像占位符"的 mustache
+ */
+function fixXmlContent(
+  xmlContent: string,
+  fileName: string,
+  allowedPlaceholders?: Set<string>
+): { fixed: string; count: number } {
+  const tNodes = extractTextNodes(xmlContent);
+  if (tNodes.length === 0) {
+    return { fixed: xmlContent, count: 0 };
+  }
+
+  // 1) 构建拼接全文 + 每个节点在拼接全文的起始位置
+  const starts: number[] = new Array(tNodes.length);
+  let cursor = 0;
+  for (let i = 0; i < tNodes.length; i++) {
+    starts[i] = cursor;
+    cursor += tNodes[i].text.length;
+  }
+  const fullText = tNodes.map((n) => n.text).join("");
+
+  // 2) 找出 fullText 内所有 mustache
+  // 非贪婪，尽量匹配最短 {{...}}
+  const mustacheRe = /\{\{[\s\S]*?\}\}/g;
+
+  type Fix = {
+    firstIndex: number;
+    lastIndex: number;
+    startOffsetInFirst: number;
+    endOffsetInLast: number;
+    placeholder: string; // normalized
+  };
+
+  const fixes: Fix[] = [];
+
+  // 辅助：全局位置 -> nodeIndex
+  const findNodeIndex = (pos: number) => {
+    // starts 单调递增，找最后一个 starts[i] <= pos
+    // 这里用简单二分
+    let lo = 0,
+      hi = starts.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const s = starts[mid];
+      const nextS = mid + 1 < starts.length ? starts[mid + 1] : Number.POSITIVE_INFINITY;
+      if (pos >= s && pos < nextS) return mid;
+      if (pos < s) hi = mid - 1;
+      else lo = mid + 1;
+    }
+    return -1;
+  };
+
+  let mm: RegExpExecArray | null;
+  mustacheRe.lastIndex = 0;
+
+  while ((mm = mustacheRe.exec(fullText)) !== null) {
+    const raw = mm[0]; // includes {{ }}
+    const normalized = normalizePlaceholderText(raw);
+
+    if (!isPlaceholderLike(normalized)) continue;
+
+    if (allowedPlaceholders && !allowedPlaceholders.has(normalized)) {
+      continue;
+    }
+
+    const gStart = mm.index;
+    const gEndExclusive = mm.index + raw.length;
+
+    const first = findNodeIndex(gStart);
+    const last = findNodeIndex(gEndExclusive - 1);
+
+    if (first === -1 || last === -1) continue;
+    if (first === last) continue; // 不跨节点，无需修复
+
+    const startOffsetInFirst = gStart - starts[first];
+    const endOffsetInLast = gEndExclusive - starts[last];
+
+    fixes.push({
+      firstIndex: first,
+      lastIndex: last,
+      startOffsetInFirst,
+      endOffsetInLast,
+      placeholder: normalized,
+    });
+  }
+
+  if (fixes.length === 0) {
+    // console.log(`✅ ${fileName} 中没有发现需要修复的占位符`);
+    return { fixed: xmlContent, count: 0 };
+  }
+
+  // 3) 将 fixes 转为"对每个 <w:t> 的替换操作"
+  // 为避免索引漂移：把所有替换按 startIndex 倒序应用
+  type Op = { start: number; end: number; replacement: string };
+  const ops: Op[] = [];
+  const touched = new Set<number>(); // 一个 node 可能被多个 fix 覆盖，尽量避免重复写（优先靠前的 fix）
+
+  // 按占位符在文档中出现顺序处理（从前到后），但生成 ops 时最终会倒序应用
+  fixes.sort((a, b) => {
+    if (a.firstIndex !== b.firstIndex) return a.firstIndex - b.firstIndex;
+    return a.startOffsetInFirst - b.startOffsetInFirst;
+  });
+
+  for (const fx of fixes) {
+    const { firstIndex, lastIndex, startOffsetInFirst, endOffsetInLast } = fx;
+
+    // 若这些节点已经被更早的 fix 改过，跳过，避免互相覆盖（保守策略）
+    // 你也可以改成更精细的区间合并，但这版更稳、更不误伤
+    let conflict = false;
+    for (let i = firstIndex; i <= lastIndex; i++) {
+      if (touched.has(i)) {
+        conflict = true;
+        break;
+      }
+    }
+    if (conflict) continue;
+
+    // 生成新内容
+    const escapedPlaceholder = escapeXmlTextKeepBraces(fx.placeholder);
+
+    const firstNode = tNodes[firstIndex];
+    const lastNode = tNodes[lastIndex];
+
+    const firstPrefix = firstNode.text.slice(0, startOffsetInFirst);
+    const lastSuffix = lastNode.text.slice(endOffsetInLast);
+
+    // first node: prefix + {{TAG}}
+    const newFirstInner = firstPrefix + escapedPlaceholder;
+
+    // last node: suffix（占位符之后的剩余）
+    const newLastInner = lastSuffix;
+
+    // middle nodes: 清空
+    for (let i = firstIndex; i <= lastIndex; i++) {
+      const node = tNodes[i];
+      let newInner = "";
+
+      if (i === firstIndex) newInner = newFirstInner;
+      else if (i === lastIndex) newInner = newLastInner;
+
+      ops.push({
+        start: node.startIndex,
+        end: node.endIndex,
+        replacement: `<w:t${node.attrs}>${newInner}</w:t>`,
+      });
+
+      touched.add(i);
+    }
+  }
+
+  if (ops.length === 0) {
+    return { fixed: xmlContent, count: 0 };
+  }
+
+  ops.sort((a, b) => b.start - a.start);
+
+  let fixedXml = xmlContent;
+  for (const op of ops) {
+    fixedXml = fixedXml.slice(0, op.start) + op.replacement + fixedXml.slice(op.end);
+  }
+
+  // 估算修复数量：以"fixes 实际生效数量"为准（每个 fix 至少会产生 2 个 ops）
+  const appliedFixCount = Math.floor(ops.length / 2);
+
+  console.log(`✅ 在 ${fileName} 中修复了约 ${appliedFixCount} 个被分割的占位符`);
+  return { fixed: fixedXml, count: appliedFixCount };
+}
+
+/**
+ * 获取需要处理的 XML 文件列表
+ */
+function listTargetXmlFiles(zip: DocxZip): string[] {
+  return Object.keys(zip.files).filter(
+    (name) =>
+      name === "word/document.xml" ||
+      /^word\/header\d+\.xml$/.test(name) ||
+      /^word\/footer\d+\.xml$/.test(name)
+  );
+}
+
+/**
+ * 修复 Word 模板中的分割占位符（全量修复）
+ */
+export function fixWordTemplate(buffer: Buffer): Buffer {
+  try {
+    const zip = new PizZip(buffer);
+
+    let totalFixCount = 0;
+    const targets = listTargetXmlFiles(zip);
+
+    for (const fileName of targets) {
+      const f = zip.files[fileName];
+      if (!f) continue;
+      const result = fixXmlContent(f.asText(), fileName);
+      if (result.count > 0) {
+        zip.file(fileName, result.fixed);
+        totalFixCount += result.count;
+      }
+    }
+
+    if (totalFixCount > 0) {
+      console.log(`✅ 总共修复了约 ${totalFixCount} 个被分割的占位符`);
+      return zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+    } else {
+      console.log("ℹ️ 没有发现被分割的占位符，模板是干净的");
+      return buffer;
+    }
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    console.error("❌ 修复 Word 模板时出错:", errorMsg);
+    return buffer;
+  }
+}
+
+/**
+ * 基于 Docxtemplater 错误信息（duplicate_open_tag / duplicate_close_tag）生成白名单
+ * 然后只修复白名单内的占位符，减少误伤
  */
 export function fixWordTemplateFromErrors(
-  buffer: Buffer, 
+  buffer: Buffer,
   errors: Array<{ id?: string; context?: string }>
 ): Buffer {
   try {
-    const zip = new PizZip(buffer);
-    const documentXml = zip.files["word/document.xml"];
-    if (!documentXml) {
-      return buffer;
-    }
-    
-    let xmlContent = documentXml.asText();
-    let fixCount = 0;
-    
-    // 提取开始和结束片段
     const openTags = new Set<string>();
     const closeTags = new Set<string>();
-    
-    errors.forEach((err) => {
-      if (err.id === "duplicate_open_tag" && err.context) {
-        let fragment = err.context.replace("{{", "").trim();
-        if (fragment) {
-          openTags.add(fragment);
-        }
-      } else if (err.id === "duplicate_close_tag" && err.context) {
-        let fragment = err.context.replace("}}", "").trim();
-        if (fragment) {
-          closeTags.add(fragment);
-        }
+
+    for (const err of errors) {
+      if (err?.id === "duplicate_open_tag" && err.context) {
+        // err.context 里通常包含 "{{PROP" 这种片段
+        const fragment = err.context.replace(/\{\{/g, "").trim();
+        if (fragment) openTags.add(fragment);
+      } else if (err?.id === "duplicate_close_tag" && err.context) {
+        // err.context 里通常包含 "TYPE}}" 这种片段
+        const fragment = err.context.replace(/\}\}/g, "").trim();
+        if (fragment) closeTags.add(fragment);
       }
-    });
-    
-    // 已知的占位符映射
+    }
+
+    // 已知映射（你之前那份）
     const knownMappings: Record<string, string> = {
       "PROP|TYPE": "PROPERTY_TYPE",
       "ASSE|POSE": "ASSESSMENT_PURPOSE",
@@ -258,156 +378,55 @@ export function fixWordTemplateFromErrors(
       "NEXT|TEPS": "NEXT_STEPS",
       "GENE|OTES": "GENERAL_NOTES",
     };
-    
-    // 匹配开始和结束片段
-    const matchedPairs: Array<{ openPart: string; closePart: string; fullName: string }> = [];
-    
-    openTags.forEach((openPart) => {
-      closeTags.forEach((closePart) => {
-        const key = `${openPart}|${closePart}`;
+
+    // 推导完整占位符名（{{NAME}}），做成白名单
+    const allow = new Set<string>();
+
+    for (const o of openTags) {
+      for (const c of closeTags) {
+        const key = `${o}|${c}`;
         let fullName = knownMappings[key];
-        
+
         if (!fullName) {
-          // 尝试直接组合
-          const combined = `${openPart}${closePart}`;
-          if (/^[A-Z0-9_]{2,}$/.test(combined)) {
-            fullName = combined;
-          } else {
-            // 尝试用下划线连接
-            const combinedWithUnderscore = `${openPart}_${closePart}`;
-            if (/^[A-Z0-9_]{2,}$/.test(combinedWithUnderscore)) {
-              fullName = combinedWithUnderscore;
-            }
+          const combined = `${o}${c}`;
+          if (/^[A-Z0-9_]{2,}$/.test(combined)) fullName = combined;
+          else {
+            const combined2 = `${o}_${c}`;
+            if (/^[A-Z0-9_]{2,}$/.test(combined2)) fullName = combined2;
           }
         }
-        
-        if (fullName) {
-          matchedPairs.push({ openPart, closePart, fullName });
-        }
-      });
-    });
-    
-    // 应用修复
-    const fixes: Array<{ start: number; end: number; replacement: string }> = [];
-    
-    matchedPairs.forEach(({ openPart, closePart, fullName }) => {
-      const escapedOpen = openPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const escapedClose = closePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      
-      // 多种模式匹配
-      const patterns = [
-        // {{OPEN</w:t>...<w:t>CLOSE}}
-        new RegExp(`\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}`, 'g'),
-        // <w:t>{{OPEN</w:t>...<w:t>CLOSE}}</w:t>
-        new RegExp(`<w:t[^>]*>\\{\\{${escapedOpen}</w:t>([\\s\\S]{0,2000})<w:t[^>]*>${escapedClose}\\}\\}</w:t>`, 'g'),
-      ];
-      
-      patterns.forEach((pattern) => {
-        pattern.lastIndex = 0;
-        let match;
-        while ((match = pattern.exec(xmlContent)) !== null) {
-          fixes.push({
-            start: match.index,
-            end: match.index + match[0].length,
-            replacement: pattern === patterns[1] ? `<w:t>{{${fullName}}}</w:t>` : `{{${fullName}}}`
-          });
-        }
-      });
-    });
-    
-    // 从后往前应用修复
-    fixes.sort((a, b) => b.start - a.start);
-    
-    // 去重（相同位置只修复一次）
-    const uniqueFixes: typeof fixes = [];
-    const seenStarts = new Set<number>();
-    fixes.forEach(fix => {
-      if (!seenStarts.has(fix.start)) {
-        seenStarts.add(fix.start);
-        uniqueFixes.push(fix);
+
+        if (fullName) allow.add(`{{${fullName}}}`);
       }
-    });
-    
-    uniqueFixes.forEach(fix => {
-      xmlContent = xmlContent.substring(0, fix.start) + 
-                  fix.replacement + 
-                  xmlContent.substring(fix.end);
-      fixCount++;
-    });
-    
-    if (fixCount > 0) {
-      zip.file("word/document.xml", xmlContent);
-      const fixedBuffer = zip.generate({
-        type: "nodebuffer",
-        compression: "DEFLATE",
-      });
-      console.log(`✅ 基于错误信息修复了 ${fixCount} 个占位符`);
-      return fixedBuffer;
     }
-    
+
+    if (allow.size === 0) {
+      // 没有可推导的白名单，则退化为全量修复
+      return fixWordTemplate(buffer);
+    }
+
+    const zip = new PizZip(buffer);
+    let totalFixCount = 0;
+
+    const targets = listTargetXmlFiles(zip);
+    for (const fileName of targets) {
+      const f = zip.files[fileName];
+      if (!f) continue;
+      const result = fixXmlContent(f.asText(), fileName, allow);
+      if (result.count > 0) {
+        zip.file(fileName, result.fixed);
+        totalFixCount += result.count;
+      }
+    }
+
+    if (totalFixCount > 0) {
+      console.log(`✅ 基于错误白名单修复了约 ${totalFixCount} 个占位符`);
+      return zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+    }
+
     return buffer;
   } catch (e) {
     console.error("基于错误信息修复时出错:", e);
-    return buffer;
-  }
-}
-
-/**
- * 修复 Word 模板中的分割占位符
- */
-export function fixWordTemplate(buffer: Buffer): Buffer {
-  try {
-    const zip = new PizZip(buffer);
-    let totalFixCount = 0;
-    
-    // 修复 document.xml
-    const documentXml = zip.files["word/document.xml"];
-    if (documentXml) {
-      const result = fixXmlContent(documentXml.asText(), "word/document.xml");
-      zip.file("word/document.xml", result.fixed);
-      totalFixCount += result.count;
-    }
-    
-    // 修复所有 header XML 文件
-    Object.keys(zip.files).forEach(fileName => {
-      if (fileName.startsWith("word/header") && fileName.endsWith(".xml")) {
-        const headerXml = zip.files[fileName];
-        if (headerXml) {
-          const result = fixXmlContent(headerXml.asText(), fileName);
-          zip.file(fileName, result.fixed);
-          totalFixCount += result.count;
-        }
-      }
-    });
-    
-    // 修复所有 footer XML 文件
-    Object.keys(zip.files).forEach(fileName => {
-      if (fileName.startsWith("word/footer") && fileName.endsWith(".xml")) {
-        const footerXml = zip.files[fileName];
-        if (footerXml) {
-          const result = fixXmlContent(footerXml.asText(), fileName);
-          zip.file(fileName, result.fixed);
-          totalFixCount += result.count;
-        }
-      }
-    });
-    
-    if (totalFixCount > 0) {
-      console.log(`✅ 总共修复了 ${totalFixCount} 个被分割的占位符`);
-      
-      const fixedBuffer = zip.generate({
-        type: "nodebuffer",
-        compression: "DEFLATE",
-      });
-      
-      return fixedBuffer;
-    } else {
-      console.log("ℹ️ 没有发现被分割的占位符，模板是干净的");
-      return buffer;
-    }
-  } catch (e) {
-    const errorMsg = e instanceof Error ? e.message : String(e);
-    console.error("❌ 修复 Word 模板时出错:", errorMsg);
     return buffer;
   }
 }
@@ -417,65 +436,59 @@ export function fixWordTemplate(buffer: Buffer): Buffer {
  */
 function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length < 1) {
     console.error("用法: npx tsx scripts/fix-placeholders.ts <模板文件路径> [输出文件路径]");
     process.exit(1);
   }
-  
+
   const inputPath = args[0];
   const outputPath = args[1] || inputPath;
-  
+
   if (!fs.existsSync(inputPath)) {
     console.error(`❌ 错误: 输入文件不存在: ${inputPath}`);
     process.exit(1);
   }
-  
+
   console.log("=".repeat(60));
-  console.log("🔧 Word 模板占位符修复脚本");
+  console.log("🔧 Word 模板占位符修复脚本（替换版）");
   console.log("=".repeat(60));
   console.log(`\n输入文件: ${inputPath}`);
   console.log(`输出文件: ${outputPath}\n`);
-  
-  // 读取模板
+
   console.log("📖 读取模板文件...");
   const originalBuffer = fs.readFileSync(inputPath);
   console.log(`   ✅ 文件大小: ${originalBuffer.length} bytes`);
-  
-  // 检查是否有被分割的占位符
+
   console.log("\n🔍 检查占位符...");
   const hasSplit = hasSplitPlaceholders(originalBuffer);
   if (!hasSplit) {
     console.log("   ✅ 没有发现被分割的占位符，无需修复");
     process.exit(0);
   }
-  
+
   console.log("   ⚠️  发现被分割的占位符，开始修复...");
-  
-  // 修复
+
   console.log("\n🔧 修复占位符...");
   const fixedBuffer = fixWordTemplate(originalBuffer);
-  
-  // 再次检查
+
   console.log("\n🔍 验证修复结果...");
   const stillHasSplit = hasSplitPlaceholders(fixedBuffer);
   if (stillHasSplit) {
-    console.log("   ⚠️  警告: 修复后仍然存在被分割的占位符");
+    console.log("   ⚠️  警告: 修复后仍然存在被分割的占位符（可能在复杂 XML 结构里）");
   } else {
     console.log("   ✅ 验证通过: 没有发现被分割的占位符");
   }
-  
-  // 保存
+
   console.log(`\n💾 保存修复后的模板到: ${outputPath}`);
   fs.writeFileSync(outputPath, fixedBuffer);
-  console.log(`   ✅ 已保存`);
-  
+  console.log("   ✅ 已保存");
+
   console.log("\n" + "=".repeat(60));
   console.log("✅ 修复完成！");
   console.log("=".repeat(60));
 }
 
-// 如果直接运行此脚本
 if (require.main === module) {
   main();
 }
