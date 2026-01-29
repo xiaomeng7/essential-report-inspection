@@ -46,35 +46,45 @@ function findRulesPath(): string {
 
 function findMappingPath(): string {
   const possiblePaths = [
+    path.join(__dirname, "..", "..", "CHECKLIST_TO_FINDINGS_MAP.json"), // Root of project
     path.join(process.cwd(), "CHECKLIST_TO_FINDINGS_MAP.json"),
     path.join(process.cwd(), "netlify", "functions", "CHECKLIST_TO_FINDINGS_MAP.json"),
-    path.join(__dirname, "..", "..", "CHECKLIST_TO_FINDINGS_MAP.json"),
+    "/opt/build/repo/CHECKLIST_TO_FINDINGS_MAP.json",
     "/var/task/CHECKLIST_TO_FINDINGS_MAP.json",
   ];
   for (const p of possiblePaths) {
     try {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) {
+        console.log(`✅ Found mapping file at: ${p}`);
+        return p;
+      }
     } catch {
       /* continue */
     }
   }
+  console.warn(`⚠️ Mapping file not found in any of: ${possiblePaths.join(", ")}`);
   return possiblePaths[0];
 }
 
 function findResponsesPath(): string {
   const possiblePaths = [
+    path.join(__dirname, "..", "..", "responses.yml"), // Root of project
     path.join(process.cwd(), "responses.yml"),
     path.join(process.cwd(), "netlify", "functions", "responses.yml"),
-    path.join(__dirname, "..", "..", "responses.yml"),
+    "/opt/build/repo/responses.yml",
     "/var/task/responses.yml",
   ];
   for (const p of possiblePaths) {
     try {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) {
+        console.log(`✅ Found responses file at: ${p}`);
+        return p;
+      }
     } catch {
       /* continue */
     }
   }
+  console.warn(`⚠️ Responses file not found in any of: ${possiblePaths.join(", ")}`);
   return possiblePaths[0];
 }
 
@@ -91,20 +101,7 @@ function getConfigStore(event?: HandlerEvent) {
 
 // Load from file or blob store
 async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses"): Promise<{ content: string; source: "file" | "blob" }> {
-  // Try blob store first (for saved versions)
-  const blobStore = getConfigStore(event);
-  const blobKey = `${type}.${type === "mapping" ? "json" : "yml"}`;
-  
-  try {
-    const blobContent = await blobStore.get(blobKey, { type: "text" });
-    if (blobContent) {
-      return { content: blobContent, source: "blob" };
-    }
-  } catch (e) {
-    console.warn(`Failed to load ${type} from blob:`, e);
-  }
-
-  // Fallback to file system
+  // Determine file path
   let filePath: string;
   if (type === "rules") {
     filePath = findRulesPath();
@@ -114,16 +111,42 @@ async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
     filePath = findResponsesPath();
   }
 
+  // Try file system first (source of truth)
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, "utf8");
-      return { content, source: "file" };
+      // Only return file content if it's not empty
+      if (content && content.trim().length > 0) {
+        console.log(`✅ Loaded ${type} from file system: ${filePath} (${content.length} chars)`);
+        return { content, source: "file" };
+      } else {
+        console.warn(`⚠️ File ${filePath} exists but is empty`);
+      }
+    } else {
+      console.warn(`⚠️ File not found: ${filePath}`);
     }
   } catch (e) {
-    console.warn(`Failed to load ${type} from file:`, e);
+    console.warn(`Failed to load ${type} from file ${filePath}:`, e);
   }
 
-  // Return empty defaults
+  // Fallback to blob store (user-saved versions)
+  const blobStore = getConfigStore(event);
+  const blobKey = `${type}.${type === "mapping" ? "json" : "yml"}`;
+  
+  try {
+    const blobContent = await blobStore.get(blobKey, { type: "text" });
+    if (blobContent && blobContent.trim().length > 0) {
+      console.log(`✅ Loaded ${type} from blob store: ${blobKey} (${blobContent.length} chars)`);
+      return { content: blobContent, source: "blob" };
+    } else if (blobContent) {
+      console.warn(`⚠️ Blob ${blobKey} exists but is empty`);
+    }
+  } catch (e) {
+    console.warn(`Failed to load ${type} from blob:`, e);
+  }
+
+  // Return empty defaults only if both file and blob are unavailable
+  console.warn(`⚠️ No content found for ${type}, returning empty default`);
   if (type === "mapping") {
     return { content: JSON.stringify({ version: "1.0", description: "", mappings: [] }, null, 2), source: "file" };
   }
