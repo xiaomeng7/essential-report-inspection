@@ -35,6 +35,12 @@ type MappingRule = {
   };
 };
 
+type FindingValue = {
+  safety: string;
+  urgency: string;
+  liability: string;
+};
+
 export function ConfigAdmin({ onBack }: Props) {
   console.log("🔧 ConfigAdmin component rendered at:", window.location.pathname);
   
@@ -55,6 +61,7 @@ export function ConfigAdmin({ onBack }: Props) {
   // Visual editing state
   const [editedResponses, setEditedResponses] = useState<Record<string, ResponseFinding>>({});
   const [editedMappings, setEditedMappings] = useState<MappingRule[]>([]);
+  const [editedFindings, setEditedFindings] = useState<Record<string, FindingValue>>({});
   const [searchTerm, setSearchTerm] = useState("");
 
   const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
@@ -98,6 +105,9 @@ export function ConfigAdmin({ onBack }: Props) {
       } else if (type === "mapping" && data.parsed?.mappings) {
         console.log(`✅ Initializing editedMappings with ${data.parsed.mappings.length} mappings`);
         setEditedMappings(data.parsed.mappings);
+      } else if (type === "rules" && data.parsed?.findings) {
+        console.log(`✅ Initializing editedFindings with ${Object.keys(data.parsed.findings).length} findings`);
+        setEditedFindings(data.parsed.findings);
       } else {
         console.warn(`⚠️ No data to initialize for ${type}:`, {
           hasFindings: !!data.parsed?.findings,
@@ -108,6 +118,18 @@ export function ConfigAdmin({ onBack }: Props) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Check if redirected from /admin/rules
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get("tab");
+    if (tabParam === "rules" && activeTab !== "rules") {
+      setActiveTab("rules");
+      if (authToken) {
+        loadConfig(authToken, "rules");
+      }
     }
   }, []);
 
@@ -159,7 +181,7 @@ export function ConfigAdmin({ onBack }: Props) {
             ...configData?.parsed,
             findings: editedResponses,
           };
-          // Convert to YAML (we'll need to send to backend for conversion)
+          // Convert to YAML
           const res = await fetch("/api/configAdmin/json-to-yaml", {
             method: "POST",
             headers: {
@@ -179,6 +201,25 @@ export function ConfigAdmin({ onBack }: Props) {
             mappings: editedMappings,
           };
           contentToSave = JSON.stringify(updatedParsed, null, 2);
+        } else if (activeTab === "rules" && editedFindings) {
+          const updatedParsed = {
+            ...configData?.parsed,
+            findings: editedFindings,
+          };
+          // Convert to YAML
+          const res = await fetch("/api/configAdmin/json-to-yaml", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ data: updatedParsed }),
+          });
+          if (!res.ok) {
+            throw new Error("Failed to convert to YAML");
+          }
+          const { yaml: yamlContent } = await res.json();
+          contentToSave = yamlContent;
         }
       }
       
@@ -276,6 +317,16 @@ export function ConfigAdmin({ onBack }: Props) {
       }
       return updated;
     });
+  };
+
+  const updateFinding = (findingKey: string, field: "safety" | "urgency" | "liability", value: string) => {
+    setEditedFindings((prev) => ({
+      ...prev,
+      [findingKey]: {
+        ...prev[findingKey],
+        [field]: value,
+      },
+    }));
   };
 
   if (loading && !configData) {
@@ -429,8 +480,8 @@ export function ConfigAdmin({ onBack }: Props) {
         )}
       </div>
 
-      {/* Edit Mode Toggle - only for responses and mapping */}
-      {(activeTab === "responses" || activeTab === "mapping") && configData && (
+      {/* Edit Mode Toggle - for responses, mapping, and rules */}
+      {(activeTab === "responses" || activeTab === "mapping" || activeTab === "rules") && configData && (
         <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
           <button
             onClick={() => setEditMode("visual")}
@@ -800,8 +851,147 @@ export function ConfigAdmin({ onBack }: Props) {
         </div>
       )}
 
-      {/* Rules tab - always raw editor */}
-      {activeTab === "rules" && configData && (
+      {/* Visual Editor for Rules */}
+      {activeTab === "rules" && editMode === "visual" && configData && editedFindings && Object.keys(editedFindings).length > 0 && (
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h2>Findings 编辑 ({Object.keys(editedFindings).length} 个 findings)</h2>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button 
+                onClick={() => loadConfig(authToken, activeTab, true)} 
+                className="btn-secondary" 
+                disabled={loading}
+              >
+                {loading ? "加载中..." : "🔄 重新加载"}
+              </button>
+              <button onClick={handleSave} className="btn-primary" disabled={saving}>
+                {saving ? "保存中..." : "保存所有更改"}
+              </button>
+            </div>
+          </div>
+          
+          {/* Search */}
+          <div style={{ marginBottom: "16px" }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜索 finding code..."
+              style={{
+                width: "100%",
+                padding: "10px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
+            />
+          </div>
+
+          {/* Findings Table */}
+          <div style={{ backgroundColor: "#fff", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #dee2e6", fontWeight: 600 }}>Finding</th>
+                  <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #dee2e6", fontWeight: 600 }}>Safety</th>
+                  <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #dee2e6", fontWeight: 600 }}>Urgency</th>
+                  <th style={{ padding: "12px", textAlign: "left", borderBottom: "2px solid #dee2e6", fontWeight: 600 }}>Liability</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(editedFindings)
+                  .filter(([key]) => searchTerm ? key.toLowerCase().includes(searchTerm.toLowerCase()) : true)
+                  .map(([key, value], idx) => (
+                  <tr key={key} style={{ backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa" }}>
+                    <td style={{ padding: "12px", borderBottom: "1px solid #dee2e6", fontWeight: 500, fontFamily: "monospace", fontSize: "13px" }}>
+                      {key}
+                    </td>
+                    <td style={{ padding: "12px", borderBottom: "1px solid #dee2e6" }}>
+                      <select
+                        value={value.safety}
+                        onChange={(e) => updateFinding(key, "safety", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="HIGH">HIGH</option>
+                        <option value="MODERATE">MODERATE</option>
+                        <option value="LOW">LOW</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "12px", borderBottom: "1px solid #dee2e6" }}>
+                      <select
+                        value={value.urgency}
+                        onChange={(e) => updateFinding(key, "urgency", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="IMMEDIATE">IMMEDIATE</option>
+                        <option value="SHORT_TERM">SHORT_TERM</option>
+                        <option value="LONG_TERM">LONG_TERM</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "12px", borderBottom: "1px solid #dee2e6" }}>
+                      <select
+                        value={value.liability}
+                        onChange={(e) => updateFinding(key, "liability", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ccc",
+                          borderRadius: "4px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="HIGH">HIGH</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="LOW">LOW</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state for rules */}
+      {activeTab === "rules" && editMode === "visual" && configData && (!editedFindings || Object.keys(editedFindings).length === 0) && (
+        <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#fff3cd", borderRadius: "8px", border: "2px solid #ffc107" }}>
+          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ 数据未加载</h3>
+          <p style={{ fontSize: "16px", color: "#856404", marginBottom: "20px" }}>
+            {loading ? "正在加载数据..." : "可视化编辑需要先加载数据。请点击下方按钮从文件系统加载。"}
+          </p>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <button 
+              onClick={() => loadConfig(authToken, activeTab, true)} 
+              className="btn-primary" 
+              disabled={loading}
+            >
+              {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+            </button>
+            <button 
+              onClick={() => setEditMode("raw")} 
+              className="btn-secondary"
+            >
+              切换到 YAML 编辑器
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rules tab - raw editor */}
+      {activeTab === "rules" && editMode === "raw" && configData && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h2>{getTabLabel(activeTab)}</h2>

@@ -141,11 +141,17 @@ function App() {
     });
   }
 
-  // Check admin route (less specific)
+  // Check admin route (less specific) - redirect to config admin
   if (isAdminRoute) {
-    console.log("✅ Rendering RulesAdmin for pathname:", pathname);
+    console.log("🔄 Redirecting /admin/rules to /admin/config");
+    // Redirect immediately
+    if (typeof window !== "undefined" && window.location.pathname === "/admin/rules") {
+      window.history.replaceState(null, "", "/admin/config?tab=rules");
+      setPathname("/admin/config");
+    }
+    // Show ConfigAdmin with rules tab active
     return (
-      <RulesAdmin
+      <ConfigAdmin
         onBack={() => {
           window.history.replaceState(null, "", "/");
           setPathname("/");
