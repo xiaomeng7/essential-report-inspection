@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import yaml from "js-yaml";
+import { connectLambda, getStore } from "@netlify/blobs";
+import type { HandlerEvent } from "@netlify/functions";
 
 // Type definitions for mapping configuration
 type Condition = {
@@ -196,10 +198,32 @@ function findMappingPath(): string {
 
 /**
  * Load CHECKLIST_TO_FINDINGS_MAP.json
+ * Tries blob store first, then falls back to file system
  */
-function loadMapping(): ChecklistToFindingsMap {
+async function loadMapping(event?: HandlerEvent): Promise<ChecklistToFindingsMap> {
   if (mappingCache) return mappingCache;
 
+  // Try blob store first (if event is provided)
+  if (event) {
+    try {
+      connectLambda(event);
+      const store = getStore({ name: "config", consistency: "eventual" });
+      const blobContent = await store.get("mapping.json", { type: "text" });
+      if (blobContent) {
+        try {
+          mappingCache = JSON.parse(blobContent) as ChecklistToFindingsMap;
+          console.log("✅ Checklist-to-findings mapping loaded from blob store");
+          return mappingCache;
+        } catch (e) {
+          console.warn("Failed to parse mapping from blob:", e);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to access blob store for mapping:", e);
+    }
+  }
+
+  // Fallback to file system
   const actualPath = findMappingPath();
   let mapping: ChecklistToFindingsMap;
 
@@ -296,8 +320,30 @@ function evaluateMappingRule(rule: MappingRule, facts: Record<string, unknown>):
   return false;
 }
 
-function loadRules(): Rules {
+async function loadRules(event?: HandlerEvent): Promise<Rules> {
   if (rulesCache) return rulesCache;
+  
+  // Try blob store first (if event is provided)
+  if (event) {
+    try {
+      connectLambda(event);
+      const store = getStore({ name: "config", consistency: "eventual" });
+      const blobContent = await store.get("rules.yml", { type: "text" });
+      if (blobContent) {
+        try {
+          rulesCache = yaml.load(blobContent) as Rules;
+          console.log("✅ Rules loaded from blob store");
+          return rulesCache!;
+        } catch (e) {
+          console.warn("Failed to parse rules from blob:", e);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to access blob store for rules:", e);
+    }
+  }
+
+  // Fallback to file system
   const actualPath = findRulesPath();
   let raw: string;
   if (fs.existsSync(actualPath)) {
@@ -378,9 +424,9 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
 /**
  * Convert facts (checklist answers) to finding codes using configurable mapping rules
  */
-function factsToFindings(facts: Record<string, unknown>): string[] {
+async function factsToFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<string[]> {
   const ids: string[] = [];
-  const mapping = loadMapping();
+  const mapping = await loadMapping(event);
 
   // Evaluate each mapping rule
   for (const rule of mapping.mappings) {
@@ -392,11 +438,12 @@ function factsToFindings(facts: Record<string, unknown>): string[] {
   return [...new Set(ids)];
 }
 
-function applyPriority(
+async function applyPriority(
   findingId: string,
-  meta: { safety: string; urgency: string; liability: string }
-): string {
-  const r = loadRules();
+  meta: { safety: string; urgency: string; liability: string },
+  event?: HandlerEvent
+): Promise<string> {
+  const r = await loadRules(event);
   const hard = r.hard_overrides?.findings ?? [];
   if (hard.includes(findingId)) return "IMMEDIATE";
 
@@ -430,15 +477,15 @@ function applyPriority(
   return bucket;
 }
 
-export function evaluateFindings(facts: Record<string, unknown>): Array<{ id: string; priority: string; title?: string }> {
-  const r = loadRules();
+export async function evaluateFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<Array<{ id: string; priority: string; title?: string }>> {
+  const r = await loadRules(event);
   const findings = r.findings ?? {};
-  const ids = factsToFindings(facts);
+  const ids = await factsToFindings(facts, event);
   const out: Array<{ id: string; priority: string; title?: string }> = [];
   for (const id of ids) {
     const meta = findings[id];
     if (!meta) continue;
-    const priority = applyPriority(id, meta);
+    const priority = await applyPriority(id, meta, event);
     out.push({ id, priority, title: id.replace(/_/g, " ") });
   }
   return out;

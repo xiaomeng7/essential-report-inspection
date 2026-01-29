@@ -34,12 +34,35 @@ let responsesCache: any = null;
 
 /**
  * Load responses.yml file (standardized text templates for findings)
+ * Tries blob store first, then falls back to file system
  */
-function loadResponses(): any {
+async function loadResponses(event?: HandlerEvent): Promise<any> {
   if (responsesCache) {
     return responsesCache;
   }
 
+  // Try blob store first (if event is provided)
+  if (event) {
+    try {
+      const { connectLambda, getStore } = await import("@netlify/blobs");
+      connectLambda(event);
+      const store = getStore({ name: "config", consistency: "eventual" });
+      const blobContent = await store.get("responses.yml", { type: "text" });
+      if (blobContent) {
+        try {
+          responsesCache = yaml.load(blobContent) as any;
+          console.log("✅ Loaded responses.yml from blob store");
+          return responsesCache;
+        } catch (e) {
+          console.warn("Failed to parse responses from blob:", e);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to access blob store for responses:", e);
+    }
+  }
+
+  // Fallback to file system
   const possiblePaths = [
     path.join(__dirname, "..", "..", "responses.yml"),
     path.join(process.cwd(), "responses.yml"),
@@ -289,8 +312,8 @@ export type ReportData = {
   limitations: string[];
 };
 
-export function buildReportData(inspection: StoredInspection): ReportData {
-  const responses = loadResponses();
+export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent): Promise<ReportData> {
+  const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
   const defaults = responses.defaults || {};
   
@@ -389,7 +412,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     });
     
     // Build unified report data
-    const reportData = buildReportData(inspection);
+    const reportData = await buildReportData(inspection, event);
     console.log("Report data built:", {
       immediate: reportData.immediate.length,
       recommended: reportData.recommended.length,
@@ -419,7 +442,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     
     // Load responses for default text
-    const responses = loadResponses();
+    const responses = await loadResponses(event);
     const defaults = responses.defaults || {};
     
     // Format findings as bullet-point text with defaults from responses.yml

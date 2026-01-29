@@ -3,6 +3,7 @@ import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
 import { RulesAdmin } from "./components/RulesAdmin";
+import { ConfigAdmin } from "./components/ConfigAdmin";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -15,10 +16,22 @@ function App() {
     typeof window !== "undefined" ? window.location.pathname : "/"
   );
 
+  // Ensure pathname is synced on mount - CRITICAL for SPA routing
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const currentPath = window.location.pathname;
+      console.log("🚀 App mounted, current path:", currentPath, "state pathname:", pathname);
+      // Always sync on mount to ensure correct routing
+      setPathname(currentPath);
+    }
+  }, []); // Only run on mount
+
   // Listen to route changes (including browser back/forward)
   useEffect(() => {
     const handlePopState = () => {
-      setPathname(window.location.pathname);
+      const newPath = window.location.pathname;
+      console.log("🔄 PopState event, updating pathname:", newPath);
+      setPathname(newPath);
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -64,9 +77,38 @@ function App() {
 
   const isReviewRoute = pathname.startsWith("/review/");
   const isSuccessRoute = pathname.startsWith("/success/");
-  const isAdminRoute = pathname.startsWith("/admin/rules");
+  const isConfigAdminRoute = pathname === "/admin/config" || pathname.startsWith("/admin/config/");
+  const isAdminRoute = pathname === "/admin/rules" || pathname.startsWith("/admin/rules/");
   const idFromRoute = isReviewRoute ? pathname.replace(/^\/review\//, "") : null;
   const successIdFromRoute = isSuccessRoute ? pathname.replace(/^\/success\//, "") : null;
+  
+  // Immediate debug log
+  if (typeof window !== "undefined") {
+    console.log("📍 Current route check:", {
+      pathname,
+      windowPath: window.location.pathname,
+      isConfigAdminRoute,
+      isAdminRoute,
+      willRenderConfigAdmin: isConfigAdminRoute,
+    });
+  }
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔍 Route Debug:", {
+      pathname,
+      windowPathname: typeof window !== "undefined" ? window.location.pathname : "N/A",
+      isConfigAdminRoute,
+      isAdminRoute,
+      isReviewRoute,
+      isSuccessRoute,
+    });
+    
+    // Warn if pathname doesn't match window.location.pathname
+    if (typeof window !== "undefined" && pathname !== window.location.pathname) {
+      console.warn("⚠️ Pathname mismatch! State:", pathname, "Window:", window.location.pathname);
+    }
+  }, [pathname, isConfigAdminRoute, isAdminRoute, isReviewRoute, isSuccessRoute]);
 
   if (successData || (successIdFromRoute && isSuccessRoute)) {
     return (
@@ -79,11 +121,34 @@ function App() {
     );
   }
 
+  // Check config admin route first (more specific)
+  if (isConfigAdminRoute) {
+    console.log("✅✅✅ RENDERING ConfigAdmin for pathname:", pathname);
+    console.log("✅✅✅ Window location:", window.location.pathname);
+    return (
+      <ConfigAdmin
+        onBack={() => {
+          window.history.replaceState(null, "", "/");
+          setPathname("/");
+        }}
+      />
+    );
+  } else if (pathname.startsWith("/admin")) {
+    console.warn("⚠️⚠️⚠️ Path starts with /admin but isConfigAdminRoute is false!", {
+      pathname,
+      isConfigAdminRoute,
+      isAdminRoute,
+    });
+  }
+
+  // Check admin route (less specific)
   if (isAdminRoute) {
+    console.log("✅ Rendering RulesAdmin for pathname:", pathname);
     return (
       <RulesAdmin
         onBack={() => {
           window.history.replaceState(null, "", "/");
+          setPathname("/");
         }}
       />
     );

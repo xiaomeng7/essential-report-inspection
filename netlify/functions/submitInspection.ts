@@ -34,7 +34,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Facts flattened, keys:", Object.keys(facts).length);
     
     console.log("Evaluating findings...");
-    const findings = evaluateFindings(facts);
+    const findings = await evaluateFindings(facts, event);
     console.log("Findings evaluated, count:", findings.length);
     
     console.log("Collecting limitations...");
