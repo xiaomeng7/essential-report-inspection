@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
-import { RulesAdmin } from "./components/RulesAdmin";
 import { ConfigAdmin } from "./components/ConfigAdmin";
 
 function App() {
