@@ -21,6 +21,13 @@ try {
   __dirname = process.cwd();
 }
 
+// Docxtemplater options - must match template delimiters {{ }}
+const docOptions = {
+  paragraphLoop: true,
+  linebreaks: true,
+  delimiters: { start: "{{", end: "}}" },
+};
+
 // Load Word template
 function loadWordTemplate(): Buffer {
   const possiblePaths = [
@@ -70,10 +77,7 @@ function loadWordTemplate(): Buffer {
         
         // Extract and log all placeholders in the template for debugging
         try {
-          const doc = new Docxtemplater(fixedZip, {
-            paragraphLoop: true,
-            linebreaks: true,
-          });
+          const doc = new Docxtemplater(fixedZip, docOptions);
           
           // Use docxtemplater's getTags() method to get all recognized tags
           try {
@@ -180,10 +184,7 @@ function loadWordTemplate(): Buffer {
                 
                 // Try again with fixed template
                 const retryZip = new PizZip(fixedBuffer);
-                const retryDoc = new Docxtemplater(retryZip, {
-                  paragraphLoop: true,
-                  linebreaks: true,
-                });
+                const retryDoc = new Docxtemplater(retryZip, docOptions);
                 
                 console.log("✅ loadWordTemplate: Successfully fixed template and created Docxtemplater instance!");
                 // Return the fixed content
@@ -412,10 +413,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("   This is where split placeholder errors would occur if fix didn't work");
     let doc: any;
     try {
-      doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-      });
+      doc = new Docxtemplater(zip, docOptions);
       console.log("✅ STEP 4 completed: Docxtemplater created successfully");
     } catch (e: any) {
       const errorMsg = e instanceof Error ? e.message : String(e);
@@ -488,10 +486,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             // Try again with the fixed template
             console.log("🔧 Retrying Docxtemplater creation with fixed template...");
             const fixedZip = new PizZip(fixedBuffer);
-            const retryDoc = new Docxtemplater(fixedZip, {
-              paragraphLoop: true,
-              linebreaks: true,
-            });
+            const retryDoc = new Docxtemplater(fixedZip, docOptions);
             
             console.log("✅ Successfully fixed template and created Docxtemplater instance!");
             doc = retryDoc;
@@ -499,12 +494,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             templateBuffer = fixedBuffer; // Update buffer reference
           } catch (retryError: any) {
             console.error("❌ Retry after fix failed:", retryError.message);
-            detailedErrorMsg = 
-              `Word template has ${duplicateErrors.length} tag(s) split across XML nodes. ` +
-              `Automatic fix attempted but failed. ` +
-              `Please check Netlify function logs for details. ` +
-              `SOLUTION: In your Word template (report-template.docx), ensure ALL placeholders like {{TAG_NAME}} ` +
-              `are typed in a SINGLE continuous text run without any formatting changes in the middle. ` +
+            detailedErrorMsg =
+              `Docxtemplater delimiter mismatch: your template uses {{TAG}} but Docxtemplater is using default {TAG}. ` +
+              `Fix: set delimiters: { start: "{{", end: "}}" } when creating Docxtemplater (including retry).` +
               `\n\nError details:\n${errorDetails.join('\n')}`;
             throw new Error(detailedErrorMsg);
           }
