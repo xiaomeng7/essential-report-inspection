@@ -277,7 +277,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   // Convert JSON to YAML endpoint
-  const pathRaw = event.path ?? "";
   if (event.httpMethod === "POST" && (pathRaw.includes("/json-to-yaml") || pathRaw.includes("/json-to-yaml"))) {
     try {
       const body = JSON.parse(event.body ?? "{}");
