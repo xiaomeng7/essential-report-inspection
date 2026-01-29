@@ -59,9 +59,8 @@ function normalizePlaceholderText(text: string): string {
  */
 function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; count: number } {
   let fixCount = 0;
-  let modified = false;
   
-  // 1. 用正则提取所有 <w:t ...>TEXT</w:t> 的 match 列表
+  // 1. 用正则提取所有 <w:t ...>TEXT</w:t> 的 match 列表（记录 start/end/text）
   const tPattern = /<w:t([^>]*)>([^<]*)<\/w:t>/g;
   const tNodes: Array<{
     fullMatch: string;
@@ -91,26 +90,30 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
   // 3. 一旦 acc 中出现 {{ 并且后面出现 }}，就识别出一个完整 tag
   // 4. 将 tag 写入第一个参与的 <w:t>，将后续参与的 <w:t> 清空
   
-  let fixedXml = xmlContent;
-  let acc = '';
-  let tagStartIndex = -1; // 当前占位符开始的 <w:t> 索引
-  let tagStartPos = -1; // 当前占位符在 acc 中的开始位置
+  const fixes: Array<{
+    firstIndex: number;
+    lastIndex: number;
+    placeholder: string;
+  }> = [];
   
-  // 从后往前处理，避免索引偏移
-  for (let i = tNodes.length - 1; i >= 0; i--) {
+  let acc = '';
+  let charOffset = 0; // 当前在 acc 中的字符偏移
+  
+  // 顺序扫描所有 <w:t> 节点
+  for (let i = 0; i < tNodes.length; i++) {
     const tNode = tNodes[i];
     const text = tNode.text;
     
-    // 将当前文本添加到缓冲区（从后往前，所以是 prepend）
-    acc = text + acc;
+    // 将当前文本添加到缓冲区
+    acc += text;
     
     // 检查 acc 中是否有完整的占位符 {{...}}
-    const placeholderMatch = acc.match(/\{\{([^}]+)\}\}/);
+    const placeholderRegex = /\{\{([^}]+)\}\}/g;
+    let placeholderMatch;
     
-    if (placeholderMatch) {
-      // 找到完整占位符
+    while ((placeholderMatch = placeholderRegex.exec(acc)) !== null) {
       const fullPlaceholder = placeholderMatch[0];
-      const placeholderStart = acc.indexOf(fullPlaceholder);
+      const placeholderStart = placeholderMatch.index;
       const placeholderEnd = placeholderStart + fullPlaceholder.length;
       
       // 规范化占位符（去掉内部空白）
@@ -121,72 +124,79 @@ function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; c
       let firstTIndex = -1;
       let lastTIndex = -1;
       
-      // 从当前节点往前找，找到所有参与占位符的节点
-      for (let j = i; j >= 0 && charPos < placeholderEnd; j--) {
+      // 从前往后找，确定哪些节点参与了这个占位符
+      for (let j = 0; j <= i; j++) {
         const nodeText = tNodes[j].text;
         const nodeStart = charPos;
         const nodeEnd = charPos + nodeText.length;
         
         // 检查这个节点是否参与占位符
         if (nodeStart < placeholderEnd && nodeEnd > placeholderStart) {
-          if (lastTIndex === -1) lastTIndex = j;
-          firstTIndex = j;
+          if (firstTIndex === -1) firstTIndex = j;
+          lastTIndex = j;
         }
         
         charPos += nodeText.length;
       }
       
-      if (firstTIndex !== -1 && lastTIndex !== -1) {
-        // 修复：将占位符写入第一个节点，清空后续节点
-        modified = true;
-        fixCount++;
+      if (firstTIndex !== -1 && lastTIndex !== -1 && firstTIndex !== lastTIndex) {
+        // 找到被分割的占位符，记录修复信息
+        fixes.push({
+          firstIndex: firstTIndex,
+          lastIndex: lastTIndex,
+          placeholder: normalizedPlaceholder
+        });
         
-        // 从后往前替换，避免索引偏移
-        for (let j = lastTIndex; j >= firstTIndex; j--) {
-          const node = tNodes[j];
-          
-          if (j === firstTIndex) {
-            // 第一个节点：写入完整规范化后的占位符
-            // 转义 XML 特殊字符（但保留 {{ 和 }}）
-            const escapedText = normalizedPlaceholder
-              .replace(/&(?!amp;|lt;|gt;)/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;');
-            const newTNode = `<w:t${node.attrs}>${escapedText}</w:t>`;
-            fixedXml = fixedXml.substring(0, node.startIndex) + 
-                      newTNode + 
-                      fixedXml.substring(node.endIndex);
-          } else {
-            // 后续节点：清空文本
-            const newTNode = `<w:t${node.attrs}></w:t>`;
-            fixedXml = fixedXml.substring(0, node.startIndex) + 
-                      newTNode + 
-                      fixedXml.substring(node.endIndex);
-          }
-        }
-        
-        // 从 acc 中移除已处理的占位符
+        // 从 acc 中移除已处理的占位符，避免重复匹配
         acc = acc.substring(0, placeholderStart) + acc.substring(placeholderEnd);
-        tagStartIndex = -1;
-        tagStartPos = -1;
-      }
-    } else {
-      // 检查是否有开始的 {{ 但没有结束的 }}
-      const openMatch = acc.match(/\{\{([^}]*)$/);
-      if (openMatch && tagStartIndex === -1) {
-        tagStartIndex = i;
-        tagStartPos = acc.length - openMatch[0].length;
+        placeholderRegex.lastIndex = 0; // 重置正则
+        break; // 处理完一个占位符后，重新扫描
       }
     }
   }
   
-  if (modified) {
-    console.log(`✅ 在 ${fileName} 中修复了 ${fixCount} 个被分割的占位符`);
-    return { fixed: fixedXml, count: fixCount };
-  } else {
+  if (fixes.length === 0) {
     console.log(`✅ ${fileName} 中没有发现需要修复的占位符`);
     return { fixed: xmlContent, count: 0 };
   }
+  
+  // 应用修复：从后往前替换，避免索引偏移
+  let fixedXml = xmlContent;
+  
+  // 按 lastIndex 从大到小排序，确保从后往前处理
+  fixes.sort((a, b) => b.lastIndex - a.lastIndex);
+  
+  fixes.forEach(({ firstIndex, lastIndex, placeholder }) => {
+    // 转义 XML 特殊字符（但保留 {{ 和 }}）
+    const escapedText = placeholder
+      .replace(/&(?!amp;|lt;|gt;)/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    // 从后往前替换，避免索引偏移
+    for (let j = lastIndex; j >= firstIndex; j--) {
+      const node = tNodes[j];
+      
+      if (j === firstIndex) {
+        // 第一个节点：写入完整规范化后的占位符
+        const newTNode = `<w:t${node.attrs}>${escapedText}</w:t>`;
+        fixedXml = fixedXml.substring(0, node.startIndex) + 
+                  newTNode + 
+                  fixedXml.substring(node.endIndex);
+      } else {
+        // 后续节点：清空文本
+        const newTNode = `<w:t${node.attrs}></w:t>`;
+        fixedXml = fixedXml.substring(0, node.startIndex) + 
+                  newTNode + 
+                  fixedXml.substring(node.endIndex);
+      }
+    }
+    
+    fixCount++;
+  });
+  
+  console.log(`✅ 在 ${fileName} 中修复了 ${fixCount} 个被分割的占位符`);
+  return { fixed: fixedXml, count: fixCount };
 }
 
 /**
