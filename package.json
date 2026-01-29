@@ -13,6 +13,8 @@
     "copy-mapping": "cp CHECKLIST_TO_FINDINGS_MAP.json netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json || true",
     "copy-default-text": "cp DEFAULT_REPORT_TEXT.md netlify/functions/DEFAULT_REPORT_TEXT.md || true",
     "copy-executive-summary": "cp EXECUTIVE_SUMMARY_TEMPLATES.md netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md || true",
+    "test:markdown": "node scripts/test-markdown-report.mjs",
+    "markdown-to-word": "node scripts/markdown-to-word.ts",
     "preview": "vite preview",
     "netlify:dev": "netlify dev"
   },
