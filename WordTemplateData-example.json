@@ -1,0 +1,167 @@
+{
+  "description": "完整的 WordTemplateData 结构示例，用于验证所有占位符都有值",
+  "scenarios": [
+    {
+      "scenario": "HIGH RISK - 有 immediate findings",
+      "input": {
+        "inspection": {
+          "inspection_id": "EH-2026-01-001",
+          "findings": [
+            {
+              "id": "MEN_NOT_VERIFIED",
+              "priority": "IMMEDIATE",
+              "title": "MEN Link Not Verified"
+            },
+            {
+              "id": "NO_RCD_PROTECTION",
+              "priority": "IMMEDIATE",
+              "title": "No RCD Protection"
+            }
+          ],
+          "limitations": ["Roof space not accessible"]
+        },
+        "reportData": {
+          "inspection_id": "EH-2026-01-001",
+          "immediate": ["MEN_NOT_VERIFIED", "NO_RCD_PROTECTION"],
+          "recommended": [],
+          "plan": [],
+          "limitations": ["Roof space not accessible"]
+        }
+      },
+      "expectedWordTemplateData": {
+        "INSPECTION_ID": "EH-2026-01-001",
+        "ASSESSMENT_DATE": "2026-01-29",
+        "PREPARED_FOR": "Client Name",
+        "PREPARED_BY": "Better Home Technology Pty Ltd",
+        "PROPERTY_ADDRESS": "123 Main Street",
+        "PROPERTY_TYPE": "House",
+        "IMMEDIATE_FINDINGS": "• MEN Link Not Verified\n\nWhy it matters: ...\n\nRecommended action: ...\n\n• No RCD Protection\n\nWhy it matters: ...\n\nRecommended action: ...",
+        "RECOMMENDED_FINDINGS": "No items requiring short-term planned action were identified at the time of inspection.",
+        "PLAN_FINDINGS": "No additional items were identified for planning or monitoring at this time.",
+        "LIMITATIONS": "• Roof space not accessible",
+        "URGENT_FINDINGS": "• MEN Link Not Verified\n\nWhy it matters: ...\n\nRecommended action: ...",
+        "REPORT_VERSION": "1.0",
+        "OVERALL_STATUS": "Requires Immediate Attention",
+        "EXECUTIVE_SUMMARY": "This property presents a high electrical risk profile at the time of inspection.\n\nOne or more issues were identified that may pose safety, compliance, or operational\nrisks if left unaddressed. Immediate attention is recommended before continued use\nor tenancy.\n\nFailure to address these items may expose the owner to increased liability,\ninsurance complications, or service disruption.",
+        "RISK_RATING": "HIGH",
+        "RISK_RATING_FACTORS": "2 immediate safety concern(s)",
+        "PRIORITY_IMMEDIATE_DESC": "Immediate safety concerns require urgent attention to prevent potential hazards.",
+        "PRIORITY_IMMEDIATE_INTERP": "These items pose immediate safety risks and should be addressed as soon as possible, typically within 24-48 hours.",
+        "PRIORITY_RECOMMENDED_DESC": "No recommended actions identified.",
+        "PRIORITY_RECOMMENDED_INTERP": "No short-term actions required.",
+        "PRIORITY_PLAN_DESC": "No items identified for planning or monitoring.",
+        "PRIORITY_PLAN_INTERP": "No ongoing monitoring required.",
+        "TEST_SUMMARY": "Electrical safety inspection completed in accordance with applicable standards.",
+        "TECHNICAL_NOTES": "Limitations: Roof space not accessible; This is a non-invasive visual inspection limited to accessible areas."
+      },
+      "verification": {
+        "RISK_RATING": "必须是 'HIGH'，因为 reportData.immediate.length > 0",
+        "EXECUTIVE_SUMMARY": "必须使用 HIGH RISK 模板，不能是 undefined"
+      }
+    },
+    {
+      "scenario": "MODERATE RISK - 只有 recommended findings",
+      "input": {
+        "inspection": {
+          "inspection_id": "EH-2026-01-002",
+          "findings": [
+            {
+              "id": "PARTIAL_RCD_COVERAGE",
+              "priority": "RECOMMENDED_0_3_MONTHS",
+              "title": "Partial RCD Coverage"
+            }
+          ],
+          "limitations": []
+        },
+        "reportData": {
+          "inspection_id": "EH-2026-01-002",
+          "immediate": [],
+          "recommended": ["PARTIAL_RCD_COVERAGE"],
+          "plan": [],
+          "limitations": []
+        }
+      },
+      "expectedWordTemplateData": {
+        "RISK_RATING": "MODERATE",
+        "EXECUTIVE_SUMMARY": "This property presents a moderate electrical risk profile based on the findings\nidentified during the assessment.\n\nWhile no immediate safety hazards were identified, several items were noted that\nrequire attention in the short to medium term to reduce future compliance or\nreliability risks.\n\nPlanned maintenance is recommended to avoid escalation and to maintain confidence\nin the property's ongoing electrical condition."
+      },
+      "verification": {
+        "RISK_RATING": "必须是 'MODERATE'，因为 reportData.immediate.length === 0 且 reportData.recommended.length > 0",
+        "EXECUTIVE_SUMMARY": "必须使用 MODERATE RISK 模板"
+      }
+    },
+    {
+      "scenario": "LOW RISK - 没有 immediate 或 recommended findings（默认）",
+      "input": {
+        "inspection": {
+          "inspection_id": "EH-2026-01-003",
+          "findings": [
+            {
+              "id": "LABELING_POOR",
+              "priority": "PLAN_MONITOR",
+              "title": "Poor Labeling"
+            }
+          ],
+          "limitations": []
+        },
+        "reportData": {
+          "inspection_id": "EH-2026-01-003",
+          "immediate": [],
+          "recommended": [],
+          "plan": ["LABELING_POOR"],
+          "limitations": []
+        }
+      },
+      "expectedWordTemplateData": {
+        "RISK_RATING": "LOW",
+        "EXECUTIVE_SUMMARY": "This property presents a low electrical risk profile at the time of inspection.\nNo immediate safety hazards or compliance-critical issues were identified.\n\nMinor maintenance-related observations may exist but do not require urgent action.\nFrom an owner or investor perspective, no immediate capital expenditure is required,\nand the electrical condition of the property is unlikely to impact tenancy,\ninsurance, or near-term asset performance."
+      },
+      "verification": {
+        "RISK_RATING": "必须是 'LOW'（默认值），因为 reportData.immediate.length === 0 且 reportData.recommended.length === 0",
+        "EXECUTIVE_SUMMARY": "必须使用 LOW RISK 模板"
+      }
+    },
+    {
+      "scenario": "LOW RISK - 完全没有 findings（空数组）",
+      "input": {
+        "inspection": {
+          "inspection_id": "EH-2026-01-004",
+          "findings": [],
+          "limitations": []
+        },
+        "reportData": {
+          "inspection_id": "EH-2026-01-004",
+          "immediate": [],
+          "recommended": [],
+          "plan": [],
+          "limitations": []
+        }
+      },
+      "expectedWordTemplateData": {
+        "RISK_RATING": "LOW",
+        "EXECUTIVE_SUMMARY": "This property presents a low electrical risk profile at the time of inspection.\nNo immediate safety hazards or compliance-critical issues were identified.\n\nMinor maintenance-related observations may exist but do not require urgent action.\nFrom an owner or investor perspective, no immediate capital expenditure is required,\nand the electrical condition of the property is unlikely to impact tenancy,\ninsurance, or near-term asset performance."
+      },
+      "verification": {
+        "RISK_RATING": "必须是 'LOW'（默认值），因为 findings 为空",
+        "EXECUTIVE_SUMMARY": "必须使用 LOW RISK 模板"
+      }
+    }
+  ],
+  "implementationDetails": {
+    "riskRatingCalculation": {
+      "location": "buildWordTemplateData() function in generateWordReport.ts",
+      "logic": "if (reportData.immediate.length > 0) → 'HIGH'\nelse if (reportData.recommended.length > 0) → 'MODERATE'\nelse → 'LOW' (default)",
+      "guarantee": "永远不会是 undefined，默认值为 'LOW'"
+    },
+    "executiveSummaryGeneration": {
+      "location": "buildWordTemplateData() function in generateWordReport.ts",
+      "logic": "1. Load templates from EXECUTIVE_SUMMARY_TEMPLATES.md\n2. Select template based on calculated RISK_RATING\n3. Fallback to defaultText.EXECUTIVE_SUMMARY if template loading fails",
+      "guarantee": "永远不会是 undefined，有完整的 fallback 机制"
+    },
+    "templateLoader": {
+      "file": "netlify/functions/lib/executiveSummaryLoader.ts",
+      "function": "loadExecutiveSummaryTemplates(event?)",
+      "priority": "1. Blob Store (if event provided)\n2. File system\n3. Built-in fallback templates"
+    }
+  }
+}

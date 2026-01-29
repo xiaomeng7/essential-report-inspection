@@ -8,6 +8,7 @@ import yaml from "js-yaml";
 import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
 import { loadDefaultText } from "./lib/defaultTextLoader";
+import { loadExecutiveSummaryTemplates } from "./lib/executiveSummaryLoader";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -578,30 +579,45 @@ export async function buildWordTemplateData(
     overallStatus = defaultText.OVERALL_STATUS; // Priority 3 fallback
   }
   
-  // RISK_RATING
+  // RISK_RATING - Calculate based on immediate and recommended findings count
+  // Logic: 
+  // - If immediate findings exist → HIGH
+  // - Else if recommended findings exist → MODERATE
+  // - Else (no findings or only plan findings) → LOW (default)
   let riskRating: string;
   if (reportData.immediate.length > 0) {
     riskRating = "HIGH";
   } else if (reportData.recommended.length > 0) {
     riskRating = "MODERATE";
   } else {
-    riskRating = defaultText.RISK_RATING; // Priority 3 fallback
+    // Default to LOW if no immediate or recommended findings
+    // This includes cases where findings array is empty or only contains plan findings
+    riskRating = "LOW";
   }
   
-  // EXECUTIVE_SUMMARY
-  const executiveSummaryParts: string[] = [];
-  if (reportData.immediate.length > 0) {
-    executiveSummaryParts.push(`${reportData.immediate.length} immediate safety concern(s) identified requiring urgent attention.`);
+  // Ensure RISK_RATING is never undefined
+  if (!riskRating || riskRating.trim() === "") {
+    riskRating = "LOW"; // Final fallback
   }
-  if (reportData.recommended.length > 0) {
-    executiveSummaryParts.push(`${reportData.recommended.length} recommended action(s) for short-term planning.`);
+  
+  // EXECUTIVE_SUMMARY - Load templates and select based on RISK_RATING
+  const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
+  let executiveSummary: string;
+  
+  // Select template based on calculated RISK_RATING
+  if (riskRating === "HIGH") {
+    executiveSummary = executiveSummaryTemplates.HIGH || defaultText.EXECUTIVE_SUMMARY;
+  } else if (riskRating === "MODERATE") {
+    executiveSummary = executiveSummaryTemplates.MODERATE || defaultText.EXECUTIVE_SUMMARY;
+  } else {
+    // LOW or any other value
+    executiveSummary = executiveSummaryTemplates.LOW || defaultText.EXECUTIVE_SUMMARY;
   }
-  if (reportData.plan.length > 0) {
-    executiveSummaryParts.push(`${reportData.plan.length} item(s) identified for ongoing monitoring.`);
+  
+  // Ensure EXECUTIVE_SUMMARY is never undefined
+  if (!executiveSummary || executiveSummary.trim() === "") {
+    executiveSummary = defaultText.EXECUTIVE_SUMMARY; // Final fallback
   }
-  const executiveSummary = executiveSummaryParts.length > 0
-    ? executiveSummaryParts.join(" ")
-    : defaultText.EXECUTIVE_SUMMARY; // Priority 3 fallback
   
   // RISK_RATING_FACTORS
   const riskFactors: string[] = [];

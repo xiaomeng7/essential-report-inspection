@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run copy-rules && npm run copy-template && npm run copy-word-template && npm run copy-responses && npm run copy-mapping && npm run copy-default-text && tsc -b && vite build",
+    "build": "npm run copy-rules && npm run copy-template && npm run copy-word-template && npm run copy-responses && npm run copy-mapping && npm run copy-default-text && npm run copy-executive-summary && tsc -b && vite build",
     "copy-rules": "cp rules.yml netlify/functions/rules.yml || true",
     "copy-template": "cp report-template.html netlify/functions/report-template.html || true",
     "copy-word-template": "cp report-template.docx netlify/functions/report-template.docx || true",
     "copy-responses": "cp responses.yml netlify/functions/responses.yml || true",
     "copy-mapping": "cp CHECKLIST_TO_FINDINGS_MAP.json netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json || true",
     "copy-default-text": "cp DEFAULT_REPORT_TEXT.md netlify/functions/DEFAULT_REPORT_TEXT.md || true",
+    "copy-executive-summary": "cp EXECUTIVE_SUMMARY_TEMPLATES.md netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md || true",
     "preview": "vite preview",
     "netlify:dev": "netlify dev"
   },

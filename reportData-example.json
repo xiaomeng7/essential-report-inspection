@@ -1,0 +1,83 @@
+{
+  "description": "示例 reportData 结构用于验证 Risk Rating 和 Executive Summary 功能",
+  "examples": [
+    {
+      "scenario": "HIGH RISK - 有 immediate findings",
+      "reportData": {
+        "inspection_id": "EH-2026-01-001",
+        "immediate": [
+          "MEN_NOT_VERIFIED",
+          "NO_RCD_PROTECTION"
+        ],
+        "recommended": [
+          "PARTIAL_RCD_COVERAGE"
+        ],
+        "plan": [
+          "LABELING_POOR"
+        ],
+        "limitations": [
+          "Roof space not accessible"
+        ]
+      },
+      "expectedRiskRating": "HIGH",
+      "expectedExecutiveSummary": "This property presents a high electrical risk profile at the time of inspection.\n\nOne or more issues were identified that may pose safety, compliance, or operational\nrisks if left unaddressed. Immediate attention is recommended before continued use\nor tenancy.\n\nFailure to address these items may expose the owner to increased liability,\ninsurance complications, or service disruption."
+    },
+    {
+      "scenario": "MODERATE RISK - 只有 recommended findings，没有 immediate",
+      "reportData": {
+        "inspection_id": "EH-2026-01-002",
+        "immediate": [],
+        "recommended": [
+          "PARTIAL_RCD_COVERAGE",
+          "BOARD_AT_CAPACITY"
+        ],
+        "plan": [
+          "LEGACY_EARTHING"
+        ],
+        "limitations": []
+      },
+      "expectedRiskRating": "MODERATE",
+      "expectedExecutiveSummary": "This property presents a moderate electrical risk profile based on the findings\nidentified during the assessment.\n\nWhile no immediate safety hazards were identified, several items were noted that\nrequire attention in the short to medium term to reduce future compliance or\nreliability risks.\n\nPlanned maintenance is recommended to avoid escalation and to maintain confidence\nin the property's ongoing electrical condition."
+    },
+    {
+      "scenario": "LOW RISK - 只有 plan findings，没有 immediate 或 recommended",
+      "reportData": {
+        "inspection_id": "EH-2026-01-003",
+        "immediate": [],
+        "recommended": [],
+        "plan": [
+          "LABELING_POOR",
+          "SURGE_PROTECTION_ABSENT"
+        ],
+        "limitations": []
+      },
+      "expectedRiskRating": "LOW",
+      "expectedExecutiveSummary": "This property presents a low electrical risk profile at the time of inspection.\nNo immediate safety hazards or compliance-critical issues were identified.\n\nMinor maintenance-related observations may exist but do not require urgent action.\nFrom an owner or investor perspective, no immediate capital expenditure is required,\nand the electrical condition of the property is unlikely to impact tenancy,\ninsurance, or near-term asset performance."
+    },
+    {
+      "scenario": "LOW RISK - 完全没有 findings（默认情况）",
+      "reportData": {
+        "inspection_id": "EH-2026-01-004",
+        "immediate": [],
+        "recommended": [],
+        "plan": [],
+        "limitations": []
+      },
+      "expectedRiskRating": "LOW",
+      "expectedExecutiveSummary": "This property presents a low electrical risk profile at the time of inspection.\nNo immediate safety hazards or compliance-critical issues were identified.\n\nMinor maintenance-related observations may exist but do not require urgent action.\nFrom an owner or investor perspective, no immediate capital expenditure is required,\nand the electrical condition of the property is unlikely to impact tenancy,\ninsurance, or near-term asset performance."
+    }
+  ],
+  "riskRatingLogic": {
+    "HIGH": "当 reportData.immediate.length > 0 时",
+    "MODERATE": "当 reportData.immediate.length === 0 且 reportData.recommended.length > 0 时",
+    "LOW": "当 reportData.immediate.length === 0 且 reportData.recommended.length === 0 时（默认）"
+  },
+  "executiveSummaryLogic": {
+    "selection": "根据计算出的 RISK_RATING 从 EXECUTIVE_SUMMARY_TEMPLATES.md 中选择对应的模板",
+    "fallback": "如果模板加载失败，使用 DEFAULT_REPORT_TEXT.md 中的 EXECUTIVE_SUMMARY 默认值"
+  },
+  "guarantees": {
+    "RISK_RATING": "永远不会是 undefined，默认值为 'LOW'",
+    "EXECUTIVE_SUMMARY": "永远不会是 undefined，有完整的 fallback 机制"
+  }
+}
