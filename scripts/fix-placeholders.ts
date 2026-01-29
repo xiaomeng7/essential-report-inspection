@@ -68,246 +68,120 @@ export function hasSplitPlaceholders(buffer: Buffer): boolean {
 }
 
 /**
+ * 规范化占位符文本：去掉 {{...}} 内部的所有空白字符
+ */
+function normalizePlaceholderText(text: string): string {
+  // 匹配 {{...}} 并去掉内部的所有空白（空格、换行、Tab等）
+  return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, inner) => {
+    // 去掉内部所有空白字符
+    const cleaned = inner.replace(/\s+/g, '');
+    return `{{${cleaned}}}`;
+  });
+}
+
+/**
  * 修复单个 XML 文件中的分割占位符
+ * 使用段落级别合并策略：在段落级别合并所有 <w:t> 节点
  */
 function fixXmlContent(xmlContent: string, fileName: string): { fixed: string; count: number } {
   let fixCount = 0;
+  let modified = false;
   
-  const splitPlaceholders: Array<{
-    startIndex: number;
-    endIndex: number;
-    fullMatch: string;
-    textParts: string[];
-    combinedName: string;
-  }> = [];
+  // 匹配段落：<w:p>...</w:p>
+  // 使用非贪婪匹配，确保每个段落单独处理
+  const paragraphPattern = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
   
-  // 策略1: 查找 {{TEXT</w:t>...<w:t>MORE_TEXT}} 模式
-  const openPattern = /\{\{([^<]*?)<\/w:t>/g;
-  let openMatch;
+  let fixedXml = xmlContent;
+  const paragraphs: Array<{ match: string; startIndex: number; endIndex: number }> = [];
   
-  while ((openMatch = openPattern.exec(xmlContent)) !== null) {
-    const startIndex = openMatch.index;
-    const firstPart = openMatch[1];
-    
-    if (firstPart.includes('}}')) {
-      continue;
-    }
-    
-    const searchStart = openMatch.index + openMatch[0].length;
-    const searchEnd = Math.min(xmlContent.length, searchStart + 2000);
-    const searchArea = xmlContent.substring(searchStart, searchEnd);
-    
-    const textParts = [firstPart];
-    const textPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    let foundClosing = false;
-    let endOffset = 0;
-    
-    textPattern.lastIndex = 0;
-    const searchAreaMatches = searchArea.matchAll(textPattern);
-    
-    for (const match of searchAreaMatches) {
-      const text = match[1];
-      textParts.push(text);
-      
-      if (text.includes('}}')) {
-        foundClosing = true;
-        const closingIndex = text.indexOf('}}');
-        textParts[textParts.length - 1] = text.substring(0, closingIndex);
-        endOffset = match.index! + match[0].indexOf('}}') + 2;
-        break;
-      }
-    }
-    
-    if (foundClosing && textParts.length > 1) {
-      const combinedName = textParts.join('');
-      
-      if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
-        const endIndex = searchStart + endOffset;
-        const fullMatch = xmlContent.substring(startIndex, endIndex);
-        
-        splitPlaceholders.push({
-          startIndex,
-          endIndex,
-          fullMatch,
-          textParts,
-          combinedName
-        });
-      }
-    }
-  }
-  
-  // 策略2: 查找 <w:t>{{TEXT</w:t>...<w:t>MORE_TEXT}}</w:t> 模式
-  const strategy2Pattern = /<w:t[^>]*>\{\{([^<}]*?)<\/w:t>/g;
-  let strategy2Match;
-  
-  while ((strategy2Match = strategy2Pattern.exec(xmlContent)) !== null) {
-    const startIndex = strategy2Match.index;
-    const firstPart = strategy2Match[1];
-    
-    if (firstPart.includes('}}')) {
-      continue;
-    }
-    
-    const searchStart = strategy2Match.index + strategy2Match[0].length;
-    const searchEnd = Math.min(xmlContent.length, searchStart + 2000);
-    const searchArea = xmlContent.substring(searchStart, searchEnd);
-    
-    const textParts = [firstPart];
-    const textPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-    let foundClosing = false;
-    let endOffset = 0;
-    
-    textPattern.lastIndex = 0;
-    const searchAreaMatches = searchArea.matchAll(textPattern);
-    
-    for (const match of searchAreaMatches) {
-      const text = match[1];
-      if (text.includes('}}')) {
-        const closingIndex = text.indexOf('}}');
-        textParts.push(text.substring(0, closingIndex));
-        foundClosing = true;
-        endOffset = match.index! + match[0].indexOf('}}') + 2;
-        break;
-      } else {
-        textParts.push(text);
-      }
-    }
-    
-    if (foundClosing && textParts.length > 1) {
-      const combinedName = textParts.join('');
-      
-      if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
-        const endIndex = searchStart + endOffset;
-        const fullMatch = xmlContent.substring(startIndex, endIndex);
-        
-        const isDuplicate = splitPlaceholders.some(sp => 
-          sp.startIndex === startIndex && sp.endIndex === endIndex
-        );
-        
-        if (!isDuplicate) {
-          splitPlaceholders.push({
-            startIndex,
-            endIndex,
-            fullMatch,
-            textParts,
-            combinedName
-          });
-        }
-      }
-    }
-  }
-  
-  // 策略3: 查找不完整的开始和结束标签
-  // 改进：更准确地匹配开始和结束片段
-  const incompleteOpenPattern = /(?:<w:t[^>]*>)?\{\{([A-Z0-9_]+)<\/w:t>/g;
-  const incompleteClosePattern = /<w:t[^>]*>([A-Z0-9_]+)\}\}<\/w:t>/g;
-  
-  const openFragments: Array<{ index: number; text: string; matchEnd: number; fullMatch: string }> = [];
-  const closeFragments: Array<{ index: number; text: string; matchEnd: number; fullMatch: string }> = [];
-  
+  // 收集所有段落
   let match;
-  incompleteOpenPattern.lastIndex = 0;
-  while ((match = incompleteOpenPattern.exec(xmlContent)) !== null) {
-    openFragments.push({
-      index: match.index,
-      text: match[1],
-      matchEnd: match.index + match[0].length,
-      fullMatch: match[0]
+  paragraphPattern.lastIndex = 0;
+  while ((match = paragraphPattern.exec(xmlContent)) !== null) {
+    paragraphs.push({
+      match: match[0],
+      startIndex: match.index,
+      endIndex: match.index + match[0].length
     });
   }
   
-  incompleteClosePattern.lastIndex = 0;
-  while ((match = incompleteClosePattern.exec(xmlContent)) !== null) {
-    closeFragments.push({
-      index: match.index,
-      text: match[1],
-      matchEnd: match.index + match[0].length,
-      fullMatch: match[0]
-    });
-  }
-  
-  // 改进匹配逻辑：更智能地匹配开始和结束片段
-  openFragments.forEach(openFrag => {
-    // 查找最近的结束片段
-    const nearbyCloses = closeFragments
-      .filter(closeFrag => {
-        const distance = closeFrag.index - openFrag.matchEnd;
-        return distance > 0 && distance < 2000;
-      })
-      .sort((a, b) => a.index - b.index);
+  // 从后往前处理段落，避免索引偏移
+  paragraphs.reverse().forEach(({ match: paraMatch, startIndex, endIndex }) => {
+    // 提取段落内的所有 <w:t> 节点
+    const tPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    const tNodes: Array<{ match: string; text: string; startIndex: number; endIndex: number; attrs: string }> = [];
     
-    for (const closeFrag of nearbyCloses) {
-      const distance = closeFrag.index - openFrag.matchEnd;
-      const between = xmlContent.substring(openFrag.matchEnd, closeFrag.index);
+    let tMatch;
+    tPattern.lastIndex = 0;
+    while ((tMatch = tPattern.exec(paraMatch)) !== null) {
+      const attrs = tMatch[0].match(/<w:t([^>]*)>/)?.[1] || '';
+      tNodes.push({
+        match: tMatch[0],
+        text: tMatch[1],
+        startIndex: startIndex + tMatch.index,
+        endIndex: startIndex + tMatch.index + tMatch[0].length,
+        attrs
+      });
+    }
+    
+    if (tNodes.length === 0) {
+      return; // 没有文本节点，跳过
+    }
+    
+    // 拼接段落所有文本
+    const fullText = tNodes.map(t => t.text).join('');
+    
+    // 规范化占位符（去掉内部空白）
+    const fixedText = normalizePlaceholderText(fullText);
+    
+    // 如果文本没有变化，跳过
+    if (fullText === fixedText) {
+      return;
+    }
+    
+    // 检查是否有占位符被修复
+    const hasPlaceholders = /\{\{[^}]+\}\}/.test(fullText);
+    if (!hasPlaceholders) {
+      return; // 没有占位符，跳过
+    }
+    
+    modified = true;
+    fixCount++;
+    
+    // 构建新的段落：保留第一个 <w:t> 的属性和完整文本，其余 <w:t> 清空
+    let newParagraph = paraMatch;
+    
+    // 从后往前替换，避免索引偏移
+    for (let i = tNodes.length - 1; i >= 0; i--) {
+      const tNode = tNodes[i];
+      const relativeIndex = tNode.startIndex - startIndex;
       
-      // 检查中间是否只有 XML 标签和占位符文本
-      const betweenText = between.replace(/<[^>]+>/g, '').trim();
-      const hasNonPlaceholderText = betweenText.length > 0 && !betweenText.match(/^[A-Z0-9_\s]*$/);
-      
-      if (hasNonPlaceholderText) {
-        continue; // 跳过，中间有其他文本
-      }
-      
-      // 提取中间的所有文本部分
-      const textParts = [openFrag.text];
-      const betweenTextPattern = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-      let betweenMatch;
-      betweenTextPattern.lastIndex = 0;
-      while ((betweenMatch = betweenTextPattern.exec(between)) !== null) {
-        const text = betweenMatch[1].trim();
-        if (text && text.match(/^[A-Z0-9_]*$/)) {
-          textParts.push(text);
-        }
-      }
-      textParts.push(closeFrag.text);
-      
-      const combinedName = textParts.join('');
-      
-      // 验证组合后的名称是否有效
-      if (/^[A-Z0-9_]{2,}$/.test(combinedName)) {
-        const startIndex = openFrag.index;
-        const endIndex = closeFrag.matchEnd;
-        
-        // 检查是否已经存在类似的修复
-        const isDuplicate = splitPlaceholders.some(sp => 
-          Math.abs(sp.startIndex - startIndex) < 50 && 
-          Math.abs(sp.endIndex - endIndex) < 50
-        );
-        
-        if (!isDuplicate) {
-          splitPlaceholders.push({
-            startIndex,
-            endIndex,
-            fullMatch: xmlContent.substring(startIndex, endIndex),
-            textParts,
-            combinedName
-          });
-          break; // 找到匹配后跳出，避免重复匹配
-        }
+      if (i === 0) {
+        // 第一个节点：写入完整文本
+        const newTNode = `<w:t${tNode.attrs}>${fixedText}</w:t>`;
+        newParagraph = newParagraph.substring(0, relativeIndex) + 
+                      newTNode + 
+                      newParagraph.substring(relativeIndex + tNode.match.length);
+      } else {
+        // 其余节点：清空文本
+        const newTNode = `<w:t${tNode.attrs}></w:t>`;
+        newParagraph = newParagraph.substring(0, relativeIndex) + 
+                      newTNode + 
+                      newParagraph.substring(relativeIndex + tNode.match.length);
       }
     }
+    
+    // 替换原段落
+    fixedXml = fixedXml.substring(0, startIndex) + 
+               newParagraph + 
+               fixedXml.substring(endIndex);
   });
   
-  if (splitPlaceholders.length > 0) {
-    console.log(`📋 在 ${fileName} 中找到 ${splitPlaceholders.length} 个被分割的占位符:`);
-    splitPlaceholders.forEach((sp, i) => {
-      console.log(`  ${i + 1}. ${sp.textParts.join('...')} -> {{${sp.combinedName}}}`);
-    });
-    
-    const sorted = [...splitPlaceholders].sort((a, b) => b.startIndex - a.startIndex);
-    
-    let fixedXml = xmlContent;
-    sorted.forEach((sp) => {
-      fixedXml = fixedXml.substring(0, sp.startIndex) + 
-                 `{{${sp.combinedName}}}` + 
-                 fixedXml.substring(sp.endIndex);
-      fixCount++;
-    });
-    
-    console.log(`✅ 修复了 ${fixCount} 个被分割的占位符`);
+  if (modified) {
+    console.log(`✅ 在 ${fileName} 中修复了 ${fixCount} 个段落的占位符`);
     return { fixed: fixedXml, count: fixCount };
   } else {
-    console.log(`✅ ${fileName} 中没有发现被分割的占位符`);
+    console.log(`✅ ${fileName} 中没有发现需要修复的占位符`);
     return { fixed: xmlContent, count: 0 };
   }
 }
