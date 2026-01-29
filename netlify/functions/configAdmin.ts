@@ -100,8 +100,9 @@ function getConfigStore(event?: HandlerEvent) {
 }
 
 // Load from file or blob store
+// IMPORTANT: Prioritize Blob Store to preserve user edits (user edits are saved to Blob Store)
 async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses"): Promise<{ content: string; source: "file" | "blob" }> {
-  // Determine file path
+  // Determine file path (for fallback)
   let filePath: string;
   if (type === "rules") {
     filePath = findRulesPath();
@@ -111,13 +112,29 @@ async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
     filePath = findResponsesPath();
   }
 
-  // Try file system first (source of truth)
+  // PRIORITY 1: Try blob store first (user-saved versions - these take precedence)
+  const blobStore = getConfigStore(event);
+  const blobKey = `${type}.${type === "mapping" ? "json" : "yml"}`;
+  
+  try {
+    const blobContent = await blobStore.get(blobKey, { type: "text" });
+    if (blobContent && blobContent.trim().length > 0) {
+      console.log(`✅ Loaded ${type} from blob store (user edits): ${blobKey} (${blobContent.length} chars)`);
+      return { content: blobContent, source: "blob" };
+    } else if (blobContent) {
+      console.warn(`⚠️ Blob ${blobKey} exists but is empty`);
+    }
+  } catch (e) {
+    console.warn(`Failed to load ${type} from blob:`, e);
+  }
+
+  // PRIORITY 2: Fallback to file system (default/initial content)
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, "utf8");
       // Only return file content if it's not empty
       if (content && content.trim().length > 0) {
-        console.log(`✅ Loaded ${type} from file system: ${filePath} (${content.length} chars)`);
+        console.log(`✅ Loaded ${type} from file system (default): ${filePath} (${content.length} chars)`);
         return { content, source: "file" };
       } else {
         console.warn(`⚠️ File ${filePath} exists but is empty`);
@@ -129,23 +146,7 @@ async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
     console.warn(`Failed to load ${type} from file ${filePath}:`, e);
   }
 
-  // Fallback to blob store (user-saved versions)
-  const blobStore = getConfigStore(event);
-  const blobKey = `${type}.${type === "mapping" ? "json" : "yml"}`;
-  
-  try {
-    const blobContent = await blobStore.get(blobKey, { type: "text" });
-    if (blobContent && blobContent.trim().length > 0) {
-      console.log(`✅ Loaded ${type} from blob store: ${blobKey} (${blobContent.length} chars)`);
-      return { content: blobContent, source: "blob" };
-    } else if (blobContent) {
-      console.warn(`⚠️ Blob ${blobKey} exists but is empty`);
-    }
-  } catch (e) {
-    console.warn(`Failed to load ${type} from blob:`, e);
-  }
-
-  // Return empty defaults only if both file and blob are unavailable
+  // Return empty defaults only if both blob and file are unavailable
   console.warn(`⚠️ No content found for ${type}, returning empty default`);
   if (type === "mapping") {
     return { content: JSON.stringify({ version: "1.0", description: "", mappings: [] }, null, 2), source: "file" };

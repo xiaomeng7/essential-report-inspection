@@ -474,9 +474,16 @@ export function ConfigAdmin({ onBack }: Props) {
       <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
         <p style={{ margin: 0, color: "#666" }}>{getTabDescription(activeTab)}</p>
         {configData && (
-          <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#999" }}>
-            来源: {configData.source === "blob" ? "已保存的版本（Blob Store）" : "文件系统"}
-          </p>
+          <div style={{ marginTop: "8px" }}>
+            <p style={{ margin: "4px 0", fontSize: "13px", color: "#999" }}>
+              来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
+            </p>
+            {configData.source === "blob" && (
+              <p style={{ margin: "4px 0", fontSize: "12px", color: "#28a745", fontWeight: 600 }}>
+                💡 提示：您的修改保存在 Blob Store 中，Git 推送不会覆盖这些修改
+              </p>
+            )}
+          </div>
         )}
       </div>
 
