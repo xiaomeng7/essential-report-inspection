@@ -9,6 +9,9 @@ import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { loadExecutiveSummaryTemplates } from "./lib/executiveSummaryLoader";
+import { buildReportMarkdown } from "./lib/buildReportMarkdown.js";
+import { markdownToHtml } from "./lib/markdownToHtml.js";
+import { renderDocx } from "./lib/renderDocx.js";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -399,6 +402,43 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
 }
 
 /**
+ * Build cover data (6 fields only) for Word template
+ * Used for Markdown-based report generation
+ * 
+ * @param inspection Inspection data
+ * @param event Optional HandlerEvent for loading configs
+ * @returns Cover data with 6 basic fields
+ */
+async function buildCoverData(
+  inspection: StoredInspection,
+  event?: HandlerEvent
+): Promise<Record<string, string>> {
+  const defaultText = await loadDefaultText(event);
+  const raw = inspection.raw;
+  
+  const inspectionId = inspection.inspection_id || defaultText.INSPECTION_ID;
+  
+  const createdAt = getFieldValue(raw, "created_at");
+  const assessmentDate = createdAt 
+    ? new Date(createdAt).toISOString().split('T')[0]
+    : (new Date().toISOString().split('T')[0] || defaultText.ASSESSMENT_DATE);
+  
+  const propertyAddress = getFieldValue(raw, "job.address") || defaultText.PROPERTY_ADDRESS;
+  const propertyType = getFieldValue(raw, "job.property_type") || defaultText.PROPERTY_TYPE;
+  const preparedFor = getFieldValue(raw, "client.name") || getFieldValue(raw, "client.client_type") || defaultText.PREPARED_FOR;
+  const preparedBy = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
+  
+  return {
+    INSPECTION_ID: inspectionId,
+    ASSESSMENT_DATE: assessmentDate,
+    PREPARED_FOR: preparedFor,
+    PREPARED_BY: preparedBy,
+    PROPERTY_ADDRESS: propertyAddress,
+    PROPERTY_TYPE: propertyType,
+  };
+}
+
+/**
  * Build Word template data with three-tier priority system:
  * 
  * Priority 1 (Highest):
@@ -416,6 +456,9 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
  * @param reportData Findings grouped by priority
  * @param event Optional HandlerEvent for loading configs
  * @returns Complete Word template data with all placeholders as strings
+ * 
+ * @deprecated This function is kept for backward compatibility.
+ * For new Markdown-based reports, use buildCoverData + buildReportMarkdown instead.
  */
 export async function buildWordTemplateData(
   inspection: StoredInspection,
@@ -783,21 +826,97 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       limitations_count: inspection.limitations.length
     });
     
-    // Build unified report data (for HTML report)
+    // Load responses for Markdown generation
+    const responses = await loadResponses(event);
+    
+    // Build computed fields (for Markdown generation)
     const reportData = await buildReportData(inspection, event);
-    console.log("Report data built:", {
-      immediate: reportData.immediate.length,
-      recommended: reportData.recommended.length,
-      plan: reportData.plan.length,
-      limitations: reportData.limitations.length
+    const riskRating = reportData.immediate.length > 0 ? "HIGH" : 
+                      (reportData.recommended.length > 0 ? "MODERATE" : "LOW");
+    const overallStatus = `${riskRating} RISK`;
+    
+    // Load executive summary templates
+    const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
+    let executiveSummary: string;
+    if (riskRating === "HIGH") {
+      executiveSummary = executiveSummaryTemplates.HIGH || "This property presents a high electrical risk profile.";
+    } else if (riskRating === "MODERATE") {
+      executiveSummary = executiveSummaryTemplates.MODERATE || "This property presents a moderate electrical risk profile.";
+    } else {
+      let lowRiskSummary = executiveSummaryTemplates.LOW || "This property presents a low electrical risk profile.";
+      if (reportData.plan.length > 0) {
+        const firstParagraphEnd = lowRiskSummary.indexOf("\n\n");
+        if (firstParagraphEnd > 0) {
+          const firstPart = lowRiskSummary.substring(0, firstParagraphEnd);
+          const secondPart = lowRiskSummary.substring(firstParagraphEnd);
+          executiveSummary = `${firstPart}\n\nA small number of non-urgent maintenance observations were noted. These do not require immediate action but should be addressed as part of routine property upkeep to maintain long-term reliability and compliance confidence.\n\n${secondPart}`;
+        } else {
+          executiveSummary = `${lowRiskSummary}\n\nA small number of non-urgent maintenance observations were noted. These do not require immediate action but should be addressed as part of routine property upkeep to maintain long-term reliability and compliance confidence.`;
+        }
+      } else {
+        executiveSummary = lowRiskSummary;
+      }
+    }
+    
+    const computed = {
+      OVERALL_STATUS: overallStatus,
+      RISK_RATING: riskRating,
+      EXECUTIVE_SUMMARY: executiveSummary,
+      CAPEX_RANGE: "To be confirmed", // Can be enhanced later
+    };
+    
+    console.log("Computed fields:", computed);
+    
+    // Build cover data (6 fields only)
+    const coverData = await buildCoverData(inspection, event);
+    console.log("Cover data built:", Object.keys(coverData));
+    
+    // Generate Markdown report
+    console.log("Generating Markdown report...");
+    const markdown = buildReportMarkdown({
+      inspection,
+      findings: inspection.findings,
+      responses,
+      computed,
     });
+    console.log("Markdown generated, length:", markdown.length);
     
-    // Build Word template data with three-tier priority system
-    const templateData = await buildWordTemplateData(inspection, reportData, event);
-    console.log("Word template data built with all placeholders:", Object.keys(templateData));
+    // Convert Markdown to HTML
+    console.log("Converting Markdown to HTML...");
+    const html = markdownToHtml(markdown);
+    console.log("HTML generated, length:", html.length);
     
-    // Load Word template (fixWordTemplate is already called inside loadWordTemplate if needed)
-    let templateBuffer = loadWordTemplate();
+    // Prepare data for renderDocx
+    const templateData = {
+      ...coverData,
+      REPORT_BODY_HTML: html,
+    };
+    
+    // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
+    let templateBuffer: Buffer;
+    const mdTemplatePath = path.join(__dirname, "report-template-md.docx");
+    const regularTemplatePath = path.join(__dirname, "report-template.docx");
+    
+    if (fs.existsSync(mdTemplatePath)) {
+      console.log("Using report-template-md.docx for Markdown-based generation");
+      templateBuffer = fs.readFileSync(mdTemplatePath);
+    } else {
+      console.log("report-template-md.docx not found, using report-template.docx");
+      templateBuffer = loadWordTemplate();
+    }
+    
+    // Check if template contains REPORT_BODY_HTML placeholder
+    const zip = new PizZip(templateBuffer);
+    const documentXml = zip.files["word/document.xml"]?.asText() || "";
+    if (!documentXml.includes("REPORT_BODY_HTML")) {
+      console.warn("⚠️ Template does not contain {{REPORT_BODY_HTML}} placeholder");
+      console.warn("⚠️ Please ensure the template has {{REPORT_BODY_HTML}} in the body");
+    }
+    
+    // Use renderDocx to generate Word document
+    console.log("Rendering Word document with renderDocx...");
+    const outBuffer = await renderDocx(templateBuffer, templateData);
+    console.log("Word document generated, size:", outBuffer.length, "bytes");
     
     // Double-check for split placeholders before generating
     console.log("🔍 Final check for split placeholders before generating...");
