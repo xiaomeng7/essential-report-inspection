@@ -199,14 +199,15 @@ export function validateReportDataAgainstPlaceholderMap(
   
   // Check all placeholders
   for (const key of ALL_PLACEHOLDER_KEYS) {
-    const value = data[key];
+    const typedKey = key as keyof ReportData;
+    const value = data[typedKey];
     const isEmpty = value === undefined || value === null || value === "";
     
-    if (REQUIRED_PLACEHOLDERS.includes(key)) {
+    if (REQUIRED_PLACEHOLDERS.includes(typedKey)) {
       if (isEmpty) {
         missingRequired.push(key);
       }
-    } else if (OPTIONAL_PLACEHOLDERS.includes(key)) {
+    } else if (OPTIONAL_PLACEHOLDERS.includes(typedKey)) {
       if (isEmpty) {
         missingOptional.push(key);
       }
@@ -286,7 +287,8 @@ export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
     console.warn("⚠️ Missing required placeholders:", validation.missingRequired.join(", "));
     // Fill missing required fields with defaults
     for (const key of validation.missingRequired) {
-      result[key] = DEFAULT_PLACEHOLDER_VALUES[key];
+      const typedKey = key as keyof ReportData;
+      result[typedKey] = DEFAULT_PLACEHOLDER_VALUES[typedKey];
     }
   }
   
