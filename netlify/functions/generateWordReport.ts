@@ -906,12 +906,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     
     // Check if template contains REPORT_BODY_HTML placeholder
+    // This is a required protection: throw error if placeholder is missing
     const zip = new PizZip(templateBuffer);
     const documentXml = zip.files["word/document.xml"]?.asText() || "";
     if (!documentXml.includes("REPORT_BODY_HTML")) {
-      console.warn("⚠️ Template does not contain {{REPORT_BODY_HTML}} placeholder");
-      console.warn("⚠️ Please ensure the template has {{REPORT_BODY_HTML}} in the body");
+      const errorMsg = "模板中未找到 {{REPORT_BODY_HTML}} 占位符。请在模板正文插入 {{REPORT_BODY_HTML}}。";
+      console.error("❌", errorMsg);
+      throw new Error(errorMsg);
     }
+    console.log("✅ Template contains {{REPORT_BODY_HTML}} placeholder");
     
     // Use renderDocx to generate Word document
     console.log("Rendering Word document with renderDocx...");
