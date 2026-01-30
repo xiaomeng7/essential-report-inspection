@@ -2,6 +2,15 @@
  * Test script for placeholder fallback strategy
  */
 
+import { 
+  ensureAllPlaceholders,
+  validateReportDataAgainstPlaceholderMap,
+  DEFAULT_PLACEHOLDER_VALUES,
+  REQUIRED_PLACEHOLDERS,
+  OPTIONAL_PLACEHOLDERS,
+  type ReportData
+} from "../src/reporting/placeholderMap";
+
 // Mock the functions
 function sanitizeText(input: unknown): string {
   if (input == null) return "";
@@ -147,6 +156,56 @@ const test5 = {
 const result5 = applyPlaceholderFallback(test5);
 const allStrings = Object.values(result5).every(v => typeof v === "string");
 console.log("  All values are strings:", allStrings ? "✅" : "❌");
+console.log("");
+
+// Test 6: Test validateReportDataAgainstPlaceholderMap
+console.log("Test 6: Test validateReportDataAgainstPlaceholderMap");
+const test6 = {
+  PROPERTY_ADDRESS: "123 Main St",
+  PREPARED_FOR: "John Doe",
+  // Missing ASSESSMENT_DATE, INSPECTION_ID, etc.
+};
+const validation6 = validateReportDataAgainstPlaceholderMap(test6);
+console.log("  Missing required:", validation6.missingRequired.length > 0 ? "✅" : "❌");
+console.log("  Missing optional:", validation6.missingOptional.length > 0 ? "✅" : "❌");
+console.log("  Required fields:", validation6.missingRequired.join(", "));
+console.log("");
+
+// Test 7: Test ensureAllPlaceholders with validation
+console.log("Test 7: Test ensureAllPlaceholders with validation");
+const test7 = {
+  PROPERTY_ADDRESS: "123 Main St",
+  PREPARED_FOR: "John Doe",
+  TERMS_AND_CONDITIONS: "Custom terms text",
+  // Missing other required fields
+};
+const result7 = ensureAllPlaceholders(test7);
+const validation7 = validateReportDataAgainstPlaceholderMap(result7);
+console.log("  All required fields present:", validation7.missingRequired.length === 0 ? "✅" : "❌");
+console.log("  TERMS_AND_CONDITIONS preserved:", result7.TERMS_AND_CONDITIONS === "Custom terms text" ? "✅" : "❌");
+console.log("  TERMS_AND_CONDITIONS_TEXT synced:", result7.TERMS_AND_CONDITIONS_TEXT === "Custom terms text" ? "✅" : "❌");
+console.log("");
+
+// Test 8: Test Terms & Conditions mapping
+console.log("Test 8: Test Terms & Conditions mapping");
+const test8 = {
+  TERMS_AND_CONDITIONS: "Test Terms Content",
+};
+const result8 = ensureAllPlaceholders(test8);
+console.log("  TERMS_AND_CONDITIONS:", result8.TERMS_AND_CONDITIONS !== "" && result8.TERMS_AND_CONDITIONS !== undefined ? "✅" : "❌");
+console.log("  TERMS_AND_CONDITIONS_TEXT:", result8.TERMS_AND_CONDITIONS_TEXT === result8.TERMS_AND_CONDITIONS ? "✅" : "❌");
+console.log("");
+
+// Test 9: Test no undefined values
+console.log("Test 9: Test no undefined values");
+const test9 = {
+  PROPERTY_ADDRESS: "123 Main St",
+  PREPARED_FOR: "John Doe",
+};
+const result9 = ensureAllPlaceholders(test9);
+const hasUndefined = Object.values(result9).some(v => v === undefined);
+console.log("  No undefined values:", !hasUndefined ? "✅" : "❌");
+console.log("  All values are strings:", Object.values(result9).every(v => typeof v === "string") ? "✅" : "❌");
 console.log("");
 
 console.log("✅ All placeholder fallback tests completed!");

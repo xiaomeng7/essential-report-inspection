@@ -159,6 +159,69 @@ export const DEFAULT_PLACEHOLDER_VALUES: ReportData = {
 export const ALL_PLACEHOLDER_KEYS = Object.keys(DEFAULT_PLACEHOLDER_VALUES) as Array<keyof ReportData>;
 
 /**
+ * Required placeholders that must have non-empty values
+ * These are critical fields that should never be empty or undefined
+ */
+export const REQUIRED_PLACEHOLDERS: Array<keyof ReportData> = [
+  "PROPERTY_ADDRESS",
+  "PREPARED_FOR",
+  "ASSESSMENT_DATE",
+  "INSPECTION_ID",
+  "PREPARED_BY",
+  "OVERALL_STATUS_BADGE",
+  "EXECUTIVE_DECISION_SIGNALS",
+  "CAPEX_SNAPSHOT",
+  "TERMS_AND_CONDITIONS",
+  "DYNAMIC_FINDING_PAGES",
+  "CLOSING_STATEMENT",
+] as const;
+
+/**
+ * Optional placeholders that can be empty strings
+ * These are fields that may not always have content
+ */
+export const OPTIONAL_PLACEHOLDERS: Array<keyof ReportData> = [
+  "PRIORITY_TABLE_ROWS",
+  "CAPEX_TABLE_ROWS",
+  "REPORT_BODY_HTML",
+  "DYNAMIC_FINDING_PAGES_HTML",
+] as const;
+
+/**
+ * Validate report data against placeholder map
+ * Returns lists of missing required and optional placeholders
+ */
+export function validateReportDataAgainstPlaceholderMap(
+  data: Partial<ReportData>
+): { missingRequired: string[]; missingOptional: string[] } {
+  const missingRequired: string[] = [];
+  const missingOptional: string[] = [];
+  
+  // Check all placeholders
+  for (const key of ALL_PLACEHOLDER_KEYS) {
+    const value = data[key];
+    const isEmpty = value === undefined || value === null || value === "";
+    
+    if (REQUIRED_PLACEHOLDERS.includes(key)) {
+      if (isEmpty) {
+        missingRequired.push(key);
+      }
+    } else if (OPTIONAL_PLACEHOLDERS.includes(key)) {
+      if (isEmpty) {
+        missingOptional.push(key);
+      }
+    } else {
+      // Other fields should have values but are not strictly required
+      if (isEmpty) {
+        missingOptional.push(key);
+      }
+    }
+  }
+  
+  return { missingRequired, missingOptional };
+}
+
+/**
  * Ensure all required placeholders are present and non-empty
  * @param data Partial ReportData object
  * @returns Complete ReportData with all fields populated
@@ -166,11 +229,21 @@ export const ALL_PLACEHOLDER_KEYS = Object.keys(DEFAULT_PLACEHOLDER_VALUES) as A
 export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
   const result: ReportData = { ...DEFAULT_PLACEHOLDER_VALUES };
   
-  // Override with provided data
+  // Override with provided data (convert all to strings)
   for (const key in data) {
     const value = data[key as keyof ReportData];
-    if (value !== undefined && value !== null && value !== "") {
-      result[key as keyof ReportData] = String(value);
+    if (value !== undefined && value !== null) {
+      // Convert to string, but allow empty strings for optional fields
+      const stringValue = String(value);
+      const isOptional = OPTIONAL_PLACEHOLDERS.includes(key as keyof ReportData);
+      
+      // For required fields, use default if empty
+      if (!isOptional && stringValue === "") {
+        // Keep default value
+        continue;
+      }
+      
+      result[key as keyof ReportData] = stringValue;
     }
   }
   
@@ -204,6 +277,21 @@ export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
       .replace(/\n/g, "<br/>")
       .replace(/^/, "<p>")
       .replace(/$/, "</p>");
+  }
+  
+  // Validate and log warnings
+  const validation = validateReportDataAgainstPlaceholderMap(result);
+  
+  if (validation.missingRequired.length > 0) {
+    console.warn("⚠️ Missing required placeholders:", validation.missingRequired.join(", "));
+    // Fill missing required fields with defaults
+    for (const key of validation.missingRequired) {
+      result[key] = DEFAULT_PLACEHOLDER_VALUES[key];
+    }
+  }
+  
+  if (validation.missingOptional.length > 0) {
+    console.log("ℹ️ Missing optional placeholders:", validation.missingOptional.join(", "));
   }
   
   return result;

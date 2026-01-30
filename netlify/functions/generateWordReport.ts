@@ -18,7 +18,11 @@ import { computeOverall, convertProfileForScoring, findingScore, type FindingFor
 import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals";
 import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
 import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
-import { ensureAllPlaceholders, DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS } from "../../src/reporting/placeholderMap";
+import { 
+  ensureAllPlaceholders, 
+  DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS,
+  validateReportDataAgainstPlaceholderMap
+} from "../../src/reporting/placeholderMap";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -1342,8 +1346,38 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   // Use ensureAllPlaceholders to guarantee all fields are present and non-empty
   const completeData = ensureAllPlaceholders(placeholderData);
   
+  // Validate against placeholder map and log warnings
+  const validation = validateReportDataAgainstPlaceholderMap(completeData);
+  
+  if (validation.missingRequired.length > 0) {
+    console.warn("⚠️ CRITICAL: Missing required placeholders after ensureAllPlaceholders:", validation.missingRequired.join(", "));
+    // This should never happen if ensureAllPlaceholders works correctly, but log it anyway
+    for (const key of validation.missingRequired) {
+      (completeData as any)[key] = PLACEHOLDER_DEFAULTS[key] || "-";
+    }
+  }
+  
+  if (validation.missingOptional.length > 0) {
+    console.log("ℹ️ Optional placeholders not populated:", validation.missingOptional.join(", "));
+  }
+  
+  // Ensure Terms & Conditions is always populated
+  if (!completeData.TERMS_AND_CONDITIONS || completeData.TERMS_AND_CONDITIONS === "") {
+    console.warn("⚠️ TERMS_AND_CONDITIONS is empty, using default");
+    completeData.TERMS_AND_CONDITIONS = PLACEHOLDER_DEFAULTS.TERMS_AND_CONDITIONS;
+    completeData.TERMS_AND_CONDITIONS_TEXT = PLACEHOLDER_DEFAULTS.TERMS_AND_CONDITIONS;
+  }
+  
   // Sanitize all values before returning
   const sanitized = sanitizeObject(completeData);
+  
+  // Final validation: ensure no undefined values
+  for (const key in sanitized) {
+    if (sanitized[key as keyof PlaceholderReportData] === undefined) {
+      console.error(`❌ ERROR: ${key} is still undefined after sanitization!`);
+      (sanitized as any)[key] = PLACEHOLDER_DEFAULTS[key as keyof typeof PLACEHOLDER_DEFAULTS] || "-";
+    }
+  }
   
   return sanitized as PlaceholderReportData;
 }
