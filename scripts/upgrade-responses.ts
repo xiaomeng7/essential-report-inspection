@@ -23,23 +23,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * 根据 why_it_matters 生成 risk_interpretation
+ * 根据 why_it_matters 和 priority 生成 risk_interpretation
  */
-function generateRiskInterpretation(whyItMatters: string, title: string): string {
+function generateRiskInterpretation(whyItMatters: string, title: string, priority: string): string {
   // 确保包含 if-not-addressed 逻辑，至少两句
   const sentences: string[] = [];
   
-  // 第一句：if not addressed 的后果
-  if (whyItMatters.toLowerCase().includes("safety") || whyItMatters.toLowerCase().includes("risk")) {
-    sentences.push(`If this condition is not addressed, it may pose safety risks or increase liability exposure over time.`);
-  } else if (whyItMatters.toLowerCase().includes("reliability") || whyItMatters.toLowerCase().includes("maintainability")) {
-    sentences.push(`If this condition is not addressed, it may impact long-term reliability or operational efficiency.`);
+  if (priority === "IMMEDIATE") {
+    // IMMEDIATE 优先级：强调立即风险
+    sentences.push(`If this condition is not addressed, it may pose immediate safety risks or escalate into significant liability exposure within the next 6-12 months.`);
+    sentences.push(`While this requires attention, it does not represent an emergency that would prevent continued use of the property under normal conditions, but should be addressed promptly to prevent escalation.`);
+  } else if (priority === "RECOMMENDED_0_3_MONTHS") {
+    // RECOMMENDED 优先级：短期风险
+    sentences.push(`If this condition is not addressed within the next 12-24 months, it may impact compliance confidence or increase future maintenance costs.`);
+    sentences.push(`The current condition does not present an immediate or urgent risk, and can be incorporated into normal asset planning cycles with strategic budgeting.`);
   } else {
-    sentences.push(`If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time.`);
+    // PLAN_MONITOR 优先级：长期风险
+    if (whyItMatters.toLowerCase().includes("safety") || whyItMatters.toLowerCase().includes("risk")) {
+      sentences.push(`If this condition is not addressed over the next 3-5 years, it may gradually impact long-term reliability or compliance confidence.`);
+    } else if (whyItMatters.toLowerCase().includes("reliability") || whyItMatters.toLowerCase().includes("maintainability")) {
+      sentences.push(`If this condition is not addressed over time, it may impact long-term reliability or operational efficiency.`);
+    } else {
+      sentences.push(`If this condition is not addressed over time, it may affect electrical safety, reliability, or compliance gradually.`);
+    }
+    sentences.push(`This risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement without immediate urgency.`);
   }
-  
-  // 第二句：为什么可以在正常规划周期内管理
-  sentences.push(`This risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement without immediate urgency.`);
   
   return sentences.join(" ");
 }
@@ -147,12 +155,12 @@ function upgradeFinding(findingId: string, finding: any): any {
   // why_it_matters (保留)
   upgraded.why_it_matters = finding.why_it_matters || "This condition may affect electrical safety, reliability, or maintainability depending on severity and location.";
   
-  // risk_interpretation (新增)
-  upgraded.risk_interpretation = generateRiskInterpretation(upgraded.why_it_matters, upgraded.title);
-  
-  // priority_rationale (新增)
+  // priority_rationale (新增) - 先确定优先级
   const defaultPriority = inferDefaultPriority(findingId);
   upgraded.priority_rationale = generatePriorityRationale(defaultPriority, upgraded.why_it_matters);
+  
+  // risk_interpretation (新增) - 基于优先级生成
+  upgraded.risk_interpretation = generateRiskInterpretation(upgraded.why_it_matters, upgraded.title, defaultPriority);
   
   // planning_guidance (保留)
   upgraded.planning_guidance = finding.planning_guidance || "This can be planned with other electrical works to minimise disruption.";
