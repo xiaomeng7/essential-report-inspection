@@ -12,6 +12,7 @@
     "./netlify/functions/responses.yml",
     "./netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json",
     "./netlify/functions/DEFAULT_REPORT_TEXT.md",
+    "./netlify/functions/DEFAULT_TEXT_LIBRARY.md",
     "./netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md"
   ]
 

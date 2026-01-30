@@ -27,6 +27,8 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [isGeneratingOfficialWord, setIsGeneratingOfficialWord] = useState(false);
   const [officialWordReady, setOfficialWordReady] = useState(false);
   const [officialWordError, setOfficialWordError] = useState<string | null>(null);
+  const [isGeneratingMarkdownWord, setIsGeneratingMarkdownWord] = useState(false);
+  const [markdownWordError, setMarkdownWordError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -324,6 +326,61 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     }
   };
 
+  const handleGenerateMarkdownWord = async () => {
+    if (!data?.inspection_id) {
+      alert("无法生成 Word 文档：缺少检查 ID");
+      return;
+    }
+
+    setIsGeneratingMarkdownWord(true);
+    setMarkdownWordError(null);
+
+    try {
+      console.log("Generating Markdown-based Word document for:", data.inspection_id);
+      
+      // Call generateMarkdownWord endpoint
+      const res = await fetch(`/.netlify/functions/generateMarkdownWord?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
+        method: "GET"
+      });
+
+      if (!res.ok) {
+        // Try to get error message from JSON response
+        let errorMessage = `HTTP ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = res.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Get the Word document as blob
+      const blob = await res.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.inspection_id}-report.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      console.log("✅ Word document downloaded successfully");
+      
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
+      setMarkdownWordError(errorMessage);
+      console.error("Error generating Markdown-based Word document:", e);
+      alert(`生成 Word 文档时出错:\n\n${errorMessage}`);
+    } finally {
+      setIsGeneratingMarkdownWord(false);
+    }
+  };
+
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
   if (error) {
     return (
@@ -396,6 +453,22 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
               </button>
             </>
           )}
+          {/* AI Generate Word button (Markdown-based) */}
+          <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <button 
+              type="button" 
+              className="btn-primary" 
+              onClick={handleGenerateMarkdownWord}
+              disabled={isGeneratingMarkdownWord}
+              style={{ 
+                backgroundColor: "#4caf50",
+                minWidth: "180px"
+              }}
+            >
+              {isGeneratingMarkdownWord ? "AI 生成中..." : "AI 生成 Word"}
+            </button>
+          </div>
+          
           {/* Official Word generation buttons */}
           <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
             {!officialWordReady && (
@@ -466,6 +539,17 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           borderRadius: "4px"
         }}>
           <strong>Word生成错误:</strong> {wordError}
+        </div>
+      )}
+      {markdownWordError && (
+        <div style={{ 
+          padding: "12px", 
+          marginBottom: "16px", 
+          backgroundColor: "#ffebee", 
+          color: "#c62828",
+          borderRadius: "4px"
+        }}>
+          <strong>AI 生成 Word 错误:</strong> {markdownWordError}
         </div>
       )}
       {officialWordError && (
