@@ -16,6 +16,7 @@
     "copy-executive-summary": "cp EXECUTIVE_SUMMARY_TEMPLATES.md netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md || true",
     "test:markdown": "node scripts/test-markdown-report.mjs",
     "markdown-to-word": "node scripts/markdown-to-word.ts",
+    "markdown-to-word-pandoc": "node scripts/markdown-to-word-pandoc.ts",
     "preview": "vite preview",
     "netlify:dev": "netlify dev"
   },
