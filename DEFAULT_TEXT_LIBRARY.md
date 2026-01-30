@@ -85,6 +85,9 @@ No items identified for planning or monitoring.
 ### PRIORITY_PLAN_INTERP
 No ongoing monitoring required.
 
+### BUDGETARY_RANGE_DEFAULT
+Indicative market benchmark range to be confirmed through contractor quotations.
+
 ## Document Purpose & How to Read This Report
 
 ### DOCUMENT_PURPOSE_INTRO

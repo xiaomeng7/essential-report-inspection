@@ -389,31 +389,53 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       md.push(`### ${index + 1}. ${assetComponent}`);
       md.push("");
       
-      // Asset Component（简短名词短语）
+      // ========================================================================
+      // 固定输出顺序（严格遵守 REPORT_GENERATION_RULES.md）
+      // ========================================================================
+      
+      // 1. Asset Component（简短名词短语）
       md.push("#### Asset Component");
       md.push(assetComponent);
       md.push("");
       
-      // Observed Condition（客观描述，无意见）
+      // 2. Observed Condition（客观描述，无意见）
       md.push("#### Observed Condition");
-      const observedCondition = finding.observed || 
-                                finding.facts || 
-                                response.observed_condition ||
-                                response.title ||
-                                defaultText.IMMEDIATE_FINDINGS ||
-                                "Condition observed during inspection.";
+      // observed_condition 可能是数组或字符串
+      let observedCondition: string;
+      if (Array.isArray(response.observed_condition)) {
+        observedCondition = response.observed_condition.join(" ");
+      } else if (typeof response.observed_condition === "string") {
+        observedCondition = response.observed_condition;
+      } else {
+        observedCondition = finding.observed || 
+                           finding.facts || 
+                           response.title ||
+                           "Condition observed during inspection.";
+      }
       md.push(observedCondition);
       md.push("");
       
-      // Evidence（观察到、测量到或验证到的内容）
+      // 3. Evidence（来自 observed_condition）
       md.push("#### Evidence");
-      const evidence = response.evidence ||
-                      finding.facts ||
-                      "Visual inspection and limited electrical testing performed in accordance with applicable standards.";
+      // Evidence 应该来自 observed_condition 数组
+      let evidence: string;
+      if (Array.isArray(response.observed_condition) && response.observed_condition.length > 0) {
+        // 使用 observed_condition 数组作为证据
+        evidence = response.observed_condition.join(". ");
+        if (!evidence.endsWith(".")) {
+          evidence += ".";
+        }
+      } else if (response.evidence) {
+        evidence = response.evidence;
+      } else if (finding.facts) {
+        evidence = finding.facts;
+      } else {
+        evidence = "Visual inspection and limited electrical testing performed in accordance with applicable standards.";
+      }
       md.push(evidence);
       md.push("");
       
-      // Risk Interpretation（必须遵守非协商性规则）
+      // 4. Risk Interpretation（必须遵守非协商性规则）
       md.push("#### Risk Interpretation");
       let riskInterpretation = response.risk_interpretation || response.why_it_matters || "";
       
@@ -434,16 +456,43 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       md.push(riskInterpretation);
       md.push("");
       
-      // Priority Classification
+      // 5. Priority Classification
       md.push("#### Priority Classification");
       md.push(`${priorityEmoji} ${priorityClassification}`);
       md.push("");
       
-      // Budgetary Planning Range（仅指示性财务范围，无建议）
+      // 6. Budgetary Planning Range（仅指示性财务范围，无建议）
       md.push("#### Budgetary Planning Range");
-      const budgetaryRange = response.budgetary_range || 
+      
+      // 格式化 budgetary_range
+      let budgetaryRangeText: string;
+      if (response.budgetary_range) {
+        // budgetary_range 可能是对象 {low, high, currency, note} 或字符串
+        if (typeof response.budgetary_range === "object" && response.budgetary_range !== null) {
+          const range = response.budgetary_range as { low?: number; high?: number; currency?: string; note?: string };
+          const currency = range.currency || "AUD";
+          const low = range.low;
+          const high = range.high;
+          
+          if (low !== undefined && high !== undefined) {
+            budgetaryRangeText = `${currency} $${low} – $${high} (indicative, planning only)`;
+            if (range.note) {
+              budgetaryRangeText += `. ${range.note}`;
+            }
+          } else {
+            budgetaryRangeText = "Indicative market benchmark range to be confirmed through contractor quotations.";
+          }
+        } else {
+          // 如果是字符串，直接使用
+          budgetaryRangeText = String(response.budgetary_range);
+        }
+      } else {
+        // 使用默认文本
+        budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
                             "Indicative market benchmark range to be confirmed through contractor quotations.";
-      md.push(budgetaryRange);
+      }
+      
+      md.push(budgetaryRangeText);
       md.push("");
       
       md.push("---");
