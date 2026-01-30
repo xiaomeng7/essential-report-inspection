@@ -121,7 +121,7 @@ function generateIfNotAddressed(
   immediate: number,
   urgent: number,
   recommended: number,
-  totalFindings: number,
+  _totalFindings: number,
   dominantRisk?: DominantRisk
 ): string {
   const totalUrgent = immediate + urgent;
@@ -152,8 +152,8 @@ function generateWhyNotImmediate(
   overall_level: OverallLevel,
   immediate: number,
   urgent: number,
-  recommended: number,
-  dominantRisk?: DominantRisk
+  _recommended: number,
+  _dominantRisk?: DominantRisk
 ): string {
   const totalUrgent = immediate + urgent;
   
@@ -178,8 +178,8 @@ function generateManageableRisk(
   overall_level: OverallLevel,
   immediate: number,
   urgent: number,
-  recommended: number,
-  dominantRisk?: DominantRisk
+  _recommended: number,
+  _dominantRisk?: DominantRisk
 ): string {
   const totalUrgent = immediate + urgent;
   
@@ -204,7 +204,7 @@ function generateCapExStatement(
   capexLow: number,
   capexHigh: number,
   hasCapEx: boolean,
-  totalFindings: number
+  _totalFindings: number
 ): string {
   if (hasCapEx) {
     if (capexLow === capexHigh) {
