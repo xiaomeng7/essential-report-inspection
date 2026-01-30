@@ -12,6 +12,13 @@ import { loadExecutiveSummaryTemplates } from "./lib/executiveSummaryLoader";
 import { buildReportMarkdown } from "./lib/buildReportMarkdown.js";
 import { markdownToHtml } from "./lib/markdownToHtml.js";
 import { renderDocx } from "./lib/renderDocx.js";
+import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection.js";
+import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader.js";
+import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring.js";
+import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals.js";
+import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages.js";
+import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap.js";
+import { ensureAllPlaceholders, DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS } from "../../src/reporting/placeholderMap.js";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -38,10 +45,527 @@ const docOptions = {
 let responsesCache: any = null;
 
 /**
+ * Required placeholder keys from PLACEHOLDER_MAP.md
+ * These keys must exist in the data passed to Docxtemplater
+ */
+const REQUIRED_KEYS = [
+  // Page 1 – Cover
+  "PROPERTY_ADDRESS",
+  "PREPARED_FOR",
+  "ASSESSMENT_DATE",
+  "PREPARED_BY",
+  "INSPECTION_ID",
+  // Page 2 – Purpose
+  "PURPOSE_PARAGRAPH",
+  "HOW_TO_READ_PARAGRAPH",
+  // Page 3 – Executive Summary
+  "OVERALL_STATUS_BADGE",
+  "EXECUTIVE_DECISION_SIGNALS",
+  "CAPEX_SNAPSHOT",
+  // Page 4 – Priority Overview (Table)
+  "PRIORITY_TABLE_ROWS",
+  // Page 5 – Scope & Limitations
+  "SCOPE_SECTION",
+  "LIMITATIONS_SECTION",
+  // Pages 6–10 – Observed Conditions (Dynamic)
+  "DYNAMIC_FINDING_PAGES",
+  // Page 11 – Thermal Imaging
+  "THERMAL_METHOD",
+  "THERMAL_FINDINGS",
+  "THERMAL_VALUE_STATEMENT",
+  // Page 12 – CapEx Roadmap
+  "CAPEX_TABLE_ROWS",
+  "CAPEX_DISCLAIMER_LINE",
+  // Page 13 – Decision Pathways
+  "DECISION_PATHWAYS_SECTION",
+  // Page 14 – Terms & Conditions
+  "TERMS_AND_CONDITIONS",
+  // Page 15 – Closing
+  "CLOSING_STATEMENT",
+  // Additional common placeholders
+  "REPORT_BODY_HTML",
+  "OVERALL_STATUS",
+  "RISK_RATING",
+  "EXECUTIVE_SUMMARY",
+  "CAPEX_RANGE",
+] as const;
+
+/**
+ * Default values for required placeholders
+ */
+const DEFAULT_PLACEHOLDER_VALUES: Record<string, string> = {
+  PROPERTY_ADDRESS: "-",
+  PREPARED_FOR: "-",
+  ASSESSMENT_DATE: "-",
+  PREPARED_BY: "-",
+  INSPECTION_ID: "-",
+  PURPOSE_PARAGRAPH: "This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.",
+  HOW_TO_READ_PARAGRAPH: "This report is a decision-support document designed to assist property owners, investors, and asset managers in understanding the electrical risk profile of the property and planning for future capital expenditure.",
+  OVERALL_STATUS_BADGE: "🟡 Moderate",
+  EXECUTIVE_DECISION_SIGNALS: "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.",
+  CAPEX_SNAPSHOT: "AUD $0 – $0",
+  PRIORITY_TABLE_ROWS: "",
+  SCOPE_SECTION: "This assessment is non-invasive and limited to accessible areas only.",
+  LIMITATIONS_SECTION: "Areas that are concealed, locked, or otherwise inaccessible were not inspected.",
+  DYNAMIC_FINDING_PAGES: "No findings were identified during this assessment.",
+  THERMAL_METHOD: "Thermal imaging was performed using non-invasive infrared technology to identify potential electrical issues.",
+  THERMAL_FINDINGS: "No significant thermal anomalies were detected during the inspection.",
+  THERMAL_VALUE_STATEMENT: "Thermal imaging provides valuable non-invasive decision support for risk identification.",
+  CAPEX_TABLE_ROWS: "",
+  CAPEX_DISCLAIMER_LINE: "Provided for financial provisioning only. Not a quotation or scope of works.",
+  DECISION_PATHWAYS_SECTION: "This report provides a framework for managing risk, not removing it.",
+  TERMS_AND_CONDITIONS: "Terms and conditions apply. Please refer to the full terms document.",
+  CLOSING_STATEMENT: "For questions or clarifications regarding this report, please contact the inspection provider.",
+  REPORT_BODY_HTML: "",
+  OVERALL_STATUS: "MODERATE RISK",
+  RISK_RATING: "MODERATE",
+  EXECUTIVE_SUMMARY: "This property presents a moderate electrical risk profile at the time of inspection.",
+  CAPEX_RANGE: "To be confirmed",
+};
+
+/**
+ * Apply placeholder fallback strategy
+ * Ensures all required keys exist and all values are strings
+ */
+function applyPlaceholderFallback<T extends Record<string, any>>(data: T): Record<string, string> {
+  const result: Record<string, string> = {};
+  
+  // First, convert all existing values to strings
+  for (const [key, value] of Object.entries(data)) {
+    if (value == null) {
+      result[key] = "";
+    } else if (Array.isArray(value)) {
+      // Arrays: join with newlines and sanitize
+      result[key] = value.map(item => sanitizeText(item)).join("\n");
+    } else if (typeof value === "object") {
+      // Objects: convert to JSON string
+      result[key] = JSON.stringify(value);
+    } else {
+      // Primitives: convert to string
+      result[key] = sanitizeText(value);
+    }
+  }
+  
+  // Then, ensure all required keys exist with non-empty values
+  for (const key of REQUIRED_KEYS) {
+    if (!(key in result) || result[key] === "" || result[key] == null) {
+      // Use default value if available, otherwise use "-"
+      result[key] = DEFAULT_PLACEHOLDER_VALUES[key] || "-";
+      console.warn(`⚠️ Placeholder ${key} was missing or empty, using default: "${result[key].substring(0, 50)}..."`);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Sanitize text for Docxtemplater
+ * 
+ * Rules:
+ * - null/undefined -> ""
+ * - number/boolean -> String(x)
+ * - Array -> join with "\n" and sanitize each element
+ * - Replace NBSP \u00A0 with regular space
+ * - Remove control characters (keep \n and \t)
+ * - Normalize line endings: \r\n and \r -> \n
+ */
+function sanitizeText(input: unknown): string {
+  // Handle null/undefined
+  if (input == null) {
+    return "";
+  }
+  
+  // Handle arrays
+  if (Array.isArray(input)) {
+    return input.map(item => sanitizeText(item)).join("\n");
+  }
+  
+  // Handle number/boolean
+  if (typeof input === "number" || typeof input === "boolean") {
+    return String(input);
+  }
+  
+  // Handle objects (convert to string representation)
+  if (typeof input === "object") {
+    return String(input);
+  }
+  
+  // Handle string
+  if (typeof input === "string") {
+    let sanitized = input;
+    
+    // Replace NBSP (\u00A0) with regular space
+    sanitized = sanitized.replace(/\u00A0/g, " ");
+    
+    // Normalize line endings: \r\n and \r -> \n
+    sanitized = sanitized.replace(/\r\n/g, "\n");
+    sanitized = sanitized.replace(/\r/g, "\n");
+    
+    // Remove control characters (keep \n and \t)
+    sanitized = sanitized.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "");
+    
+    return sanitized;
+  }
+  
+  // Fallback: convert to string
+  return String(input);
+}
+
+/**
+ * Recursively sanitize all values in an object
+ */
+function sanitizeObject<T extends Record<string, any>>(obj: T): T {
+  const sanitized: any = {};
+  
+  for (const [key, value] of Object.entries(obj)) {
+    if (Array.isArray(value)) {
+      // For arrays, sanitize each element
+      sanitized[key] = value.map(item => {
+        if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+          return sanitizeObject(item);
+        }
+        return sanitizeText(item);
+      });
+    } else if (typeof value === "object" && value !== null) {
+      // For nested objects, recursively sanitize
+      sanitized[key] = sanitizeObject(value);
+    } else {
+      // For primitives, sanitize directly
+      sanitized[key] = sanitizeText(value);
+    }
+  }
+  
+  return sanitized as T;
+}
+
+/**
+ * Build CapEx roadmap table rows from findings and profiles
+ * Groups findings by timeline and generates a 5-year roadmap table
+ */
+function buildCapExTableRows(
+  findings: Array<{ id: string; priority: string }>,
+  profilesForScoring: Record<string, any>,
+  findingsMap: Record<string, any>
+): string {
+  // Filter findings that should appear in CapEx roadmap
+  // Include IMMEDIATE, URGENT, RECOMMENDED_0_3_MONTHS, PLAN_MONITOR
+  const relevantFindings = findings.filter(f => {
+    const priority = f.priority || "";
+    return priority === "IMMEDIATE" || 
+           priority === "URGENT" || 
+           priority === "RECOMMENDED_0_3_MONTHS" || 
+           priority === "PLAN_MONITOR";
+  });
+  
+  if (relevantFindings.length === 0) {
+    return "| Year | Item | Indicative Range |\n|------|------|------------------|\n| - | No capital expenditure items identified | - |";
+  }
+  
+  // Group findings by timeline
+  const timelineGroups: Record<string, Array<{
+    title: string;
+    budgetRange: string;
+    priority: string;
+  }>> = {
+    "Year 1 (0–3 months)": [],
+    "Year 1 (3–12 months)": [],
+    "Year 2–3": [],
+    "Year 4–5": [],
+    "Future planning": [],
+  };
+  
+  for (const finding of relevantFindings) {
+    const profile = profilesForScoring[finding.id] || {};
+    const response = findingsMap[finding.id];
+    
+    // Get title from response or profile
+    const title = response?.title || 
+                  profile.messaging?.title || 
+                  finding.id.replace(/_/g, " ");
+    
+    // Get budget range from response, profile, or generate default
+    let budgetRange = "To be confirmed";
+    if (response?.budget_range_text) {
+      budgetRange = response.budget_range_text;
+    } else if (response?.budget_range_low !== undefined && response?.budget_range_high !== undefined) {
+      budgetRange = `AUD $${response.budget_range_low}–$${response.budget_range_high}`;
+    } else if (profile.budget_range) {
+      budgetRange = profile.budget_range;
+    } else if (profile.budget) {
+      // Generate from budget band if available
+      const band = profile.budget_band || "LOW";
+      const ranges: Record<string, string> = {
+        LOW: "AUD $500–$2,000",
+        MED: "AUD $2,000–$5,000",
+        HIGH: "AUD $5,000–$15,000",
+      };
+      budgetRange = ranges[band] || "To be confirmed";
+    }
+    
+    // Get timeline from profile
+    const timeline = profile.timeline || "6–18 months";
+    const priority = finding.priority || "PLAN_MONITOR";
+    
+    // Map timeline to year group
+    let yearGroup: string;
+    if (timeline.includes("0–3") || timeline.includes("0-3") || priority === "IMMEDIATE" || priority === "URGENT") {
+      yearGroup = "Year 1 (0–3 months)";
+    } else if (timeline.includes("3–12") || timeline.includes("3-12") || timeline.includes("6–12") || timeline.includes("6-12") || priority === "RECOMMENDED_0_3_MONTHS") {
+      yearGroup = "Year 1 (3–12 months)";
+    } else if (timeline.includes("18") || timeline.includes("2–3") || timeline.includes("2-3")) {
+      yearGroup = "Year 2–3";
+    } else if (timeline.includes("4–5") || timeline.includes("4-5") || timeline.includes("5")) {
+      yearGroup = "Year 4–5";
+    } else if (timeline.includes("renovation") || timeline.includes("Future") || timeline.includes("Next")) {
+      yearGroup = "Future planning";
+    } else {
+      // Default to Year 2–3 for unclear timelines
+      yearGroup = "Year 2–3";
+    }
+    
+    timelineGroups[yearGroup].push({
+      title,
+      budgetRange,
+      priority,
+    });
+  }
+  
+  // Build table rows
+  const rows: string[] = [];
+  rows.push("| Year | Item | Indicative Range |");
+  rows.push("|------|------|------------------|");
+  
+  // Output groups in order
+  const groupOrder = [
+    "Year 1 (0–3 months)",
+    "Year 1 (3–12 months)",
+    "Year 2–3",
+    "Year 4–5",
+    "Future planning",
+  ];
+  
+  for (const group of groupOrder) {
+    const items = timelineGroups[group];
+    if (items.length === 0) continue;
+    
+    // Sort by priority (IMMEDIATE > URGENT > RECOMMENDED > PLAN)
+    items.sort((a, b) => {
+      const priorityOrder: Record<string, number> = {
+        IMMEDIATE: 0,
+        URGENT: 1,
+        RECOMMENDED_0_3_MONTHS: 2,
+        PLAN_MONITOR: 3,
+      };
+      return (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+    });
+    
+    for (const item of items) {
+      rows.push(`| ${group} | ${item.title} | ${item.budgetRange} |`);
+    }
+  }
+  
+  if (rows.length === 2) {
+    // Only header rows, no data
+    rows.push("| - | No capital expenditure items identified | - |");
+  }
+  
+  return rows.join("\n");
+}
+
+/**
+ * Build Test Summary and Technical Notes from canonical test_data with mandatory fallback
+ * Ensures these sections never output undefined values
+ */
+function buildTestDataAndNotes(
+  testData: Record<string, unknown>,
+  technicianNotes: string,
+  limitations: string[],
+  defaultText: Record<string, string>
+): { testSummary: string; technicalNotes: string } {
+  // Build Test Summary from test_data
+  const testSummaryParts: string[] = [];
+  
+  // Extract RCD test summary
+  const rcdTests = testData.rcd_tests as Record<string, unknown> | undefined;
+  if (rcdTests) {
+    const performed = rcdTests.performed;
+    if (performed === true || performed === "true" || performed === "yes") {
+      const summary = rcdTests.summary as Record<string, unknown> | undefined;
+      if (summary) {
+        const totalTested = summary.total_tested || summary.total_tested;
+        const totalPass = summary.total_pass || 0;
+        const totalFail = summary.total_fail || 0;
+        if (totalTested !== undefined) {
+          testSummaryParts.push(`RCD Testing: ${totalTested} device(s) tested. ${totalPass} passed, ${totalFail} failed.`);
+        }
+      } else {
+        testSummaryParts.push("RCD Testing: Performed (details not available).");
+      }
+    }
+  }
+  
+  // Extract GPO test summary
+  const gpoTests = testData.gpo_tests as Record<string, unknown> | undefined;
+  if (gpoTests) {
+    const performed = gpoTests.performed;
+    if (performed === true || performed === "true" || performed === "yes") {
+      const summary = gpoTests.summary as Record<string, unknown> | undefined;
+      if (summary) {
+        const totalTested = summary.total_tested || summary.total_outlets_tested || 0;
+        if (totalTested !== undefined && totalTested > 0) {
+          const polarityPass = summary.polarity_pass_count || 0;
+          const earthPass = summary.earth_present_pass_count || 0;
+          testSummaryParts.push(`GPO Testing: ${totalTested} outlet(s) tested. Polarity: ${polarityPass} passed, Earth: ${earthPass} passed.`);
+        }
+      } else {
+        testSummaryParts.push("GPO Testing: Performed (details not available).");
+      }
+    }
+  }
+  
+  // Extract earthing data
+  const earthing = testData.earthing as Record<string, unknown> | undefined;
+  if (earthing) {
+    const earthResistance = earthing.resistance || earthing.earth_resistance;
+    if (earthResistance !== undefined) {
+      testSummaryParts.push(`Earthing: Resistance measured at ${earthResistance} Ω.`);
+    }
+  }
+  
+  // Build final test summary with mandatory fallback
+  const testSummary = testSummaryParts.length > 0
+    ? testSummaryParts.join(" ")
+    : (defaultText.TEST_SUMMARY || "Electrical testing was performed in accordance with standard inspection procedures. Detailed test results are available upon request.");
+  
+  // Build Technical Notes combining technician notes and limitations
+  const technicalNotesParts: string[] = [];
+  
+  // Add technician notes if available
+  if (technicianNotes && technicianNotes.trim()) {
+    technicalNotesParts.push(`Technician Notes: ${technicianNotes.trim()}`);
+  }
+  
+  // Add limitations
+  if (limitations && limitations.length > 0) {
+    technicalNotesParts.push(`Limitations: ${limitations.join("; ")}`);
+  }
+  
+  // Add access information from test_data if available
+  const access = testData.access as Record<string, unknown> | undefined;
+  if (access) {
+    const accessNotes: string[] = [];
+    if (access.switchboard_accessible === false) {
+      accessNotes.push("Switchboard not accessible");
+    }
+    if (access.roof_accessible === false) {
+      accessNotes.push("Roof space not accessible");
+    }
+    if (access.underfloor_accessible === false) {
+      accessNotes.push("Underfloor not accessible");
+    }
+    if (accessNotes.length > 0) {
+      technicalNotesParts.push(`Access Constraints: ${accessNotes.join("; ")}`);
+    }
+  }
+  
+  // Build final technical notes with mandatory fallback
+  const technicalNotes = technicalNotesParts.length > 0
+    ? technicalNotesParts.join("\n\n")
+    : (defaultText.TECHNICAL_NOTES || "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.");
+  
+  return { testSummary, technicalNotes };
+}
+
+/**
+ * Load Terms and Conditions from DEFAULT_TERMS.md
+ * Tries multiple possible locations, falls back to hardcoded default if file not found
+ */
+async function loadTermsAndConditions(): Promise<string> {
+  const possiblePaths = [
+    path.join(__dirname, "DEFAULT_TERMS.md"),
+    path.join(__dirname, "..", "DEFAULT_TERMS.md"),
+    path.join(__dirname, "..", "..", "DEFAULT_TERMS.md"),
+    path.join(process.cwd(), "DEFAULT_TERMS.md"),
+    path.join(process.cwd(), "netlify", "functions", "DEFAULT_TERMS.md"),
+    "/opt/build/repo/DEFAULT_TERMS.md",
+    "/opt/build/repo/netlify/functions/DEFAULT_TERMS.md",
+  ];
+  
+  for (const filePath of possiblePaths) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        console.log(`✅ Loaded Terms and Conditions from: ${filePath}`);
+        return content;
+      }
+    } catch (e) {
+      console.warn(`Failed to load DEFAULT_TERMS.md from ${filePath}:`, e);
+      continue;
+    }
+  }
+  
+  // Fallback to hardcoded default Terms and Conditions (from DEFAULT_TERMS.md)
+  console.warn("⚠️ DEFAULT_TERMS.md not found, using hardcoded fallback");
+  return `# TERMS & CONDITIONS OF ASSESSMENT (Default)
+
+## 1. Australian Consumer Law (ACL) Acknowledgement
+Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL).  
+Nothing in this Report or these Terms seeks to exclude, restrict, or modify any consumer guarantees that cannot lawfully be excluded.
+
+## 2. Nature & Scope of Professional Opinion
+This Assessment is a point-in-time, non-destructive, visual and functional review of accessible electrical components only.  
+It is non-intrusive and non-exhaustive, and does not constitute:
+- a compliance certificate,
+- an electrical safety certificate,
+- an engineering report,
+- a structural inspection, or
+- a guarantee of future performance.
+
+No representation is made that all defects, latent conditions, or future failures have been identified.
+
+## 3. Decision-Support Only – No Repair Advice
+This Report is provided solely as a risk identification and asset planning tool.  
+It does not:
+- prescribe a scope of rectification works,
+- provide quotations,
+- endorse or appoint contractors, or
+- certify statutory compliance.
+
+Any budgetary figures or planning horizons included are indicative market benchmarks only, provided to assist financial provisioning and decision-making, not as repair advice or binding cost guidance.
+
+## 4. Independence & Conflict-Free Position
+This Assessment is conducted independently of any repair, upgrade, or installation services.  
+Better Home Technology Pty Ltd does not undertake rectification works arising from this Report.  
+This separation exists to preserve independence, objectivity, and financial neutrality of the findings.
+
+## 5. Exclusive Reliance & Confidentiality
+This Report has been prepared solely for the Client named in the Report for the purpose of informed asset and risk management.  
+No duty of care is owed to any third party. No third party (including purchasers, insurers, financiers, or agents) may rely upon this Report without express written consent.
+
+## 6. Limitation of Liability & Exclusion of Consequential Loss
+To the maximum extent permitted by law, Better Home Technology Pty Ltd excludes liability for any indirect or consequential loss arising from reliance on this Report, including but not limited to:
+- loss of rental income,
+- business interruption,
+- property downtime, or
+- alleged diminution of asset value.
+
+## 7. Hazardous Materials (Including Asbestos)
+Our technicians are not licensed asbestos assessors. No testing for hazardous materials has been conducted.  
+Where materials suspected to contain asbestos are observed, they are treated as such and no intrusive inspection is performed.
+
+## 8. Statutory Compliance Disclaimer
+This Report is a risk management and decision-support tool only.  
+It does not constitute any state-based mandatory electrical compliance inspection, rental safety certification, or statutory approval unless expressly stated otherwise in writing.
+
+## 9. Framework Statement
+This assessment does not eliminate risk, but provides a structured framework for managing it.`;
+}
+
+/**
  * Load responses.yml file (standardized text templates for findings)
  * Tries blob store first, then falls back to file system
  */
-async function loadResponses(event?: HandlerEvent): Promise<any> {
+export async function loadResponses(event?: HandlerEvent): Promise<any> {
   if (responsesCache) {
     return responsesCache;
   }
@@ -309,7 +833,22 @@ function loadWordTemplate(): Buffer {
 }
 
 // Build report data from inspection - unified data structure for HTML and Word
-export type ReportData = {
+export type ExtendedFinding = {
+  id: string;
+  priority: string;
+  title: string;
+  risk_safety: "HIGH" | "MODERATE" | "LOW";
+  risk_compliance: "HIGH" | "MEDIUM" | "LOW";
+  risk_escalation: "HIGH" | "MODERATE" | "LOW";
+  budget: "low" | "high" | "horizon";
+  category: string;
+};
+
+/**
+ * Internal report data structure (for backward compatibility)
+ * Used by buildWordTemplateData and other legacy functions
+ */
+export type InternalReportData = {
   inspection_id: string;
   immediate: string[];
   recommended: string[];
@@ -319,7 +858,28 @@ export type ReportData = {
   capex_high_total: number;
   capex_currency: string;
   capex_note: string;
+  // Extended findings with risk/budget scores
+  extended_findings: ExtendedFinding[];
+  // Overall risk assessment
+  overall_risk_level: "Low" | "Moderate" | "Elevated";
+  RISK_RATING: string;
+  OVERALL_STATUS: string;
+  OVERALL_STATUS_BADGE: string;
+  // Executive Decision Signals
+  EXECUTIVE_DECISION_SIGNALS: string;
+  // CapEx Snapshot
+  CAPEX_SNAPSHOT: string;
+  // Terms and Conditions
+  TERMS_AND_CONDITIONS: string;
+  // Dynamic Finding Pages
+  DYNAMIC_FINDING_PAGES: string;
 };
+
+/**
+ * @deprecated Use PlaceholderReportData from placeholderMap.ts instead
+ * This type is kept for backward compatibility only
+ */
+export type ReportData = InternalReportData;
 
 /**
  * Word template placeholder data structure
@@ -360,6 +920,9 @@ export type WordTemplateData = {
   // Technical sections (Priority 1/2/3)
   TEST_SUMMARY: string;
   TECHNICAL_NOTES: string;
+  
+  // Dynamic Finding Pages (Pages 6–10)
+  DYNAMIC_FINDING_PAGES: string;
 };
 
 /**
@@ -438,17 +1001,26 @@ function calculateCapExSummary(
 }
 
 /**
- * Build report data from inspection - unified data structure for HTML and Word
- * Returns findings grouped by priority
+ * Build complete Word template placeholder data from inspection
+ * Returns all placeholders used in Gold_Sample_Ideal_Report_Template.docx
+ * All fields are guaranteed to be strings (never undefined)
  */
-export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent): Promise<ReportData> {
+export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent): Promise<PlaceholderReportData> {
   const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
+  
+  // Load finding profiles
+  const profiles = loadFindingProfiles();
   
   // Group findings by priority and use standardized text from responses.yml
   const immediate: string[] = [];
   const recommended: string[] = [];
   const plan: string[] = [];
+  const extendedFindings: ExtendedFinding[] = [];
+  
+  // Track risk scores for overall risk calculation
+  const urgentFindings: ExtendedFinding[] = [];
+  const recommendedFindings: ExtendedFinding[] = [];
   
   inspection.findings.forEach((finding) => {
     const findingCode = finding.id;
@@ -462,29 +1034,318 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
       findingText = finding.title || findingCode.replace(/_/g, " ");
     }
     
+    // Get profile for this finding (new structure)
+    const profile = getFindingProfile(findingCode);
+    
+    // Use profile.messaging.title if available
+    const findingTitle = profile.messaging?.title || findingText;
+    
+    // Create extended finding
+    const extendedFinding: ExtendedFinding = {
+      id: findingCode,
+      priority: finding.priority,
+      title: findingTitle,
+      risk_safety: profile.risk?.safety || "LOW",
+      risk_compliance: profile.risk?.compliance || "LOW",
+      risk_escalation: profile.risk?.escalation || "LOW",
+      budget: profile.budget || "horizon",
+      category: profile.category || "OTHER",
+    };
+    
+    extendedFindings.push(extendedFinding);
+    
+    // Group by priority for text lists
     if (finding.priority === "IMMEDIATE") {
       immediate.push(findingText);
+      urgentFindings.push(extendedFinding);
     } else if (finding.priority === "RECOMMENDED_0_3_MONTHS") {
       recommended.push(findingText);
+      recommendedFindings.push(extendedFinding);
     } else if (finding.priority === "PLAN_MONITOR") {
       plan.push(findingText);
     }
   });
   
-  // Calculate CapEx summary
-  const capexSummary = calculateCapExSummary(inspection.findings || [], findingsMap);
+  // Use new Priority × Risk × Budget scoring model
+  const findingsForScoring: FindingForScoring[] = inspection.findings.map(f => ({
+    id: f.id,
+    priority: f.priority || "PLAN_MONITOR",
+  }));
   
-  return {
-    inspection_id: inspection.inspection_id,
-    immediate,
-    recommended,
-    plan,
-    limitations: inspection.limitations || [],
-    capex_low_total: capexSummary.low_total,
-    capex_high_total: capexSummary.high_total,
-    capex_currency: capexSummary.currency,
-    capex_note: capexSummary.note,
+  // Convert profiles to scoring format, merging budgetary_range from responses.yml
+  const profilesForScoring: Record<string, any> = {};
+  for (const finding of inspection.findings) {
+    const profile = getFindingProfile(finding.id);
+    const response = findingsMap[finding.id];
+    
+    // Convert profile to scoring format
+    const scoringProfile = convertProfileForScoring(profile);
+    
+    // Merge budgetary_range from responses.yml if available
+    if (response && response.budgetary_range && typeof response.budgetary_range === "object") {
+      const range = response.budgetary_range;
+      if (range.low !== undefined || range.high !== undefined) {
+        scoringProfile.budget = {
+          low: typeof range.low === "number" ? range.low : 0,
+          high: typeof range.high === "number" ? range.high : 0,
+        };
+      }
+    }
+    
+    profilesForScoring[finding.id] = scoringProfile;
+  }
+  
+  // Compute overall score using new model
+  const overallScore = computeOverall(findingsForScoring, profilesForScoring);
+  
+  // Calculate top findings: compute score for each finding and sort by score (descending), take top 3
+  const findingsWithScores: Array<{ finding: typeof inspection.findings[0], score: number, title: string }> = [];
+  for (const finding of inspection.findings) {
+    const profile = profilesForScoring[finding.id];
+    const effectivePriority = finding.priority || profile?.default_priority || "PLAN_MONITOR";
+    const score = findingScore(profile || {}, effectivePriority);
+    
+    // Get title from response or profile or finding
+    const response = findingsMap[finding.id];
+    const profileObj = getFindingProfile(finding.id);
+    const title = profileObj.messaging?.title || response?.title || finding.title || finding.id.replace(/_/g, " ");
+    
+    findingsWithScores.push({ finding, score, title });
+  }
+  
+  // Sort by score descending and take top 3
+  const topFindings: TopFinding[] = findingsWithScores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(item => ({
+      id: item.finding.id,
+      title: item.title,
+      priority: item.finding.priority || "PLAN_MONITOR",
+      score: item.score,
+    }));
+  
+  // Count findings by priority
+  const counts = {
+    immediate: inspection.findings.filter(f => f.priority === "IMMEDIATE").length,
+    urgent: inspection.findings.filter(f => f.priority === "URGENT").length,
+    recommended: inspection.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length,
+    plan: inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length,
   };
+  
+  // Generate Executive Decision Signals
+  // Convert dominant_risk array to single value for compatibility
+  // Use first element if available, or map category to old format
+  let dominantRiskForSignals: "safety" | "compliance" | "escalation" | undefined = undefined;
+  if (overallScore.dominant_risk && overallScore.dominant_risk.length > 0) {
+    const firstRisk = overallScore.dominant_risk[0].toUpperCase();
+    if (firstRisk === "SAFETY" || firstRisk === "SHOCK" || firstRisk === "FIRE" || firstRisk === "LIFE_SAFETY") {
+      dominantRiskForSignals = "safety";
+    } else if (firstRisk === "COMPLIANCE") {
+      dominantRiskForSignals = "compliance";
+    } else if (firstRisk === "ESCALATION" || firstRisk === "RELIABILITY" || firstRisk === "LEGACY") {
+      dominantRiskForSignals = "escalation";
+    }
+  }
+  
+  const executiveSignals = generateExecutiveSignals({
+    overall_level: overallScore.overall_level,
+    counts,
+    capex: {
+      low: overallScore.capex_low,
+      high: overallScore.capex_high,
+    },
+    capex_incomplete: overallScore.capex_incomplete,
+    topFindings,
+    dominantRisk: overallScore.dominant_risk.length > 0 ? overallScore.dominant_risk : dominantRiskForSignals,
+  });
+  
+  // Format EXECUTIVE_DECISION_SIGNALS: bullets with "• " prefix, joined by newlines
+  const EXECUTIVE_DECISION_SIGNALS = executiveSignals.bullets
+    .map(bullet => `• ${bullet}`)
+    .join("\n") || "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
+  
+  // Map overall_level to old format for compatibility
+  let overallRiskLevel: "Low" | "Moderate" | "Elevated";
+  switch (overallScore.overall_level) {
+    case "ELEVATED":
+      overallRiskLevel = "Elevated";
+      break;
+    case "MODERATE":
+      overallRiskLevel = "Moderate";
+      break;
+    case "LOW":
+      overallRiskLevel = "Low";
+      break;
+  }
+  
+  // Generate RISK_RATING / OVERALL_STATUS / OVERALL_STATUS_BADGE from scoring model
+  const RISK_RATING = overallScore.badge || "🟡 Moderate";
+  const OVERALL_STATUS = overallScore.badge || "🟡 Moderate";
+  const OVERALL_STATUS_BADGE = overallScore.badge || "🟡 Moderate";
+  
+  // Use CapEx from scoring model (or fallback to calculateCapExSummary)
+  const capexSummary = overallScore.capex_low > 0 || overallScore.capex_high > 0
+    ? {
+        low_total: overallScore.capex_low,
+        high_total: overallScore.capex_high,
+        currency: "AUD", // Default, could be extracted from responses.yml
+        note: `Indicative ranges based on ${findingsForScoring.length} finding(s).`,
+      }
+    : calculateCapExSummary(inspection.findings || [], findingsMap);
+  
+  // Format CAPEX_SNAPSHOT
+  const CAPEX_SNAPSHOT = (capexSummary.low_total > 0 || capexSummary.high_total > 0)
+    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total || 0} – $${capexSummary.high_total || 0}`
+    : "AUD $0 – $0";
+  
+  // Load Terms and Conditions
+  const TERMS_AND_CONDITIONS = await loadTermsAndConditions();
+  
+  // Generate Dynamic Finding Pages
+  const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspection, event);
+  
+  // Load default text for additional fields
+  const defaultText = await loadDefaultText(event);
+  
+  // Normalize inspection to get canonical fields
+  const { canonical } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
+  
+  // Format assessment_date
+  let assessmentDate = canonical.assessment_date || defaultText.ASSESSMENT_DATE || new Date().toISOString().split('T')[0];
+  if (assessmentDate && !assessmentDate.includes("-")) {
+    try {
+      const date = new Date(assessmentDate);
+      if (!isNaN(date.getTime())) {
+        assessmentDate = date.toISOString().split('T')[0];
+      }
+    } catch (e) {
+      // Keep original value
+    }
+  }
+  
+  // Build Test Summary and Technical Notes from canonical test_data with mandatory fallback
+  const { testSummary, technicalNotes } = buildTestDataAndNotes(
+    canonical.test_data || {},
+    canonical.technician_notes || "",
+    inspection.limitations || [],
+    defaultText
+  );
+  
+  // Build priority table rows
+  const priorityTableRows: string[] = [];
+  if (immediate.length > 0) {
+    priorityTableRows.push(`| 🔴 Immediate Action Required | ${immediate.length} | Urgent Liability Risk |`);
+  }
+  if (recommended.length > 0) {
+    priorityTableRows.push(`| 🟡 Planning & Budgeting | ${recommended.length} | Budgetary Provision Recommended |`);
+  }
+  if (plan.length > 0) {
+    priorityTableRows.push(`| 🟢 Planning & Monitoring | ${plan.length} | Acceptable |`);
+  }
+  const PRIORITY_TABLE_ROWS = priorityTableRows.join("\n");
+  
+  // Build limitations section
+  const LIMITATIONS_SECTION = inspection.limitations && inspection.limitations.length > 0
+    ? inspection.limitations.join("; ")
+    : "Areas that are concealed, locked, or otherwise inaccessible were not inspected.";
+  
+  // Build CapEx table rows from findings and profiles
+  const CAPEX_TABLE_ROWS = buildCapExTableRows(
+    inspection.findings || [],
+    profilesForScoring,
+    findingsMap
+  );
+  
+  // Format CAPEX_RANGE
+  const CAPEX_RANGE = (capexSummary.low_total > 0 || capexSummary.high_total > 0)
+    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total || 0} – $${capexSummary.high_total || 0}`
+    : "To be confirmed";
+  
+  // Build executive summary
+  const EXECUTIVE_SUMMARY = executiveSignals.bullets.join(" ") || "This property presents a moderate electrical risk profile at the time of inspection.";
+  
+  // Build placeholder data object
+  const placeholderData: Partial<PlaceholderReportData> = {
+    // Page 1 – Cover
+    PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS || "-",
+    CLIENT_NAME: canonical.prepared_for || defaultText.PREPARED_FOR || "-",
+    PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR || "-",
+    ASSESSMENT_DATE: assessmentDate,
+    REPORT_ID: inspection.inspection_id || "-",
+    INSPECTION_ID: inspection.inspection_id || "-",
+    REPORT_VERSION: defaultText.REPORT_VERSION || "1.0",
+    PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY || "-",
+    
+    // Page 2 – Purpose & How to Read
+    PURPOSE_PARAGRAPH: defaultText.PURPOSE_PARAGRAPH || PLACEHOLDER_DEFAULTS.PURPOSE_PARAGRAPH,
+    HOW_TO_READ_TEXT: defaultText.HOW_TO_READ_PARAGRAPH || PLACEHOLDER_DEFAULTS.HOW_TO_READ_TEXT,
+    HOW_TO_READ_PARAGRAPH: defaultText.HOW_TO_READ_PARAGRAPH || PLACEHOLDER_DEFAULTS.HOW_TO_READ_PARAGRAPH,
+    WHAT_THIS_MEANS_TEXT: defaultText.HOW_TO_READ_PARAGRAPH || PLACEHOLDER_DEFAULTS.WHAT_THIS_MEANS_TEXT,
+    
+    // Page 3 – Executive Summary
+    OVERALL_STATUS_BADGE: OVERALL_STATUS_BADGE,
+    EXEC_SUMMARY_TEXT: EXECUTIVE_DECISION_SIGNALS,
+    EXECUTIVE_DECISION_SIGNALS: EXECUTIVE_DECISION_SIGNALS,
+    EXECUTIVE_SUMMARY: EXECUTIVE_SUMMARY,
+    CAPEX_SNAPSHOT: CAPEX_SNAPSHOT,
+    
+    // Page 4 – Priority Overview
+    PRIORITY_TABLE_ROWS: PRIORITY_TABLE_ROWS,
+    
+    // Page 5 – Scope & Limitations
+    SCOPE_TEXT: defaultText.SCOPE_SECTION || PLACEHOLDER_DEFAULTS.SCOPE_TEXT,
+    SCOPE_SECTION: defaultText.SCOPE_SECTION || PLACEHOLDER_DEFAULTS.SCOPE_SECTION,
+    LIMITATIONS_SECTION: LIMITATIONS_SECTION,
+    
+    // Pages 6–10 – Observed Conditions
+    DYNAMIC_FINDING_PAGES: DYNAMIC_FINDING_PAGES,
+    DYNAMIC_FINDING_PAGES_HTML: DYNAMIC_FINDING_PAGES
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br/>")
+      .replace(/^/, "<p>")
+      .replace(/$/, "</p>"),
+    
+    // Page 11 – Thermal Imaging
+    THERMAL_METHOD: defaultText.THERMAL_METHOD || PLACEHOLDER_DEFAULTS.THERMAL_METHOD,
+    THERMAL_FINDINGS: defaultText.THERMAL_FINDINGS || PLACEHOLDER_DEFAULTS.THERMAL_FINDINGS,
+    THERMAL_VALUE_STATEMENT: defaultText.THERMAL_VALUE_STATEMENT || PLACEHOLDER_DEFAULTS.THERMAL_VALUE_STATEMENT,
+    
+    // Page 12 – CapEx Roadmap
+    CAPEX_TABLE_ROWS: CAPEX_TABLE_ROWS,
+    CAPEX_DISCLAIMER_LINE: defaultText.CAPEX_DISCLAIMER_LINE || PLACEHOLDER_DEFAULTS.CAPEX_DISCLAIMER_LINE,
+    
+    // Page 13 – Decision Pathways
+    DECISION_PATHWAYS_TEXT: defaultText.DECISION_PATHWAYS_SECTION || PLACEHOLDER_DEFAULTS.DECISION_PATHWAYS_TEXT,
+    DECISION_PATHWAYS_SECTION: defaultText.DECISION_PATHWAYS_SECTION || PLACEHOLDER_DEFAULTS.DECISION_PATHWAYS_SECTION,
+    
+    // Page 14 – Terms & Conditions
+    TERMS_AND_CONDITIONS_TEXT: TERMS_AND_CONDITIONS,
+    TERMS_AND_CONDITIONS: TERMS_AND_CONDITIONS,
+    
+    // Page 15 – Closing
+    CLOSING_STATEMENT: defaultText.CLOSING_STATEMENT || PLACEHOLDER_DEFAULTS.CLOSING_STATEMENT,
+    
+    // Additional sections
+    METHODOLOGY_TEXT: defaultText.METHODOLOGY_TEXT || PLACEHOLDER_DEFAULTS.METHODOLOGY_TEXT,
+    RISK_FRAMEWORK_TEXT: defaultText.RISK_FRAMEWORK_TEXT || PLACEHOLDER_DEFAULTS.RISK_FRAMEWORK_TEXT,
+    APPENDIX_TEST_NOTES_TEXT: testSummary || defaultText.TEST_SUMMARY || PLACEHOLDER_DEFAULTS.APPENDIX_TEST_NOTES_TEXT,
+    TEST_SUMMARY: testSummary || defaultText.TEST_SUMMARY || PLACEHOLDER_DEFAULTS.TEST_SUMMARY,
+    TECHNICAL_NOTES: technicalNotes || defaultText.TECHNICAL_NOTES || PLACEHOLDER_DEFAULTS.TECHNICAL_NOTES,
+    
+    // Additional metadata
+    OVERALL_STATUS: OVERALL_STATUS,
+    RISK_RATING: RISK_RATING,
+    CAPEX_RANGE: CAPEX_RANGE,
+    REPORT_BODY_HTML: "", // Will be populated by markdownToHtml if needed
+  };
+  
+  // Use ensureAllPlaceholders to guarantee all fields are present and non-empty
+  const completeData = ensureAllPlaceholders(placeholderData);
+  
+  // Sanitize all values before returning
+  const sanitized = sanitizeObject(completeData);
+  
+  return sanitized as PlaceholderReportData;
 }
 
 /**
@@ -500,21 +1361,32 @@ async function buildCoverData(
   event?: HandlerEvent
 ): Promise<Record<string, string>> {
   const defaultText = await loadDefaultText(event);
-  const raw = inspection.raw;
   
-  const inspectionId = inspection.inspection_id || defaultText.INSPECTION_ID;
+  // Use canonical layer instead of directly reading raw
+  const { canonical } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
   
-  const createdAt = getFieldValue(raw, "created_at");
-  const assessmentDate = createdAt 
-    ? new Date(createdAt).toISOString().split('T')[0]
-    : (new Date().toISOString().split('T')[0] || defaultText.ASSESSMENT_DATE);
+  const inspectionId = canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID;
   
-  const propertyAddress = getFieldValue(raw, "job.address") || defaultText.PROPERTY_ADDRESS;
-  const propertyType = getFieldValue(raw, "job.property_type") || defaultText.PROPERTY_TYPE;
-  const preparedFor = getFieldValue(raw, "client.name") || getFieldValue(raw, "client.client_type") || defaultText.PREPARED_FOR;
-  const preparedBy = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
+  // Format assessment_date
+  let assessmentDate = canonical.assessment_date || defaultText.ASSESSMENT_DATE;
+  if (assessmentDate && !assessmentDate.includes("-")) {
+    // Try to format if it's not already formatted
+    try {
+      const date = new Date(assessmentDate);
+      if (!isNaN(date.getTime())) {
+        assessmentDate = date.toISOString().split('T')[0];
+      }
+    } catch (e) {
+      // Keep original value
+    }
+  }
   
-  return {
+  const propertyAddress = canonical.property_address || defaultText.PROPERTY_ADDRESS;
+  const propertyType = canonical.property_type || defaultText.PROPERTY_TYPE;
+  const preparedFor = canonical.prepared_for || defaultText.PREPARED_FOR;
+  const preparedBy = canonical.prepared_by || defaultText.PREPARED_BY;
+  
+  const coverData = {
     INSPECTION_ID: inspectionId,
     ASSESSMENT_DATE: assessmentDate,
     PREPARED_FOR: preparedFor,
@@ -522,6 +1394,9 @@ async function buildCoverData(
     PROPERTY_ADDRESS: propertyAddress,
     PROPERTY_TYPE: propertyType,
   };
+  
+  // Sanitize all values before returning
+  return sanitizeObject(coverData);
 }
 
 /**
@@ -548,7 +1423,7 @@ async function buildCoverData(
  */
 export async function buildWordTemplateData(
   inspection: StoredInspection,
-  reportData: ReportData,
+  reportData: InternalReportData,
   event?: HandlerEvent
 ): Promise<WordTemplateData> {
   // Load all data sources
@@ -850,6 +1725,9 @@ export async function buildWordTemplateData(
     // Technical sections (Priority 1/2/3)
     TEST_SUMMARY: testSummary,
     TECHNICAL_NOTES: technicalNotes,
+    
+    // Dynamic Finding Pages (will be populated from reportData)
+    DYNAMIC_FINDING_PAGES: "", // Placeholder, will be replaced by reportData.DYNAMIC_FINDING_PAGES
   };
 }
 
@@ -917,20 +1795,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Build computed fields (for Markdown generation)
     const reportData = await buildReportData(inspection, event);
-    const riskRating = reportData.immediate.length > 0 ? "HIGH" : 
-                      (reportData.recommended.length > 0 ? "MODERATE" : "LOW");
-    const overallStatus = `${riskRating} RISK`;
+    // Use RISK_RATING from reportData (calculated from finding profiles)
+    const riskRating = reportData.RISK_RATING;
+    const overallStatus = reportData.OVERALL_STATUS;
     
     // Load executive summary templates
     const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
     let executiveSummary: string;
+    
+    // Count findings by priority
+    const planCount = inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length;
+    
     if (riskRating === "HIGH") {
       executiveSummary = executiveSummaryTemplates.HIGH || "This property presents a high electrical risk profile.";
     } else if (riskRating === "MODERATE") {
       executiveSummary = executiveSummaryTemplates.MODERATE || "This property presents a moderate electrical risk profile.";
     } else {
       let lowRiskSummary = executiveSummaryTemplates.LOW || "This property presents a low electrical risk profile.";
-      if (reportData.plan.length > 0) {
+      if (planCount > 0) {
         const firstParagraphEnd = lowRiskSummary.indexOf("\n\n");
         if (firstParagraphEnd > 0) {
           const firstPart = lowRiskSummary.substring(0, firstParagraphEnd);
@@ -944,23 +1826,34 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
     }
     
+    // Use CAPEX_RANGE from reportData
+    const capexRange = reportData.CAPEX_RANGE || "To be confirmed";
+    
     const computed = {
       OVERALL_STATUS: overallStatus,
       RISK_RATING: riskRating,
       EXECUTIVE_SUMMARY: executiveSummary,
-      CAPEX_RANGE: "To be confirmed", // Can be enhanced later
+      CAPEX_RANGE: capexRange,
     };
     
     console.log("Computed fields:", computed);
+    
+    // Normalize inspection raw data to canonical fields
+    const { canonical, missingFields } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
+    if (missingFields.length > 0) {
+      console.warn(`⚠️ Missing canonical fields: ${missingFields.join(", ")}`);
+    }
+    console.log("✅ Canonical data normalized:", Object.keys(canonical));
     
     // Build cover data (6 fields only)
     const coverData = await buildCoverData(inspection, event);
     console.log("Cover data built:", Object.keys(coverData));
     
-    // Generate Markdown report
+    // Generate Markdown report (using canonical instead of raw)
     console.log("Generating Markdown report...");
     const markdown = buildReportMarkdown({
       inspection,
+      canonical,
       findings: inspection.findings,
       responses,
       computed,
@@ -973,10 +1866,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("HTML generated, length:", html.length);
     
     // Prepare data for renderDocx
-    const templateData = {
+    const rawTemplateData = {
       ...coverData,
       REPORT_BODY_HTML: html,
+      TERMS_AND_CONDITIONS: reportData.TERMS_AND_CONDITIONS,
+      DYNAMIC_FINDING_PAGES: reportData.DYNAMIC_FINDING_PAGES,
+      // Add other fields from reportData that might be used in template
+      OVERALL_STATUS_BADGE: reportData.OVERALL_STATUS_BADGE,
+      EXECUTIVE_DECISION_SIGNALS: reportData.EXECUTIVE_DECISION_SIGNALS,
+      CAPEX_SNAPSHOT: reportData.CAPEX_SNAPSHOT,
+      RISK_RATING: reportData.RISK_RATING,
+      OVERALL_STATUS: reportData.OVERALL_STATUS,
     };
+    
+    // Sanitize and apply placeholder fallback strategy
+    const sanitized = sanitizeObject(rawTemplateData);
+    const templateData = applyPlaceholderFallback(sanitized);
     
     // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
     let templateBuffer: Buffer;
@@ -1044,12 +1949,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Log debug info (only in dev environment)
     if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
+      const immediateCount = inspection.findings.filter(f => f.priority === "IMMEDIATE").length;
+      const recommendedCount = inspection.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
+      const planCount = inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length;
       console.log("=== Debug Info ===");
       console.log("Findings counts:", {
-        immediate: reportData.immediate.length,
-        recommended: reportData.recommended.length,
-        plan: reportData.plan.length,
-        limitations: reportData.limitations.length,
+        immediate: immediateCount,
+        recommended: recommendedCount,
+        plan: planCount,
+        limitations: inspection.limitations.length,
       });
       console.log("Markdown preview (first 1200 chars):", markdown.substring(0, 1200));
       console.log("HTML preview (first 1200 chars):", html.substring(0, 1200));
@@ -1090,3 +1998,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   }
 };
+
+// Explicit export to ensure Netlify bundler recognizes it
+export { loadResponses };
