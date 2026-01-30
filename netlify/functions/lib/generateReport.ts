@@ -15,12 +15,12 @@
  * - 完整的 Markdown 字符串
  */
 
-import type { StoredInspection } from "./store.js";
-import { loadDefaultText } from "./defaultTextLoader.js";
-import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader.js";
+import type { StoredInspection } from "./store";
+import { loadDefaultText } from "./defaultTextLoader";
+import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader";
 import { loadResponses, buildReportData, type ReportData } from "../generateWordReport";
-import { normalizeInspection, type CanonicalInspection } from "./normalizeInspection.js";
-import { getFindingProfile } from "./findingProfilesLoader.js";
+import { normalizeInspection, type CanonicalInspection } from "./normalizeInspection";
+import { getFindingProfile } from "./findingProfilesLoader";
 
 export type GenerateReportParams = {
   inspection: StoredInspection;

@@ -20,11 +20,13 @@ const md = new MarkdownIt({
   typographer: true, // 启用一些语言中性的替换 + 引号美化
 });
 
+import { sanitizeText } from "./sanitizeText";
+
 /**
  * 将 Markdown 字符串转换为 HTML
  * 
  * @param markdown - Markdown 格式的字符串
- * @returns HTML 格式的字符串
+ * @returns HTML 格式的字符串（已清理）
  * 
  * @example
  * ```typescript
@@ -40,15 +42,18 @@ export function markdownToHtml(markdown: string): string {
 
   try {
     const html = md.render(markdown);
-    return html;
+    // Sanitize the final HTML string before returning
+    return sanitizeText(html);
   } catch (error) {
     console.error("Markdown 转换失败:", error);
     // 如果转换失败，返回原始文本（转义 HTML）
-    return markdown
+    const fallbackHtml = markdown
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/\n/g, "<br>");
+    // Sanitize fallback HTML as well
+    return sanitizeText(fallbackHtml);
   }
 }
 

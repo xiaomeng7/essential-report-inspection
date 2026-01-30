@@ -1,2 +1,511 @@
-# Finding Profiles
-# This file will contain detailed profiles for each finding type
+version: 2.0
+meta:
+  description: >
+    Finding profiles for Better Home electrical asset risk & capital planning reports.
+    Each key maps to a stable finding.id used by the system.
+  scales:
+    risk: "0-10 (10 = highest risk exposure)"
+    budget: "0-5 (0 = none, 5 = high budget provision likely)"
+    compliance: "LOW | MEDIUM | HIGH"
+  categories:
+    - SHOCK
+    - FIRE
+    - LIFE_SAFETY
+    - COMPLIANCE
+    - LEGACY
+    - RELIABILITY
+    - DATA_QUALITY
+    - OTHER
+
+# Category-level defaults (used when a finding doesn't specify a field)
+category_defaults:
+  SHOCK:
+    risk_severity: 4
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: MED
+    timeline: "0–3 months"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Electrical testing if applicable"
+  FIRE:
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: MED
+    timeline: "0–3 months"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Thermal imaging if available"
+  LIFE_SAFETY:
+    risk_severity: 5
+    likelihood: 2
+    priority: IMMEDIATE
+    budget_band: LOW
+    timeline: "0–3 months"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Functional testing"
+  COMPLIANCE:
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    timeline: "6–18 months"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Standards verification"
+  LEGACY:
+    risk_severity: 3
+    likelihood: 2
+    priority: PLAN
+    budget_band: MED
+    timeline: "Next renovation"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Age assessment"
+  RELIABILITY:
+    risk_severity: 2
+    likelihood: 2
+    priority: PLAN
+    budget_band: LOW
+    timeline: "6–18 months"
+    evidence_requirements:
+      - "Visual inspection"
+  DATA_QUALITY:
+    risk_severity: 1
+    likelihood: 1
+    priority: PLAN
+    budget_band: LOW
+    timeline: "Next inspection"
+    evidence_requirements:
+      - "Visual inspection"
+  OTHER:
+    risk_severity: 2
+    likelihood: 2
+    priority: PLAN
+    budget_band: LOW
+    timeline: "6–18 months"
+    evidence_requirements:
+      - "Visual inspection"
+
+finding_profiles:
+
+  # ======================================
+  # SWITCHBOARD / MAIN BOARD
+  # ======================================
+
+  SWITCHBOARD_CERAMIC_FUSES_PRESENT:
+    default_risk: 5
+    default_budget: 4
+    compliance: MEDIUM
+    category: LEGACY
+    notes: "Ceramic fuses are legacy protection and typically provide reduced modern fault mitigation."
+    # New fields (v2.0+)
+    asset_component: "Main Switchboard - Ceramic Fuses"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Age assessment"
+      - "Protection type verification"
+    risk_severity: 3
+    likelihood: 2
+    priority: PLAN
+    budget_band: MED
+    budget_range: "AUD $2,000–$5,000"
+    timeline: "Next renovation"
+    disclaimer_line: "Replacement should be planned during next major electrical upgrade."
+
+  SWITCHBOARD_REWIREABLE_FUSES_PRESENT:
+    default_risk: 6
+    default_budget: 4
+    compliance: MEDIUM
+    category: LEGACY
+    notes: "Rewireable fuses are outdated and often indicate an ageing board requiring planned upgrade."
+
+  SWITCHBOARD_NO_RCD_OR_RCBO:
+    default_risk: 7
+    default_budget: 4
+    compliance: HIGH
+    category: SHOCK
+    notes: "Absence of modern residual current protection increases shock liability and fault escalation exposure."
+    # New fields (v2.0+)
+    asset_component: "Main Switchboard - RCD/RCBO Protection"
+    evidence_requirements:
+      - "Visual inspection"
+      - "Electrical testing"
+      - "Protection device verification"
+    risk_severity: 5
+    likelihood: 4
+    priority: IMMEDIATE
+    budget_band: MED
+    budget_range: "AUD $1,500–$4,000"
+    timeline: "0–3 months"
+    disclaimer_line: "Upgrade recommended to meet current safety standards."
+
+  SWITCHBOARD_NO_RCBO:
+    default_risk: 6
+    default_budget: 4
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "No RCBOs reduces circuit-level protection and makes fault isolation less controlled."
+
+  SWITCHBOARD_AGED_ORIGINAL:
+    default_risk: 6
+    default_budget: 4
+    compliance: MEDIUM
+    category: LEGACY
+    notes: "Age-related degradation increases likelihood of faults and nuisance failures over time."
+
+  SWITCHBOARD_LABELING_INCOMPLETE:
+    default_risk: 3
+    default_budget: 1
+    compliance: LOW
+    category: COMPLIANCE
+    notes: "Poor labeling impacts maintainability and decision confidence; low cost to address."
+
+  SWITCHBOARD_CLEARANCES_OR_ACCESS_ISSUE:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Access/clearance issues can hinder emergency isolation and safe servicing."
+
+  SWITCHBOARD_ENCLOSURE_DAMAGED:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Damaged enclosure can expose live parts and increase touch risk."
+
+  SWITCHBOARD_SIGNS_OF_HEAT_DAMAGE:
+    default_risk: 8
+    default_budget: 4
+    compliance: HIGH
+    category: FIRE
+    notes: "Heat damage indicates elevated fire risk. If not addressed, could escalate to failure or ignition."
+
+  SWITCHBOARD_LOOSE_CONNECTIONS_SUSPECTED:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: FIRE
+    notes: "Loose connections can cause resistance heating and arcing."
+
+  SWITCHBOARD_INADEQUATE_SPARE_WAYS:
+    default_risk: 3
+    default_budget: 2
+    compliance: LOW
+    category: RELIABILITY
+    notes: "Limited spare ways may constrain future upgrades and increase retrofit complexity."
+
+  # ======================================
+  # RCD / RCBO / PROTECTION
+  # ======================================
+
+  LIGHTING_CIRCUITS_NO_RCD:
+    default_risk: 6
+    default_budget: 3
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "No RCD protection on lighting circuits increases shock exposure during faults."
+
+  POWER_CIRCUITS_NO_RCD:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "No RCD on power circuits increases liability exposure for occupants/tenants."
+
+  RCD_TEST_FAIL_OR_UNSTABLE:
+    default_risk: 8
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Failed/unstable RCD operation can invalidate assumptions of protection."
+
+  RCD_TRIP_TIME_SLOW:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: SHOCK
+    notes: "Slow trip times reduce protection effectiveness; if not addressed risk may become less manageable."
+
+  RCD_NOT_TESTED_OR_UNKNOWN:
+    default_risk: 4
+    default_budget: 1
+    compliance: MEDIUM
+    category: DATA_QUALITY
+    notes: "Protection status unknown reduces decision confidence; retest recommended."
+
+  RCBO_RECOMMENDED_UPGRADE:
+    default_risk: 5
+    default_budget: 3
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Upgrade improves circuit-level protection and reduces future exposure."
+
+  OVERCURRENT_PROTECTION_NONCOMPLIANT:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: COMPLIANCE
+    notes: "Noncompliant overcurrent protection can increase fire risk under overload/fault conditions."
+
+  # ======================================
+  # MEN / EARTHING
+  # ======================================
+
+  MEN_NOT_VERIFIED:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Unable to verify MEN reduces assurance of fault protection integrity."
+
+  MEN_CONNECTION_DEFECTIVE:
+    default_risk: 8
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Defective MEN can elevate touch voltage risk. If not addressed, liability escalates."
+
+  EARTHING_RESISTANCE_HIGH:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "High earthing resistance can reduce protective device performance."
+
+  EARTHING_CONTINUITY_NOT_VERIFIED:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Missing verification reduces confidence; retesting can clarify risk."
+
+  MAIN_EARTH_CONDUCTOR_UNDERSIZED_SUSPECTED:
+    default_risk: 6
+    default_budget: 2
+    compliance: HIGH
+    category: COMPLIANCE
+    notes: "Potential MEC sizing issue may compromise fault path integrity."
+
+  BONDING_TO_WATER_GAS_NOT_VERIFIED:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Unverified bonding reduces confidence in equipotential safety assumptions."
+
+  # ======================================
+  # SOCKETS / GPO / SWITCHES / FITTINGS
+  # ======================================
+
+  GPO_MECHANICAL_LOOSE:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Loose outlets can lead to arcing/overheating; typically manageable if planned promptly."
+
+  DAMAGED_OUTLET_OR_SWITCH:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Damage can expose live parts and increase shock risk."
+
+  FITTING_OVERHEAT:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Overheating indicates thermal stress; if not addressed could escalate."
+
+  LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Unsafe fitting conditions increase fire risk."
+
+  EXTENSION_LEADS_PERMANENT_USE_OBSERVED:
+    default_risk: 4
+    default_budget: 1
+    compliance: LOW
+    category: RELIABILITY
+    notes: "Indicates capacity/usage mismatch; may warrant additional outlets."
+
+  # ======================================
+  # SMOKE ALARMS / LIFE SAFETY
+  # ======================================
+
+  SMOKE_ALARMS_MISSING:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: LIFE_SAFETY
+    notes: "Missing alarms increase life-safety exposure and compliance risk."
+
+  SMOKE_ALARMS_EXPIRED:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: LIFE_SAFETY
+    notes: "Expired alarms reduce reliability of early detection."
+
+  SMOKE_ALARMS_NOT_INTERCONNECTED:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: LIFE_SAFETY
+    notes: "Non-interconnected alarms provide reduced warning effectiveness."
+
+  SMOKE_ALARMS_LOCATION_NONCOMPLIANT_SUSPECTED:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: LIFE_SAFETY
+    notes: "Location may reduce effectiveness; review against current requirements."
+
+  # ======================================
+  # THERMAL IMAGING / HOTSPOTS
+  # ======================================
+
+  THERMAL_NOT_PERFORMED:
+    default_risk: 0
+    default_budget: 0
+    compliance: LOW
+    category: DATA_QUALITY
+    notes: "Thermal imaging not performed; no inference should be made."
+
+  THERMAL_NORMAL_NO_HOTSPOTS:
+    default_risk: 0
+    default_budget: 0
+    compliance: LOW
+    category: DATA_QUALITY
+    notes: "No abnormal hotspots detected under observed operating conditions."
+
+  THERMAL_HOTSPOT_DETECTED_MINOR:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Minor hotspot may indicate early-stage resistance heating."
+
+  THERMAL_HOTSPOT_DETECTED_MAJOR:
+    default_risk: 9
+    default_budget: 3
+    compliance: HIGH
+    category: FIRE
+    notes: "Major hotspot indicates elevated fire risk; do not defer."
+
+  # ======================================
+  # WIRING / INSULATION / AGEING
+  # ======================================
+
+  WIRING_INSULATION_DEGRADED:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: FIRE
+    notes: "Degraded insulation increases fault likelihood and escalation risk."
+
+  WIRING_UNSUPPORTED_OR_POOR_FIXING:
+    default_risk: 4
+    default_budget: 2
+    compliance: LOW
+    category: COMPLIANCE
+    notes: "Poor fixing impacts mechanical protection and longevity."
+
+  OLD_RUBBER_VIR_WIRING_SUSPECTED:
+    default_risk: 8
+    default_budget: 4
+    compliance: HIGH
+    category: FIRE
+    notes: "Legacy rubber/VIR wiring may become brittle and hazardous with age."
+
+  EXTERNAL_CABLE_MECHANICAL_RISK:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: RELIABILITY
+    notes: "Cable subject to damage may lead to outages or unsafe exposure."
+
+  # ======================================
+  # TEST DATA / TECHNICAL MEASUREMENTS
+  # ======================================
+
+  TEST_DATA_INCOMPLETE:
+    default_risk: 3
+    default_budget: 0
+    compliance: LOW
+    category: DATA_QUALITY
+    notes: "Missing test data reduces decision confidence but is not itself a defect."
+
+  INSULATION_RESISTANCE_LOW_BORDERLINE:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: FIRE
+    notes: "Borderline insulation results may indicate deterioration trend."
+
+  INSULATION_RESISTANCE_FAIL:
+    default_risk: 9
+    default_budget: 4
+    compliance: HIGH
+    category: FIRE
+    notes: "Insulation resistance failure indicates elevated fault and fire risk."
+
+  EARTH_FAULT_LOOP_IMPEDANCE_BORDERLINE:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Borderline loop impedance reduces assurance of protective device operation."
+
+  EARTH_FAULT_LOOP_IMPEDANCE_FAIL:
+    default_risk: 9
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Loop impedance failure can prevent timely disconnection during faults."
+
+  POLARITY_ISSUE_DETECTED:
+    default_risk: 8
+    default_budget: 2
+    compliance: HIGH
+    category: SHOCK
+    notes: "Polarity issues can cause dangerous outcomes and should be treated urgently."
+
+  # ======================================
+  # GENERAL / REPORT QUALITY FLAGS
+  # ======================================
+
+  ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED:
+    default_risk: 2
+    default_budget: 0
+    compliance: LOW
+    category: DATA_QUALITY
+    notes: "Roof void not accessed; findings limited to accessible areas."
+
+  ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED:
+    default_risk: 2
+    default_budget: 0
+    compliance: LOW
+    category: DATA_QUALITY
+    notes: "Subfloor not accessed; latent issues may remain unidentified."
+
+  GENERAL_OBSERVATION_AGEING_INSTALLATION:
+    default_risk: 3
+    default_budget: 2
+    compliance: LOW
+    category: LEGACY
+    notes: "General ageing noted; supports planned upgrades rather than immediate action."
+
+  UNKNOWN_FINDING_FALLBACK:
+    default_risk: 3
+    default_budget: 1
+    compliance: LOW
+    category: OTHER
+    notes: "Fallback profile for unmapped IDs. Ensure new IDs are added to profiles."

@@ -1,0 +1,62 @@
+# Raw to Canonical Field Mappings
+# This file maps various possible raw field names to canonical field names
+# Used to normalize inspection.raw data for report generation
+
+# Each canonical field has a list of candidate keys (in order of priority)
+# The normalizeInspection function will try each candidate key until it finds a value
+
+canonical_fields:
+  inspection_id:
+    candidates:
+      - inspection_id
+      - id
+      - inspectionId
+  
+  assessment_date:
+    candidates:
+      - created_at
+      - assessment_date
+      - date
+      - timestamp
+  
+  prepared_for:
+    candidates:
+      - job.prepared_for
+      - client.name
+      - client.client_type
+      - job.client_name
+  
+  prepared_by:
+    candidates:
+      - signoff.technician_name
+      - technician.name
+      - technician_name
+      - prepared_by
+  
+  property_address:
+    candidates:
+      - job.address
+      - address
+      - property.address
+      - location.address
+  
+  property_type:
+    candidates:
+      - job.property_type
+      - property_type
+      - property.type
+  
+  technician_notes:
+    candidates:
+      - signoff.office_notes_internal
+      - notes
+      - technician_notes
+      - internal_notes
+  
+  test_data:
+    candidates:
+      - rcd_tests
+      - gpo_tests
+      - test_data
+      - tests
+    # Note: test_data can be a raw object, preserved as-is

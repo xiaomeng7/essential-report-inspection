@@ -6,13 +6,13 @@
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { get } from "./lib/store.js";
-import { buildMarkdownReport } from "./lib/generateReport.js";
+import { get } from "./lib/store";
+import { buildMarkdownReport } from "./lib/generateReport";
 import { loadResponses } from "./generateWordReport";
-import { markdownToHtml } from "./lib/markdownToHtml.js";
-import { renderDocx } from "./lib/renderDocx.js";
-import { loadDefaultText } from "./lib/defaultTextLoader.js";
-import { normalizeInspection } from "./lib/normalizeInspection.js";
+import { markdownToHtml } from "./lib/markdownToHtml";
+import { renderDocx } from "./lib/renderDocx";
+import { loadDefaultText } from "./lib/defaultTextLoader";
+import { normalizeInspection } from "./lib/normalizeInspection";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

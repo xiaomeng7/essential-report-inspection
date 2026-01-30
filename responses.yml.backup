@@ -1,582 +1,1415 @@
 meta:
-  version: v1.0
-  updated: '2026-01-28'
+  version: v2.0
+  updated: "2026-01-30"
   language: en-AU
-  notes: Auto-prefilled based on finding_code keywords. Review and tailor high-risk
-    items.
+  notes: >-
+    Upgraded structure with observed_condition, risk_interpretation, priority_rationale, budgetary_range, and
+    default_priority
 defaults:
   no_immediate: No immediate safety risks were identified at the time of inspection.
-  no_recommended: No items requiring short-term planned action were identified at
-    the time of inspection.
-  no_plan: No additional items were identified for planning or monitoring at this
-    time.
+  no_recommended: No items requiring short-term planned action were identified at the time of inspection.
+  no_plan: No additional items were identified for planning or monitoring at this time.
   limitations: This assessment is non-invasive and limited to accessible areas only.
 findings:
   ALARM_SOUNDED:
     title: Alarm Sounded
-    why_it_matters: Smoke alarms are critical life-safety devices; faults or non-compliance
-      may reduce early warning in a fire event.
-    recommended_action: Test, replace, or upgrade smoke alarms to meet applicable
-      requirements and ensure correct operation.
-    planning_guidance: Schedule periodic testing and replacement in line with manufacturer
-      guidance.
-    disclaimer_line: ''
+    observed_condition:
+      - Alarm Sounded was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: Smoke alarms are critical life-safety devices; faults or non-compliance may reduce early warning in a fire event.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Schedule periodic testing and replacement in line with manufacturer guidance.
+    budgetary_range:
+      low: 100
+      high: 300
+      currency: AUD
+      note: Per unit
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   ALL_CHECKLIST_ITEMS_COMPLETED:
     title: All Checklist Items Completed
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - All Checklist Items Completed was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   ALL_REQUIRED_PHOTOS_UPLOADED:
     title: All Required Photos Uploaded
-    why_it_matters: Thermal anomalies can indicate loose terminations or abnormal
-      loading and may progress to failure if left unaddressed.
-    recommended_action: Investigate the affected circuit/termination promptly and
-      rectify; re-test after repair.
-    planning_guidance: Do not defer if temperature rise is significant or critical
-      circuits are affected.
-    disclaimer_line: ''
+    observed_condition:
+      - All Required Photos Uploaded was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: >-
+      Thermal anomalies can indicate loose terminations or abnormal loading and may progress to failure if left
+      unaddressed.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   ASBESTOS_SUSPECTED_BACKBOARD:
     title: Asbestos Suspected Backboard
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Asbestos Suspected Backboard was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This item requires immediate attention due to potential safety risks or liability exposure that could escalate if
+      not addressed promptly.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 2000
+      high: 8000
+      currency: AUD
+      note: Depending on size and complexity
+    default_priority: IMMEDIATE
+    disclaimer_line: ""
   BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE:
     title: Bakelite Or Ceramic Accessory Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Bakelite Or Ceramic Accessory Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   BARE_METAL_WIRE_CORE_IS_VISIBLE:
     title: Bare Metal Wire Core Is Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Bare Metal Wire Core Is Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   BURN_MARKS_VISIBLE:
     title: Burn Marks Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Burn Marks Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This item requires immediate attention due to potential safety risks or liability exposure that could escalate if
+      not addressed promptly.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: IMMEDIATE
+    disclaimer_line: ""
   CABLE_DAMAGE_VISIBLE:
     title: Cable Damage Visible
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Cable Damage Visible was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 500
+      high: 2000
+      currency: AUD
+      note: Depending on extent of work
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED:
     title: Cable Support Method Observed Clips Resting Buried
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Cable Support Method Observed Clips Resting Buried was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 500
+      high: 2000
+      currency: AUD
+      note: Depending on extent of work
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   CABLE_WITH_NON_MODERN_INSULATION_OBSERVED:
     title: Cable With Non Modern Insulation Observed
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Cable With Non Modern Insulation Observed was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 500
+      high: 2000
+      currency: AUD
+      note: Depending on extent of work
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   CERAMIC_FUSE_HOLDER_VISIBLE:
     title: Ceramic Fuse Holder Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Ceramic Fuse Holder Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   COOKTOP_PRESENT:
     title: Cooktop Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Cooktop Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   COVER_BROKEN_OR_MISSING:
     title: Cover Broken Or Missing
-    why_it_matters: Physical damage can expose conductive parts or reduce integrity
-      of the installation over time.
-    recommended_action: Repair or replace the damaged component to restore safe operation.
-    planning_guidance: If minor and not safety-critical, can be addressed during routine
-      maintenance.
-    disclaimer_line: ''
+    observed_condition:
+      - Cover Broken Or Missing was observed during the visual inspection.
+    why_it_matters: Physical damage can expose conductive parts or reduce integrity of the installation over time.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   CRACKS_VISIBLE_ON_FACEPLATE:
     title: Cracks Visible On Faceplate
-    why_it_matters: Physical damage can expose conductive parts or reduce integrity
-      of the installation over time.
-    recommended_action: Repair or replace the damaged component to restore safe operation.
-    planning_guidance: If minor and not safety-critical, can be addressed during routine
-      maintenance.
-    disclaimer_line: ''
+    observed_condition:
+      - Cracks Visible On Faceplate was observed during the visual inspection.
+    why_it_matters: Physical damage can expose conductive parts or reduce integrity of the installation over time.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   DAMAGE_CORROSION_OVERHEATING:
     title: Damage Corrosion Overheating
-    why_it_matters: Thermal anomalies can indicate loose terminations or abnormal
-      loading and may progress to failure if left unaddressed.
-    recommended_action: Investigate the affected circuit/termination promptly and
-      rectify; re-test after repair.
-    planning_guidance: Do not defer if temperature rise is significant or critical
-      circuits are affected.
-    disclaimer_line: ''
+    observed_condition:
+      - Damage Corrosion Overheating was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: >-
+      Thermal anomalies can indicate loose terminations or abnormal loading and may progress to failure if left
+      unaddressed.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Depending on component and extent
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE:
     title: Dedicated Outlet Or Isolator Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Dedicated Outlet Or Isolator Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   DISHWASHER_PRESENT:
     title: Dishwasher Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Dishwasher Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   DRYER_OUTLET_PRESENT:
     title: Dryer Outlet Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Dryer Outlet Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   EARTH_PIN_MISSING_OR_DAMAGED:
     title: Earth Pin Missing Or Damaged
-    why_it_matters: Physical damage can expose conductive parts or reduce integrity
-      of the installation over time.
-    recommended_action: Repair or replace the damaged component to restore safe operation.
-    planning_guidance: If minor and not safety-critical, can be addressed during routine
-      maintenance.
-    disclaimer_line: ''
+    observed_condition:
+      - Earth Pin Missing Or Damaged was observed during the visual inspection.
+    why_it_matters: Physical damage can expose conductive parts or reduce integrity of the installation over time.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Depending on component and extent
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   EXHAUST_FAN_PRESENT:
     title: Exhaust Fan Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Exhaust Fan Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION:
     title: Extension Lead Connected At Time Of Inspection
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Extension Lead Connected At Time Of Inspection was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   EXTERIOR_LIGHT_PRESENT:
     title: Exterior Light Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Exterior Light Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS:
     title: Flexible Lead Fixed In Place With Clips Screws
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Flexible Lead Fixed In Place With Clips Screws was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   GARAGE_DOOR_OPENER_PRESENT:
     title: Garage Door Opener Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Garage Door Opener Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER:
     title: Grease Residue Observed On Rangehood Filter Cover
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Grease Residue Observed On Rangehood Filter Cover was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   HEATED_TOWEL_RAIL_PRESENT:
     title: Heated Towel Rail Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Heated Towel Rail Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING:
     title: Heat Damage Visible On Fitting Or Ceiling
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Heat Damage Visible On Fitting Or Ceiling was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Depending on component and extent
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM:
     title: Horizontal Distance From Power Point Edge To Sink Tap Edge Measured Mm
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - >-
+        Horizontal Distance From Power Point Edge To Sink Tap Edge Measured Mm was observed during the visual
+        inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM:
     title: Horizontal Distance From Power Point To Sink Edge Mm
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Horizontal Distance From Power Point To Sink Edge Mm was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   INSULATION_CONTACT_OBSERVED:
     title: Insulation Contact Observed
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Insulation Contact Observed was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT:
     title: Lamp Type Observed Led Halogen Incandescent
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Lamp Type Observed Led Halogen Incandescent was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED:
     title: Light Fitting Moves When Lightly Touched
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Light Fitting Moves When Lightly Touched was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER:
     title: Light Fitting Present Above Bath Shower
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Light Fitting Present Above Bath Shower was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   LOCATION_PHOTOGRAPHED:
     title: Location Photographed
-    why_it_matters: Thermal anomalies can indicate loose terminations or abnormal
-      loading and may progress to failure if left unaddressed.
-    recommended_action: Investigate the affected circuit/termination promptly and
-      rectify; re-test after repair.
-    planning_guidance: Do not defer if temperature rise is significant or critical
-      circuits are affected.
-    disclaimer_line: ''
+    observed_condition:
+      - Location Photographed was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: >-
+      Thermal anomalies can indicate loose terminations or abnormal loading and may progress to failure if left
+      unaddressed.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   MAIN_SWITCH_SERVICE_FUSE:
     title: Main Switch Service Fuse
-    why_it_matters: Switchboard condition and protective device suitability are central
-      to electrical safety and future upgrade capacity.
-    recommended_action: Review switchboard condition and protection; plan upgrades
-      or rectification where required.
-    planning_guidance: Often best completed during other major electrical works (e.g.,
-      adding circuits, solar, EV charging).
-    disclaimer_line: ''
+    observed_condition:
+      - Main Switch Service Fuse was observed during the visual inspection.
+    why_it_matters: >-
+      Switchboard condition and protective device suitability are central to electrical safety and future upgrade
+      capacity.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Often best completed during other major electrical works (e.g., adding circuits, solar, EV charging).
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   MANUFACTURE_DATE_RECORDED:
     title: Manufacture Date Recorded
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Manufacture Date Recorded was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   MEN_LINK:
     title: Men Link
-    why_it_matters: Earthing and bonding are fundamental for correct operation of
-      protective devices and reducing touch voltage risk.
-    recommended_action: Verify earthing/bonding integrity and rectify any deficiencies
-      as required.
-    planning_guidance: Prioritise where test results are marginal or site conditions
-      increase corrosion risk.
-    disclaimer_line: ''
+    observed_condition:
+      - Men Link was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: Earthing and bonding are fundamental for correct operation of protective devices and reducing touch voltage risk.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This item requires immediate attention due to potential safety risks or liability exposure that could escalate if
+      not addressed promptly.
+    planning_guidance: Prioritise where test results are marginal or site conditions increase corrosion risk.
+    budgetary_range:
+      low: 200
+      high: 500
+      currency: AUD
+      note: Verification and testing
+    default_priority: IMMEDIATE
+    disclaimer_line: ""
   MOISTURE_STAINING_VISIBLE:
     title: Moisture Staining Visible
-    why_it_matters: Proximity to water and moisture increases the likelihood of insulation
-      degradation and electrical faults.
-    recommended_action: Assess suitability of fittings for the environment and rectify
-      to maintain separation/protection as required.
+    observed_condition:
+      - Moisture Staining Visible was observed during the visual inspection.
+    why_it_matters: Proximity to water and moisture increases the likelihood of insulation degradation and electrical faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
     planning_guidance: Coordinate with plumbing/building maintenance where relevant.
-    disclaimer_line: ''
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED:
     title: Non Standard Wiring Or Added Component Observed
-    why_it_matters: Non-standard electrical work may not provide adequate protection
-      and can increase fault risk.
-    recommended_action: Have the affected work reviewed and rectified by a licensed
-      electrician.
+    observed_condition:
+      - Non Standard Wiring Or Added Component Observed was observed during the visual inspection.
+    why_it_matters: Non-standard electrical work may not provide adequate protection and can increase fault risk.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
     planning_guidance: Rectification can be staged if no immediate hazards are present.
-    disclaimer_line: ''
+    budgetary_range:
+      low: 500
+      high: 2000
+      currency: AUD
+      note: Depending on extent of work
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   NO_ADVICE_OR_QUOTATIONS_PROVIDED:
     title: No Advice Or Quotations Provided
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - No Advice Or Quotations Provided was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   NUMBER_OF_POWER_BOARDS_OBSERVED:
     title: Number Of Power Boards Observed
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Number Of Power Boards Observed was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 2000
+      high: 8000
+      currency: AUD
+      note: Depending on size and complexity
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   NUMBER_OF_POWER_POINTS_ABOVE_BENCH:
     title: Number Of Power Points Above Bench
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Number Of Power Points Above Bench was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   OUTDOOR_POWER_POINT_PRESENT:
     title: Outdoor Power Point Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Outdoor Power Point Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM:
     title: Outlet Height Above Finished Floor Mm
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Outlet Height Above Finished Floor Mm was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   OVEN_PRESENT:
     title: Oven Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Oven Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   OVERALL_SWITCHBOARD:
     title: Overall Switchboard
-    why_it_matters: Switchboard condition and protective device suitability are central
-      to electrical safety and future upgrade capacity.
-    recommended_action: Review switchboard condition and protection; plan upgrades
-      or rectification where required.
-    planning_guidance: Often best completed during other major electrical works (e.g.,
-      adding circuits, solar, EV charging).
-    disclaimer_line: ''
+    observed_condition:
+      - Overall Switchboard was observed during the visual inspection.
+    why_it_matters: >-
+      Switchboard condition and protective device suitability are central to electrical safety and future upgrade
+      capacity.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Often best completed during other major electrical works (e.g., adding circuits, solar, EV charging).
+    budgetary_range:
+      low: 2000
+      high: 8000
+      currency: AUD
+      note: Depending on size and complexity
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT:
     title: Plug Disengages Under Its Own Weight
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Plug Disengages Under Its Own Weight was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED:
     title: Power Point Moves When Lightly Touched
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Power Point Moves When Lightly Touched was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   POWER_POINT_PRESENT:
     title: Power Point Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Power Point Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   POWER_POINT_PRESENT_IN_BATHROOM:
     title: Power Point Present In Bathroom
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Power Point Present In Bathroom was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH:
     title: Power Source Observed Mains Battery Both
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Power Source Observed Mains Battery Both was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   RANGE_HOOD_PRESENT:
     title: Range Hood Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Range Hood Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   ROOF_SPACE_ACCESSED:
     title: Roof Space Accessed
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Roof Space Accessed was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   SMOKE_ALARM_PRESENT:
     title: Smoke Alarm Present
-    why_it_matters: Smoke alarms are critical life-safety devices; faults or non-compliance
-      may reduce early warning in a fire event.
-    recommended_action: Test, replace, or upgrade smoke alarms to meet applicable
-      requirements and ensure correct operation.
-    planning_guidance: Schedule periodic testing and replacement in line with manufacturer
-      guidance.
-    disclaimer_line: ''
+    observed_condition:
+      - Smoke Alarm Present was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: Smoke alarms are critical life-safety devices; faults or non-compliance may reduce early warning in a fire event.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Schedule periodic testing and replacement in line with manufacturer guidance.
+    budgetary_range:
+      low: 100
+      high: 300
+      currency: AUD
+      note: Per unit
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE:
     title: Supply Cable Located Within Mm Of Cooktop Surface
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Supply Cable Located Within Mm Of Cooktop Surface was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 500
+      high: 2000
+      currency: AUD
+      note: Depending on extent of work
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH:
     title: Surface Feels Abnormally Warm To Touch
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Surface Feels Abnormally Warm To Touch was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   SWITCH_BODY_MOVES_WHEN_TOUCHED:
     title: Switch Body Moves When Touched
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Switch Body Moves When Touched was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED:
     title: Switch Movement Uneven Or Obstructed
-    why_it_matters: Earthing and bonding are fundamental for correct operation of
-      protective devices and reducing touch voltage risk.
-    recommended_action: Verify earthing/bonding integrity and rectify any deficiencies
-      as required.
-    planning_guidance: Prioritise where test results are marginal or site conditions
-      increase corrosion risk.
-    disclaimer_line: ''
+    observed_condition:
+      - Switch Movement Uneven Or Obstructed was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: Earthing and bonding are fundamental for correct operation of protective devices and reducing touch voltage risk.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This item requires immediate attention due to potential safety risks or liability exposure that could escalate if
+      not addressed promptly.
+    planning_guidance: Prioritise where test results are marginal or site conditions increase corrosion risk.
+    budgetary_range:
+      low: 200
+      high: 500
+      currency: AUD
+      note: Verification and testing
+    default_priority: IMMEDIATE
+    disclaimer_line: ""
   SWITCH_PLATE_CRACKED_OR_DAMAGED:
     title: Switch Plate Cracked Or Damaged
-    why_it_matters: Physical damage can expose conductive parts or reduce integrity
-      of the installation over time.
-    recommended_action: Repair or replace the damaged component to restore safe operation.
-    planning_guidance: If minor and not safety-critical, can be addressed during routine
-      maintenance.
-    disclaimer_line: ''
+    observed_condition:
+      - Switch Plate Cracked Or Damaged was observed during the visual inspection.
+    why_it_matters: Physical damage can expose conductive parts or reduce integrity of the installation over time.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Depending on component and extent
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   TAPED_CONNECTION_VISIBLE:
     title: Taped Connection Visible
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Taped Connection Visible was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   TEST_BUTTON_PRESSED:
     title: Test Button Pressed
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Test Button Pressed was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   TRANSFORMER_PRESENT:
     title: Transformer Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Transformer Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   TRANSFORMER_RESTING_ON_INSULATION:
     title: Transformer Resting On Insulation
-    why_it_matters: Cable damage or deteriorated insulation can increase the risk
-      of electric shock and short-circuit faults.
-    recommended_action: Repair or replace affected cabling/terminations to restore
-      insulation integrity.
-    planning_guidance: Where safe, minor cable rectification can be grouped with other
-      planned works.
-    disclaimer_line: ''
+    observed_condition:
+      - Transformer Resting On Insulation was observed during the visual inspection.
+    why_it_matters: Cable damage or deteriorated insulation can increase the risk of electric shock and short-circuit faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN:
     title: Type Observed Photoelectric Ionisation Unknown
-    why_it_matters: Thermal anomalies can indicate loose terminations or abnormal
-      loading and may progress to failure if left unaddressed.
-    recommended_action: Investigate the affected circuit/termination promptly and
-      rectify; re-test after repair.
-    planning_guidance: Do not defer if temperature rise is significant or critical
-      circuits are affected.
-    disclaimer_line: ''
+    observed_condition:
+      - Type Observed Photoelectric Ionisation Unknown was observed during the visual inspection.
+      - Verification or testing may be required to confirm the condition.
+    why_it_matters: >-
+      Thermal anomalies can indicate loose terminations or abnormal loading and may progress to failure if left
+      unaddressed.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   UNIT_TESTED_AS_INTERCONNECTED:
     title: Unit Tested As Interconnected
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Unit Tested As Interconnected was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION:
     title: Unusual Audible Sound Heard During Operation
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Unusual Audible Sound Heard During Operation was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   WASHING_MACHINE_OUTLET_PRESENT:
     title: Washing Machine Outlet Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Washing Machine Outlet Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET:
     title: Water Tap Present Within Mm Of Outlet
-    why_it_matters: Proximity to water and moisture increases the likelihood of insulation
-      degradation and electrical faults.
-    recommended_action: Assess suitability of fittings for the environment and rectify
-      to maintain separation/protection as required.
+    observed_condition:
+      - Water Tap Present Within Mm Of Outlet was observed during the visual inspection.
+    why_it_matters: Proximity to water and moisture increases the likelihood of insulation degradation and electrical faults.
+    risk_interpretation: >-
+      If this condition is not addressed, it may affect electrical safety, reliability, or compliance over time. This
+      risk can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
     planning_guidance: Coordinate with plumbing/building maintenance where relevant.
-    disclaimer_line: ''
+    budgetary_range:
+      low: 150
+      high: 400
+      currency: AUD
+      note: Per outlet
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""
   WEATHERPROOF_COVER_PRESENT:
     title: Weatherproof Cover Present
-    why_it_matters: This condition may affect electrical safety, reliability, or maintainability
-      depending on severity and location.
-    recommended_action: Have a licensed electrician review and rectify as required.
-    planning_guidance: If no immediate hazard is present, this can be planned with
-      other electrical works to minimise disruption.
-    disclaimer_line: ''
+    observed_condition:
+      - Weatherproof Cover Present was observed during the visual inspection.
+    why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    risk_interpretation: >-
+      If this condition is not addressed, it may pose safety risks or increase liability exposure over time. This risk
+      can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement
+      without immediate urgency.
+    priority_rationale: >-
+      This condition does not present an immediate or urgent risk and can be monitored over time, allowing for strategic
+      planning and budgeting.
+    planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
+    budgetary_range:
+      low: 200
+      high: 1000
+      currency: AUD
+      note: Indicative range, to be confirmed with contractor quotation
+    default_priority: PLAN_MONITOR
+    disclaimer_line: ""

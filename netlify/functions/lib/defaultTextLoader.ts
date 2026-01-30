@@ -48,6 +48,11 @@ export type DefaultText = {
   TEST_SUMMARY: string;
   TECHNICAL_NOTES: string;
   
+  // Capital Expenditure sections
+  CAPEX_DISCLAIMER: string;
+  CAPEX_DISCLAIMER_FOOTER: string;
+  CAPEX_NO_DATA: string;
+  
   // Priority interpretations
   PRIORITY_IMMEDIATE_DESC: string;
   PRIORITY_IMMEDIATE_INTERP: string;
@@ -56,12 +61,77 @@ export type DefaultText = {
   PRIORITY_PLAN_DESC: string;
   PRIORITY_PLAN_INTERP: string;
   
+  // Terms and Conditions
+  terms_and_conditions_markdown: string;
+  
   // Additional placeholders (for future use)
   [key: string]: string;
 };
 
 // Cache for default text
 let defaultTextCache: DefaultText | null = null;
+
+// Cache for terms and conditions
+let termsCache: string | null = null;
+
+/**
+ * Load DEFAULT_TERMS.md from file system
+ * Tries root-level first, then netlify/functions/ fallback path
+ * 
+ * @returns Terms and conditions markdown content, or fallback default text
+ */
+function loadTermsAndConditionsMarkdown(): string {
+  // Return cached value if available
+  if (termsCache !== null) {
+    return termsCache;
+  }
+  
+  // Try root-level first, then netlify/functions/ fallback
+  const possiblePaths = [
+    path.join(process.cwd(), "DEFAULT_TERMS.md"),
+    path.join(__dirname, "..", "..", "DEFAULT_TERMS.md"),
+    path.join(__dirname, "..", "DEFAULT_TERMS.md"),
+    path.join(process.cwd(), "netlify", "functions", "DEFAULT_TERMS.md"),
+    "/opt/build/repo/DEFAULT_TERMS.md",
+    "/opt/build/repo/netlify/functions/DEFAULT_TERMS.md",
+  ];
+  
+  for (const filePath of possiblePaths) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        console.log(`✅ Loaded DEFAULT_TERMS.md from: ${filePath}`);
+        termsCache = content;
+        return termsCache;
+      }
+    } catch (e) {
+      console.warn(`Failed to load DEFAULT_TERMS.md from ${filePath}:`, e);
+      continue;
+    }
+  }
+  
+  // Fallback to hardcoded default Terms and Conditions
+  console.warn("⚠️ DEFAULT_TERMS.md not found, using hardcoded fallback");
+  const fallback = `# TERMS & CONDITIONS OF ASSESSMENT
+
+## 1. Australian Consumer Law (ACL) Acknowledgement
+Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL).  
+Nothing in this Report or these Terms seeks to exclude, restrict, or modify any consumer guarantees that cannot lawfully be excluded.
+
+## 2. Nature & Scope of Professional Opinion
+This Assessment is a point-in-time, non-destructive, visual and functional review of accessible electrical components only.  
+It is non-intrusive and non-exhaustive, and does not constitute a compliance certificate, an electrical safety certificate, an engineering report, a structural inspection, or a guarantee of future performance.
+
+## 3. Decision-Support Only – No Repair Advice
+This Report is provided solely as a risk identification and asset planning tool.  
+It does not prescribe a scope of rectification works, provide quotations, endorse or appoint contractors, or certify statutory compliance.
+
+## 4. Framework Statement
+This assessment does not eliminate risk, but provides a structured framework for managing it.`;
+  
+  termsCache = fallback;
+  return termsCache;
+}
 
 /**
  * Find the path to DEFAULT_TEXT_LIBRARY.md or DEFAULT_REPORT_TEXT.md
@@ -194,6 +264,11 @@ function getDefaultTextWithFallbacks(parsed: Partial<DefaultText>): DefaultText 
     TEST_SUMMARY: parsed.TEST_SUMMARY || "Electrical safety inspection completed in accordance with applicable standards.",
     TECHNICAL_NOTES: parsed.TECHNICAL_NOTES || "This is a non-invasive visual inspection limited to accessible areas.",
     
+    // Capital Expenditure sections
+    CAPEX_DISCLAIMER: parsed.CAPEX_DISCLAIMER || "**Important:** All figures provided in this section are indicative market benchmarks for financial provisioning purposes only. They are not quotations or scope of works.",
+    CAPEX_DISCLAIMER_FOOTER: parsed.CAPEX_DISCLAIMER_FOOTER || "**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.",
+    CAPEX_NO_DATA: parsed.CAPEX_NO_DATA || "Capital expenditure estimates will be provided upon request based on detailed quotations from licensed electrical contractors.",
+    
     // Priority interpretations
     PRIORITY_IMMEDIATE_DESC: parsed.PRIORITY_IMMEDIATE_DESC || "No immediate safety concerns identified.",
     PRIORITY_IMMEDIATE_INTERP: parsed.PRIORITY_IMMEDIATE_INTERP || "No immediate action required.",
@@ -201,6 +276,9 @@ function getDefaultTextWithFallbacks(parsed: Partial<DefaultText>): DefaultText 
     PRIORITY_RECOMMENDED_INTERP: parsed.PRIORITY_RECOMMENDED_INTERP || "No short-term actions required.",
     PRIORITY_PLAN_DESC: parsed.PRIORITY_PLAN_DESC || "No items identified for planning or monitoring.",
     PRIORITY_PLAN_INTERP: parsed.PRIORITY_PLAN_INTERP || "No ongoing monitoring required.",
+    
+    // Terms and Conditions (loaded from DEFAULT_TERMS.md)
+    terms_and_conditions_markdown: loadTermsAndConditionsMarkdown(),
     
     // Include any additional keys from parsed object
     ...parsed,
@@ -269,4 +347,13 @@ export async function loadDefaultText(event?: HandlerEvent): Promise<DefaultText
  */
 export function clearDefaultTextCache(): void {
   defaultTextCache = null;
+  termsCache = null;
+}
+
+/**
+ * Load Terms and Conditions markdown directly
+ * Exported for direct use if needed
+ */
+export function loadTermsAndConditions(): string {
+  return loadTermsAndConditionsMarkdown();
 }

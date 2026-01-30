@@ -1,0 +1,297 @@
+# Raw to Finding Candidates Mapping
+# 
+# This file defines rules for deriving findings from inspection.raw data
+# Based on INSPECTION_RAW_STRUCTURE.md
+# 
+# Each rule specifies:
+# - when: field path + condition
+# - finding_id: the finding code to trigger
+# - priority: IMMEDIATE / RECOMMENDED_0_3_MONTHS / PLAN_MONITOR
+
+finding_rules:
+  # ======================================
+  # SWITCHBOARD 相关
+  # ======================================
+  
+  - finding_id: "ASBESTOS_RISK"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.asbestos_suspected"
+      condition: "equals"
+      value: "yes"
+  
+  - finding_id: "THERMAL_STRESS_ACTIVE"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.signs_of_overheating"
+      condition: "equals"
+      value: "yes"
+  
+  - finding_id: "ARCING_EVIDENCE_PRESENT"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.burn_marks_or_carbon"
+      condition: "equals"
+      value: "yes"
+  
+  - finding_id: "MATERIAL_DEGRADATION"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.water_ingress"
+      condition: "equals"
+      value: "yes"
+  
+  - finding_id: "BOARD_AT_CAPACITY"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "switchboard.board_at_capacity"
+      condition: "equals"
+      value: true
+  
+  - finding_id: "NO_EXPANSION_MARGIN"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "switchboard.spare_ways_available"
+      condition: "equals"
+      value: "no"
+  
+  - finding_id: "LABELING_POOR"
+    priority: "PLAN_MONITOR"
+    when:
+      field: "switchboard.labelling_quality"
+      condition: "equals"
+      value: "poor"
+  
+  - finding_id: "NON_STANDARD_WORK"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "switchboard.non_standard_or_diy_observed"
+      condition: "equals"
+      value: true
+  
+  - finding_id: "NO_RCD_PROTECTION"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.protection_types_present"
+      condition: "not_contains"
+      value: "rcd"
+  
+  - finding_id: "NO_RCD_PROTECTION"
+    priority: "IMMEDIATE"
+    when:
+      field: "switchboard.protection_types_present"
+      condition: "not_contains"
+      value: "rcbo"
+  
+  # ======================================
+  # RCD TESTS 相关
+  # ======================================
+  
+  - finding_id: "NO_RCD_PROTECTION"
+    priority: "IMMEDIATE"
+    when:
+      field: "rcd_tests.performed"
+      condition: "equals"
+      value: false
+  
+  - finding_id: "RCD_TEST_FAIL_OR_UNSTABLE"
+    priority: "IMMEDIATE"
+    when:
+      field: "rcd_tests.exceptions[].result"
+      condition: "equals"
+      value: "fail"
+  
+  - finding_id: "RCD_TRIP_TIME_SLOW"
+    priority: "IMMEDIATE"
+    when:
+      field: "rcd_tests.exceptions[].trip_time_ms"
+      condition: "greater_than"
+      value: 300
+  
+  # ======================================
+  # GPO TESTS 相关
+  # ======================================
+  
+  - finding_id: "GPO_MECHANICAL_LOOSE"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "gpo_tests.any_warm_loose_damaged"
+      condition: "equals"
+      value: true
+  
+  - finding_id: "DAMAGED_OUTLET_OR_SWITCH"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "gpo_tests.exceptions[].issue_type"
+      condition: "equals"
+      value: "damaged"
+  
+  - finding_id: "GPO_EARTH_FAULT"
+    priority: "IMMEDIATE"
+    when:
+      field: "gpo_tests.exceptions[].issue_type"
+      condition: "equals"
+      value: "no_earth"
+  
+  - finding_id: "POLARITY_ISSUE_DETECTED"
+    priority: "IMMEDIATE"
+    when:
+      field: "gpo_tests.summary.polarity_pass"
+      condition: "less_than"
+      compare_field: "gpo_tests.summary.total_gpo_tested"
+  
+  # ======================================
+  # EARTHING 相关
+  # ======================================
+  
+  - finding_id: "MEN_NOT_VERIFIED"
+    priority: "IMMEDIATE"
+    when:
+      field: "earthing.men_link_confirmed"
+      condition: "equals"
+      value: "no"
+  
+  - finding_id: "EARTH_DEGRADED"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "earthing.main_earth_conductor_intact"
+      condition: "equals"
+      value: "no"
+  
+  - finding_id: "EARTHING_RESISTANCE_HIGH"
+    priority: "IMMEDIATE"
+    when:
+      field: "earthing.earthing_resistance_measured"
+      condition: "greater_than"
+      value: 1.0
+  
+  - finding_id: "BONDING_TO_WATER_GAS_NOT_VERIFIED"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "earthing.bonding_water_gas_verified"
+      condition: "equals"
+      value: "no"
+  
+  # ======================================
+  # LIGHTING 相关
+  # ======================================
+  
+  - finding_id: "FITTING_OVERHEAT"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "lighting.issues_observed"
+      condition: "equals"
+      value: "heat_damage"
+  
+  - finding_id: "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE"
+    priority: "IMMEDIATE"
+    when:
+      field: "lighting.fittings_noncompliant"
+      condition: "equals"
+      value: true
+  
+  # ======================================
+  # SMOKE ALARMS 相关
+  # ======================================
+  
+  - finding_id: "SMOKE_ALARMS_MISSING"
+    priority: "IMMEDIATE"
+    when:
+      field: "smoke_alarms.present"
+      condition: "equals"
+      value: false
+  
+  - finding_id: "SMOKE_ALARMS_EXPIRED"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "smoke_alarms.expired"
+      condition: "equals"
+      value: true
+  
+  - finding_id: "SMOKE_ALARMS_NOT_INTERCONNECTED"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "smoke_alarms.interconnected"
+      condition: "equals"
+      value: false
+  
+  - finding_id: "SMOKE_ALARMS_LOCATION_NONCOMPLIANT_SUSPECTED"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "smoke_alarms.location_compliant"
+      condition: "equals"
+      value: "no"
+  
+  # ======================================
+  # THERMAL IMAGING 相关
+  # ======================================
+  
+  - finding_id: "THERMAL_NOT_PERFORMED"
+    priority: "PLAN_MONITOR"
+    when:
+      field: "thermal_imaging.performed"
+      condition: "equals"
+      value: false
+  
+  - finding_id: "THERMAL_HOTSPOT_DETECTED_MINOR"
+    priority: "RECOMMENDED_0_3_MONTHS"
+    when:
+      field: "thermal_imaging.hotspots_detected"
+      condition: "equals"
+      value: "minor"
+  
+  - finding_id: "THERMAL_HOTSPOT_DETECTED_MAJOR"
+    priority: "IMMEDIATE"
+    when:
+      field: "thermal_imaging.hotspots_detected"
+      condition: "equals"
+      value: "major"
+  
+  # ======================================
+  # ASSETS (Solar/Battery/EV) 相关
+  # ======================================
+  
+  - finding_id: "BATTERY_THERMAL"
+    priority: "IMMEDIATE"
+    when:
+      field: "assets.battery_thermal"
+      condition: "equals"
+      value: true
+  
+  - finding_id: "EV_UNSEGREGATED_LOAD"
+    priority: "IMMEDIATE"
+    when:
+      field: "assets.ev_charger_segregated"
+      condition: "equals"
+      value: false
+    # Note: This should also check assets.has_ev_charger === true, but handled in code
+  
+  # ======================================
+  # ACCESS LIMITATIONS 相关
+  # ======================================
+  
+  - finding_id: "ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED"
+    priority: "PLAN_MONITOR"
+    when:
+      field: "access.roof_accessible"
+      condition: "equals"
+      value: false
+  
+  - finding_id: "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED"
+    priority: "PLAN_MONITOR"
+    when:
+      field: "access.underfloor_accessible"
+      condition: "equals"
+      value: false
+  
+  # ======================================
+  # TEST DATA 相关
+  # ======================================
+  
+  - finding_id: "TEST_DATA_INCOMPLETE"
+    priority: "PLAN_MONITOR"
+    when:
+      field: "rcd_tests.performed"
+      condition: "equals"
+      value: false
+    # Note: Combined condition (rcd_tests.performed === false AND gpo_tests.performed === false) handled in code

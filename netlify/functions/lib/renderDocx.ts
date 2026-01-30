@@ -13,6 +13,7 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { asBlob } from "html-docx-js-typescript";
 import DocxMerger from "docx-merger";
+import { sanitizeText } from "./sanitizeText";
 
 /**
  * 方案 A：将 HTML 转换为 DOCX 并合并（推荐，保留格式）
@@ -64,10 +65,13 @@ export async function renderDocxWithHtmlMerge(
   const coverBuffer = doc.getZip().generate({ type: "nodebuffer" });
 
   // 3. 将 HTML 转换为 DOCX
-  const htmlContent = data.REPORT_BODY_HTML || "";
+  let htmlContent = data.REPORT_BODY_HTML || "";
   if (!htmlContent) {
     throw new Error("REPORT_BODY_HTML 不能为空");
   }
+
+  // Sanitize HTML again before rendering to DOCX (defensive)
+  htmlContent = sanitizeText(htmlContent);
 
   const htmlDocxBlob = await asBlob(htmlContent, {
     pageSize: {
@@ -120,7 +124,9 @@ export function renderDocxWithHtmlAsText(
   });
 
   // 将 HTML 转换为格式化的纯文本
-  const htmlContent = data.REPORT_BODY_HTML || "";
+  let htmlContent = data.REPORT_BODY_HTML || "";
+  // Sanitize HTML before converting to text (defensive)
+  htmlContent = sanitizeText(htmlContent);
   const textContent = htmlToFormattedText(htmlContent);
 
   // 准备所有数据

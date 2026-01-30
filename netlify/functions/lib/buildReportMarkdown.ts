@@ -1,22 +1,49 @@
 /**
  * 构建报告 Markdown 内容
  * 
- * 将 inspection、findings、responses 和 computed 字段组合成完整的 Markdown 报告
- * 确保所有字段都有值，不会出现 undefined
+ * 严格遵循 REPORT_STRUCTURE.md 的页面顺序
+ * 确保所有部分都有值，不会出现 undefined
  */
 
-import type { StoredInspection } from "./store.js";
+import type { StoredInspection } from "./store";
+import type { CanonicalInspection } from "./normalizeInspection";
+import { loadDefaultText } from "./defaultTextLoader";
+import { loadFindingProfiles, getFindingProfile } from "./findingProfilesLoader";
+import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
+import type { HandlerEvent } from "@netlify/functions";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import yaml from "js-yaml";
+
+// Get __dirname equivalent for ES modules
+let __dirname: string;
+try {
+  if (typeof import.meta !== "undefined" && import.meta.url) {
+    const __filename = fileURLToPath(import.meta.url);
+    __dirname = path.dirname(__filename);
+  } else {
+    __dirname = process.cwd();
+  }
+} catch (e) {
+  console.warn("Could not determine __dirname from import.meta.url, using process.cwd()");
+  __dirname = process.cwd();
+}
 
 export type ComputedFields = {
   OVERALL_STATUS?: string;
   RISK_RATING?: string;
   CAPEX_RANGE?: string;
   EXECUTIVE_SUMMARY?: string;
+  EXECUTIVE_DECISION_SIGNALS?: string;
+  CAPEX_SNAPSHOT?: string;
+  CAPEX_TABLE_ROWS?: string;
   [key: string]: any;
 };
 
 export type BuildReportMarkdownParams = {
   inspection: StoredInspection;
+  canonical: CanonicalInspection;
   findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>;
   responses: {
     findings?: Record<string, {
@@ -28,37 +55,453 @@ export type BuildReportMarkdownParams = {
     defaults?: Record<string, string>;
   };
   computed: ComputedFields;
+  event?: HandlerEvent;
 };
 
 /**
- * 将 priority 映射为 emoji 和文本
+ * Page break marker (used consistently across the project)
  */
-function getPriorityEmoji(priority: string): string {
-  switch (priority) {
-    case "IMMEDIATE":
-      return "🔴";
-    case "RECOMMENDED_0_3_MONTHS":
-      return "🟡";
-    case "PLAN_MONITOR":
-      return "🟢";
-    default:
-      return "⚪";
+const PAGE_BREAK = "\n\n---\n\n";
+
+// Cache for responses.yml
+let responsesCache: any = null;
+
+/**
+ * Load responses.yml (local implementation)
+ */
+async function loadResponses(event?: HandlerEvent): Promise<any> {
+  if (responsesCache) {
+    return responsesCache;
   }
+
+  // Try blob store first (if event is provided)
+  if (event) {
+    try {
+      const { connectLambda, getStore } = await import("@netlify/blobs");
+      connectLambda(event);
+      const store = getStore({ name: "config", consistency: "eventual" });
+      const blobContent = await store.get("responses.yml", { type: "text" });
+      if (blobContent) {
+        try {
+          responsesCache = yaml.load(blobContent) as any;
+          console.log("✅ Loaded responses.yml from blob store");
+          return responsesCache;
+        } catch (e) {
+          console.warn("Failed to parse responses from blob:", e);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to access blob store for responses:", e);
+    }
+  }
+
+  // Fallback to file system
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "responses.yml"),
+    path.join(process.cwd(), "responses.yml"),
+    path.join(process.cwd(), "netlify", "functions", "responses.yml"),
+    "/opt/build/repo/responses.yml",
+  ];
+
+  for (const responsesPath of possiblePaths) {
+    try {
+      if (fs.existsSync(responsesPath)) {
+        const content = fs.readFileSync(responsesPath, "utf8");
+        responsesCache = yaml.load(content) as any;
+        console.log(`✅ Loaded responses.yml from: ${responsesPath}`);
+        return responsesCache;
+      }
+    } catch (e) {
+      console.warn(`Failed to load responses.yml from ${responsesPath}:`, e);
+      continue;
+    }
+  }
+
+  console.warn("⚠️ Could not load responses.yml, using fallback");
+  responsesCache = { findings: {}, defaults: {} };
+  return responsesCache;
 }
 
 /**
- * 将风险等级映射为 emoji
+ * Load Terms and Conditions from DEFAULT_TERMS.md
  */
-function getRiskEmoji(riskRating: string): string {
-  const upper = riskRating.toUpperCase();
-  if (upper.includes("HIGH")) return "🔴";
-  if (upper.includes("MODERATE")) return "🟡";
-  if (upper.includes("LOW")) return "🟢";
-  return "🟡"; // 默认
+async function loadTermsAndConditions(): Promise<string> {
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "DEFAULT_TERMS.md"),
+    path.join(__dirname, "..", "DEFAULT_TERMS.md"),
+    path.join(process.cwd(), "DEFAULT_TERMS.md"),
+    path.join(process.cwd(), "netlify", "functions", "DEFAULT_TERMS.md"),
+    "/opt/build/repo/DEFAULT_TERMS.md",
+    "/opt/build/repo/netlify/functions/DEFAULT_TERMS.md",
+  ];
+  
+  for (const filePath of possiblePaths) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        console.log(`✅ Loaded Terms and Conditions from: ${filePath}`);
+        return content;
+      }
+    } catch (e) {
+      console.warn(`Failed to load DEFAULT_TERMS.md from ${filePath}:`, e);
+      continue;
+    }
+  }
+  
+  // Fallback to hardcoded default
+  console.warn("⚠️ DEFAULT_TERMS.md not found, using hardcoded fallback");
+  return `# TERMS & CONDITIONS OF ASSESSMENT
+
+## 1. Australian Consumer Law (ACL) Acknowledgement
+Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL).  
+Nothing in this Report or these Terms seeks to exclude, restrict, or modify any consumer guarantees that cannot lawfully be excluded.
+
+## 2. Nature & Scope of Professional Opinion
+This Assessment is a point-in-time, non-destructive, visual and functional review of accessible electrical components only.  
+It is non-intrusive and non-exhaustive, and does not constitute a compliance certificate, an electrical safety certificate, an engineering report, a structural inspection, or a guarantee of future performance.
+
+## 3. Decision-Support Only – No Repair Advice
+This Report is provided solely as a risk identification and asset planning tool.  
+It does not prescribe a scope of rectification works, provide quotations, endorse or appoint contractors, or certify statutory compliance.
+
+## 4. Framework Statement
+This assessment does not eliminate risk, but provides a structured framework for managing it.`;
 }
 
 /**
- * 提取字段值（处理嵌套对象）
+ * Convert HTML finding pages to Markdown (simplified conversion)
+ */
+function htmlToMarkdown(html: string): string {
+  // Remove HTML tags and convert to Markdown
+  let md = html
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n")
+    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, "#### $1\n")
+    .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
+    .replace(/<em>(.*?)<\/em>/gi, "*$1*")
+    .replace(/<[^>]+>/g, "") // Remove remaining HTML tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+  
+  // Clean up multiple newlines
+  md = md.replace(/\n{3,}/g, "\n\n");
+  
+  return md.trim();
+}
+
+/**
+ * Section 1: Cover Page
+ */
+function buildCoverSection(canonical: CanonicalInspection, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("# Electrical Property Health Assessment");
+  md.push("");
+  md.push(`**Property Address:** ${canonical.property_address || defaultText.PROPERTY_ADDRESS || "-"}`);
+  md.push(`**Client:** ${canonical.prepared_for || defaultText.PREPARED_FOR || "-"}`);
+  md.push(`**Assessment Date:** ${canonical.assessment_date || defaultText.ASSESSMENT_DATE || "-"}`);
+  md.push(`**Inspection ID:** ${canonical.inspection_id || defaultText.INSPECTION_ID || "-"}`);
+  md.push(`**Prepared By:** ${canonical.prepared_by || defaultText.PREPARED_BY || "-"}`);
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 2: Document Purpose & How to Read This Report
+ */
+function buildPurposeSection(defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Document Purpose & How to Read This Report");
+  md.push("");
+  md.push(defaultText.PURPOSE_PARAGRAPH || defaultText.HOW_TO_READ_PARAGRAPH || 
+    "This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.");
+  md.push("");
+  md.push(defaultText.HOW_TO_READ_PARAGRAPH || defaultText.HOW_TO_READ_TEXT ||
+    "This report is a decision-support document designed to assist property owners, investors, and asset managers in understanding the electrical risk profile of the property and planning for future capital expenditure.");
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 3: Executive Summary (One-Page Only)
+ */
+function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<{ priority: string }>, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Executive Summary");
+  md.push("");
+  
+  // Overall Status Badge
+  const overallStatus = computed.OVERALL_STATUS || computed.RISK_RATING || defaultText.OVERALL_STATUS || "MODERATE RISK";
+  md.push(`### Overall Status: ${overallStatus}`);
+  md.push("");
+  
+  // Executive Decision Signals
+  const executiveSignals = computed.EXECUTIVE_DECISION_SIGNALS || computed.EXECUTIVE_SUMMARY || 
+    defaultText.EXECUTIVE_SUMMARY || 
+    "This property presents a moderate electrical risk profile at the time of inspection.";
+  
+  md.push(executiveSignals);
+  md.push("");
+  
+  // CapEx Snapshot
+  const capexSnapshot = computed.CAPEX_SNAPSHOT || computed.CAPEX_RANGE || "To be confirmed";
+  md.push(`### Financial Planning Snapshot`);
+  md.push(`**Estimated Capital Expenditure Range:** ${capexSnapshot}`);
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 4: Priority Overview (Single Table)
+ */
+function buildPriorityOverviewSection(findings: Array<{ priority: string }>): string {
+  const md: string[] = [];
+  
+  md.push("## Priority Overview");
+  md.push("");
+  
+  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE").length;
+  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
+  const planCount = findings.filter(f => f.priority === "PLAN_MONITOR").length;
+  
+  md.push("| Priority | Count | Description |");
+  md.push("|----------|-------|-------------|");
+  md.push(`| 🔴 Immediate | ${immediateCount} | Urgent Liability Risk |`);
+  md.push(`| 🟡 Recommended (0-3 months) | ${recommendedCount} | Budgetary Provision Recommended |`);
+  md.push(`| 🟢 Planning & Monitoring | ${planCount} | Acceptable |`);
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 5: Assessment Scope & Limitations
+ */
+function buildScopeSection(inspection: StoredInspection, canonical: CanonicalInspection, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Assessment Scope & Limitations");
+  md.push("");
+  
+  // Scope
+  md.push(defaultText.SCOPE_SECTION || defaultText.SCOPE_TEXT ||
+    "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. It provides a framework for managing electrical risk within acceptable parameters.");
+  md.push("");
+  
+  // Limitations
+  md.push("### Limitations");
+  md.push("");
+  const limitations = inspection.limitations || [];
+  if (limitations.length > 0) {
+    limitations.forEach(limitation => {
+      md.push(`- ${limitation}`);
+    });
+  } else {
+    md.push(defaultText.LIMITATIONS || 
+      "Areas that are concealed, locked, or otherwise inaccessible were not inspected.");
+  }
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 6: Observed Conditions & Risk Interpretation (Dynamic Pages)
+ */
+async function buildObservedConditionsSection(
+  inspection: StoredInspection,
+  canonical: CanonicalInspection,
+  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>,
+  event?: HandlerEvent
+): Promise<string> {
+  const md: string[] = [];
+  
+  md.push("## Observed Conditions & Risk Interpretation");
+  md.push("");
+  
+  if (findings.length === 0) {
+    md.push("No findings were identified during this assessment.");
+    md.push("");
+    return md.join("\n");
+  }
+  
+  // Load profiles and responses
+  const responses = await loadResponses(event);
+  const responsesMap: Record<string, Response> = responses.findings || {};
+  const profilesMap = loadFindingProfiles();
+  
+  // Convert findings to Finding type
+  const findingList: Finding[] = findings.map(f => ({
+    id: f.id,
+    priority: f.priority,
+    title: f.title,
+    observed: f.observed,
+    facts: f.facts,
+    photo_ids: (f as any).photo_ids,
+  }));
+  
+  // Convert profiles to FindingProfile map
+  const profiles: Record<string, any> = {};
+  for (const finding of findingList) {
+    profiles[finding.id] = getFindingProfile(finding.id);
+  }
+  
+  // Generate finding pages using strict generator
+  const result = generateFindingPages(
+    findingList,
+    profiles,
+    responsesMap,
+    inspection.raw || {},
+    canonical.test_data || {}
+  );
+  
+  // Convert HTML to Markdown
+  const findingPagesMarkdown = htmlToMarkdown(result.html);
+  
+  md.push(findingPagesMarkdown);
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 7: Thermal Imaging Analysis (If Applicable)
+ */
+function buildThermalImagingSection(canonical: CanonicalInspection, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Thermal Imaging Analysis");
+  md.push("");
+  
+  const testData = canonical.test_data || {};
+  const thermalData = (testData as any)?.thermal_imaging || (testData as any)?.thermal;
+  
+  if (thermalData) {
+    md.push(String(thermalData));
+  } else {
+    md.push(defaultText.THERMAL_VALUE_STATEMENT || defaultText.THERMAL_METHOD ||
+      "Thermal imaging analysis provides a non-invasive method for identifying potential electrical issues that may not be visible during standard visual inspection. No thermal imaging data was captured for this assessment.");
+  }
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 8: 5-Year Capital Expenditure (CapEx) Roadmap
+ */
+function buildCapExRoadmapSection(computed: ComputedFields, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## 5-Year Capital Expenditure (CapEx) Roadmap");
+  md.push("");
+  
+  // CapEx Table Rows
+  const capexTableRows = computed.CAPEX_TABLE_ROWS;
+  if (capexTableRows) {
+    md.push(capexTableRows);
+  } else {
+    md.push("| Year | Item | Indicative Range |");
+    md.push("|------|------|------------------|");
+    md.push("| - | No capital expenditure items identified | - |");
+  }
+  md.push("");
+  
+  // Disclaimer
+  md.push(defaultText.CAPEX_DISCLAIMER_LINE ||
+    "**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.");
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 9: Decision Pathways (was Investor Options & Next Steps)
+ */
+function buildDecisionPathwaysSection(defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Decision Pathways");
+  md.push("");
+  
+  md.push(defaultText.DECISION_PATHWAYS_SECTION || defaultText.DECISION_PATHWAYS_TEXT ||
+    "This report provides a framework for managing electrical risk within acceptable parameters. Investors and asset managers should consider the following decision pathways:\n\n" +
+    "1. **Immediate Actions:** Address all immediate safety concerns as soon as possible.\n" +
+    "2. **Short-term Planning:** Plan and complete recommended actions within 0-3 months.\n" +
+    "3. **Ongoing Monitoring:** Monitor planning items and address during routine maintenance.\n" +
+    "4. **Follow-up Assessment:** Consider a follow-up assessment after completing recommended actions.");
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 10: Important Legal Limitations & Disclaimer (Terms & Conditions)
+ */
+async function buildTermsSection(): Promise<string> {
+  const md: string[] = [];
+  
+  md.push("## Important Legal Limitations & Disclaimer");
+  md.push("");
+  
+  const terms = await loadTermsAndConditions();
+  md.push(terms);
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Section 11: Closing Statement
+ */
+function buildClosingSection(canonical: CanonicalInspection, defaultText: any): string {
+  const md: string[] = [];
+  
+  md.push("## Closing Statement");
+  md.push("");
+  
+  const technicianName = canonical.prepared_by || defaultText.PREPARED_BY || "Licensed Electrician";
+  const assessmentDate = canonical.assessment_date || defaultText.ASSESSMENT_DATE || new Date().toISOString();
+  
+  // Format date
+  let formattedDate: string;
+  try {
+    const date = new Date(assessmentDate);
+    if (!isNaN(date.getTime())) {
+      formattedDate = date.toLocaleDateString("en-AU", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } else {
+      formattedDate = assessmentDate;
+    }
+  } catch (e) {
+    formattedDate = assessmentDate;
+  }
+  
+  md.push(`Prepared by: ${technicianName}`);
+  md.push(`Assessment Date: ${formattedDate}`);
+  md.push("");
+  md.push(defaultText.CLOSING_STATEMENT ||
+    "For questions or clarifications regarding this report, please contact the inspection provider.");
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
+ * Extract value from nested Answer object structure
  */
 function extractValue(v: unknown): unknown {
   if (v == null) return undefined;
@@ -70,406 +513,232 @@ function extractValue(v: unknown): unknown {
     }
     return answerValue;
   }
-  return undefined;
+  return v;
 }
 
 /**
- * 从 inspection.raw 获取字段值
+ * Get nested field value from object
  */
-function getFieldValue(raw: Record<string, unknown>, fieldPath: string): string {
-  const parts = fieldPath.split(".");
-  let current: unknown = raw;
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  const parts = path.split(".");
+  let current: unknown = obj;
   
   for (const part of parts) {
-    if (current == null || typeof current !== "object") return "";
+    if (current == null || typeof current !== "object") return undefined;
     current = (current as Record<string, unknown>)[part];
   }
   
-  const value = extractValue(current);
-  return value != null ? String(value) : "";
+  return extractValue(current);
 }
 
 /**
- * 构建报告 Markdown
- * 
- * 报告结构：
- * 1. Purpose
- * 2. Executive Summary
- * 3. Priority 表
- * 4. Scope/Limits
- * 5. Findings 循环
- * 6. Thermal Imaging
- * 7. CapEx
- * 8. Options
- * 9. Disclaimer
- * 10. Closing
+ * Section 12: Appendix – Test Data & Technical Notes
  */
-export function buildReportMarkdown(params: BuildReportMarkdownParams): string {
-  const { inspection, findings, responses, computed } = params;
-  const findingsMap = responses.findings || {};
-  const raw = inspection.raw || {};
-  
+function buildAppendixSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  // ========================================================================
-  // 1. Purpose
-  // ========================================================================
-  md.push("# Electrical Property Health Assessment");
-  md.push("");
-  md.push("## Purpose");
-  md.push("");
-  md.push("This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.");
-  md.push("");
-  md.push("---");
+  md.push("## Appendix – Test Data & Technical Notes");
   md.push("");
   
-  // ========================================================================
-  // 2. Executive Summary
-  // ========================================================================
-  md.push("## Executive Summary");
-  md.push("");
+  const testData = canonical.test_data || {};
   
-  // 风险等级
-  const riskRating = computed.RISK_RATING || "MODERATE";
-  const riskEmoji = getRiskEmoji(riskRating);
-  const overallStatus = computed.OVERALL_STATUS || `${riskRating} RISK`;
+  // Collect test measurements for table
+  const testMeasurements: Array<{ test: string; parameter: string; value: string; unit: string }> = [];
   
-  md.push(`### Risk Level: ${riskEmoji} ${overallStatus}`);
-  md.push("");
-  
-  // Executive Summary 正文
-  const executiveSummary = computed.EXECUTIVE_SUMMARY || 
-    "This property presents a moderate electrical risk profile at the time of inspection. Some issues were identified that may require attention.";
-  md.push(executiveSummary);
-  md.push("");
-  
-  // Key Decision Signals（根据 findings 计数生成）
-  md.push("### Key Decision Signals");
-  md.push("");
-  
-  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE").length;
-  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
-  const planCount = findings.filter(f => f.priority === "PLAN_MONITOR").length;
-  
-  if (immediateCount === 0) {
-    md.push("- No immediate safety hazards detected");
-  } else {
-    md.push(`- ${immediateCount} immediate safety concern(s) requiring urgent attention`);
+  // Extract RCD test data
+  const rcdTests = testData.rcd_tests as Record<string, unknown> | undefined;
+  if (rcdTests) {
+    const performed = extractValue(rcdTests.performed);
+    if (performed === true || performed === "true" || performed === "yes") {
+      const summary = rcdTests.summary as Record<string, unknown> | undefined;
+      if (summary) {
+        const totalTested = extractValue(summary.total_tested);
+        const totalPass = extractValue(summary.total_pass) || 0;
+        const totalFail = extractValue(summary.total_fail) || 0;
+        if (totalTested !== undefined && Number(totalTested) > 0) {
+          testMeasurements.push({
+            test: "RCD Testing",
+            parameter: "Devices Tested",
+            value: `${totalPass}/${Number(totalTested)} passed`,
+            unit: ""
+          });
+        }
+      }
+      
+      // Extract RCD exceptions with trip times
+      const exceptions = rcdTests.exceptions;
+      if (Array.isArray(exceptions)) {
+        exceptions.forEach((exc: any) => {
+          const location = extractValue(exc.location) || "Unknown";
+          const tripTime = extractValue(exc.trip_time);
+          const testCurrent = extractValue(exc.test_current);
+          const result = extractValue(exc.result);
+          
+          if (tripTime !== undefined) {
+            testMeasurements.push({
+              test: `RCD (${location})`,
+              parameter: "Trip Time",
+              value: String(tripTime),
+              unit: "ms"
+            });
+          }
+          if (testCurrent !== undefined) {
+            testMeasurements.push({
+              test: `RCD (${location})`,
+              parameter: "Test Current",
+              value: String(testCurrent),
+              unit: "mA"
+            });
+          }
+        });
+      }
+    }
   }
   
-  if (recommendedCount > 0) {
-    md.push(`- ${recommendedCount} recommended action(s) should be planned within 0-3 months`);
+  // Extract GPO test data
+  const gpoTests = testData.gpo_tests as Record<string, unknown> | undefined;
+  if (gpoTests) {
+    const performed = extractValue(gpoTests.performed);
+    if (performed === true || performed === "true" || performed === "yes") {
+      const summary = gpoTests.summary as Record<string, unknown> | undefined;
+      if (summary) {
+        const totalTested = extractValue(summary.total_tested) || extractValue(summary.total_outlets_tested);
+        const polarityPass = extractValue(summary.polarity_pass_count) || 0;
+        const earthPass = extractValue(summary.earth_present_pass_count) || 0;
+        
+        if (totalTested !== undefined && Number(totalTested) > 0) {
+          testMeasurements.push({
+            test: "GPO Testing",
+            parameter: "Polarity Check",
+            value: `${polarityPass}/${Number(totalTested)} passed`,
+            unit: ""
+          });
+          testMeasurements.push({
+            test: "GPO Testing",
+            parameter: "Earth Continuity",
+            value: `${earthPass}/${Number(totalTested)} passed`,
+            unit: ""
+          });
+        }
+      }
+    }
   }
   
-  if (planCount > 0) {
-    md.push(`- ${planCount} item(s) identified for ongoing monitoring`);
+  // Extract earthing data
+  const earthing = testData.earthing as Record<string, unknown> | undefined;
+  if (earthing) {
+    const earthResistance = extractValue(earthing.resistance) || extractValue(earthing.earth_resistance);
+    if (earthResistance !== undefined) {
+      testMeasurements.push({
+        test: "Earthing",
+        parameter: "Earth Resistance",
+        value: String(earthResistance),
+        unit: "Ω"
+      });
+    }
   }
   
-  md.push("");
+  // Extract insulation resistance (if available)
+  const insulationResistance = extractValue(testData.insulation_resistance);
+  if (insulationResistance !== undefined) {
+    testMeasurements.push({
+      test: "Insulation",
+      parameter: "Resistance",
+      value: String(insulationResistance),
+      unit: "MΩ"
+    });
+  }
   
-  // Financial Planning Snapshot
-  md.push("### Financial Planning Snapshot");
-  md.push("");
-  const capexRange = computed.CAPEX_RANGE || "To be confirmed";
-  md.push(`**Estimated Capital Expenditure Range:** ${capexRange}`);
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 3. Priority 表
-  // ========================================================================
-  md.push("## Priority Summary");
-  md.push("");
-  md.push("| Priority | Count | Description |");
-  md.push("|----------|-------|-------------|");
-  md.push(`| 🔴 Immediate | ${immediateCount} | Safety concerns requiring urgent attention |`);
-  md.push(`| 🟡 Recommended (0-3 months) | ${recommendedCount} | Items requiring short-term planned action |`);
-  md.push(`| 🟢 Planning & Monitoring | ${planCount} | Items for ongoing monitoring |`);
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 4. Scope/Limits
-  // ========================================================================
-  md.push("## Scope & Limitations");
-  md.push("");
-  
-  const limitations = inspection.limitations || [];
-  if (limitations.length > 0) {
-    md.push("### Limitations");
+  // Render test data section
+  if (testMeasurements.length > 0) {
+    md.push("### Test Data");
     md.push("");
-    limitations.forEach(limitation => {
-      md.push(`- ${limitation}`);
+    md.push("| Test | Parameter | Value | Unit |");
+    md.push("|------|-----------|-------|------|");
+    testMeasurements.forEach(measurement => {
+      md.push(`| ${measurement.test} | ${measurement.parameter} | ${measurement.value} | ${measurement.unit} |`);
     });
     md.push("");
   } else {
-    md.push("No significant limitations were identified during this assessment.");
+    // No test data available - render default paragraph
+    md.push("### Test Data");
     md.push("");
-  }
-  
-  // Access information
-  const switchboardAccessible = getFieldValue(raw, "access.switchboard_accessible");
-  const roofAccessible = getFieldValue(raw, "access.roof_accessible");
-  const underfloorAccessible = getFieldValue(raw, "access.underfloor_accessible");
-  
-  md.push("### Access");
-  md.push("");
-  md.push(`- Switchboard: ${switchboardAccessible === "true" ? "Accessible" : "Not accessible"}`);
-  md.push(`- Roof space: ${roofAccessible === "true" ? "Accessible" : "Not accessible"}`);
-  md.push(`- Underfloor: ${underfloorAccessible === "true" ? "Accessible" : "Not accessible"}`);
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 5. Findings 循环
-  // ========================================================================
-  md.push("## Detailed Findings");
-  md.push("");
-  
-  if (findings.length === 0) {
-    md.push("No findings were identified during this assessment.");
-    md.push("");
-  } else {
-    // 按优先级分组
-    const immediateFindings = findings.filter(f => f.priority === "IMMEDIATE");
-    const recommendedFindings = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS");
-    const planFindings = findings.filter(f => f.priority === "PLAN_MONITOR");
-    
-    // Immediate Findings
-    if (immediateFindings.length > 0) {
-      md.push("### Immediate Safety Concerns");
-      md.push("");
-      immediateFindings.forEach((finding, index) => {
-        md.push(`#### ${index + 1}. Asset Component — ${getFindingTitle(finding, findingsMap)}`);
-        md.push("");
-        md.push(`**Priority:** ${getPriorityEmoji(finding.priority)} Immediate`);
-        md.push("");
-        
-        // Observed Condition
-        const observed = finding.observed || finding.facts || 
-          (findingsMap[finding.id]?.title || finding.title || finding.id.replace(/_/g, " "));
-        md.push(`**Observed Condition:** ${observed}`);
-        md.push("");
-        
-        // Risk Interpretation
-        const whyItMatters = findingsMap[finding.id]?.why_it_matters || 
-          "This issue may pose safety, compliance, or operational risks if left unaddressed.";
-        md.push(`**Risk Interpretation:** ${whyItMatters}`);
-        md.push("");
-        
-        // Recommended Action
-        const recommendedAction = findingsMap[finding.id]?.recommended_action;
-        if (recommendedAction) {
-          md.push(`**Recommended Action:** ${recommendedAction}`);
-          md.push("");
-        }
-        
-        // Planning Guidance（可选）
-        const planningGuidance = findingsMap[finding.id]?.planning_guidance;
-        if (planningGuidance) {
-          md.push(`**Planning Guidance:** ${planningGuidance}`);
-          md.push("");
-        }
-        
-        md.push("---");
-        md.push("");
-      });
-    }
-    
-    // Recommended Findings
-    if (recommendedFindings.length > 0) {
-      md.push("### Recommended Actions (0-3 Months)");
-      md.push("");
-      recommendedFindings.forEach((finding, index) => {
-        md.push(`#### ${index + 1}. Asset Component — ${getFindingTitle(finding, findingsMap)}`);
-        md.push("");
-        md.push(`**Priority:** ${getPriorityEmoji(finding.priority)} Recommended (0-3 months)`);
-        md.push("");
-        
-        const observed = finding.observed || finding.facts || 
-          (findingsMap[finding.id]?.title || finding.title || finding.id.replace(/_/g, " "));
-        md.push(`**Observed Condition:** ${observed}`);
-        md.push("");
-        
-        const whyItMatters = findingsMap[finding.id]?.why_it_matters || 
-          "This item requires attention in the short term to maintain safety and compliance.";
-        md.push(`**Risk Interpretation:** ${whyItMatters}`);
-        md.push("");
-        
-        const recommendedAction = findingsMap[finding.id]?.recommended_action;
-        if (recommendedAction) {
-          md.push(`**Recommended Action:** ${recommendedAction}`);
-          md.push("");
-        }
-        
-        const planningGuidance = findingsMap[finding.id]?.planning_guidance;
-        if (planningGuidance) {
-          md.push(`**Planning Guidance:** ${planningGuidance}`);
-          md.push("");
-        }
-        
-        md.push("---");
-        md.push("");
-      });
-    }
-    
-    // Plan Findings
-    if (planFindings.length > 0) {
-      md.push("### Planning & Monitoring");
-      md.push("");
-      planFindings.forEach((finding, index) => {
-        md.push(`#### ${index + 1}. Asset Component — ${getFindingTitle(finding, findingsMap)}`);
-        md.push("");
-        md.push(`**Priority:** ${getPriorityEmoji(finding.priority)} Planning & Monitoring`);
-        md.push("");
-        
-        const observed = finding.observed || finding.facts || 
-          (findingsMap[finding.id]?.title || finding.title || finding.id.replace(/_/g, " "));
-        md.push(`**Observed Condition:** ${observed}`);
-        md.push("");
-        
-        const whyItMatters = findingsMap[finding.id]?.why_it_matters || 
-          "This item can be monitored over time and addressed during routine maintenance.";
-        md.push(`**Risk Interpretation:** ${whyItMatters}`);
-        md.push("");
-        
-        const planningGuidance = findingsMap[finding.id]?.planning_guidance;
-        if (planningGuidance) {
-          md.push(`**Planning Guidance:** ${planningGuidance}`);
-          md.push("");
-        }
-        
-        md.push("---");
-        md.push("");
-      });
-    }
-  }
-  
-  // ========================================================================
-  // 6. Test Data & Technical Notes
-  // ========================================================================
-  md.push("## Test Data & Technical Notes");
-  md.push("");
-  
-  const testSummary = getFieldValue(raw, "rcd_tests.summary") || 
-    getFieldValue(raw, "gpo_tests.summary") ||
-    "";
-  
-  if (testSummary) {
-    md.push("### Test Summary");
-    md.push("");
-    md.push(testSummary);
-    md.push("");
-  } else {
-    md.push("No test data captured for this assessment.");
+    const defaultTestDataText = defaultText.TEST_DATA_DEFAULT || defaultText.TEST_SUMMARY ||
+      "This assessment is non-destructive and limited to accessible areas only. Testing performed included visual inspection and functional checks of accessible electrical components. Full certification testing, including comprehensive insulation resistance testing, earth continuity verification, and detailed RCD performance analysis, is outside the scope of this assessment. Detailed test results and measurements are available upon request from licensed electrical contractors.";
+    md.push(defaultTestDataText);
     md.push("");
   }
   
   // Technical Notes
-  const technicalNotes = getFieldValue(raw, "signoff.office_notes_internal") ||
-    getFieldValue(raw, "access.notes") ||
-    "";
-  
-  if (technicalNotes) {
-    md.push("### Technical Notes");
-    md.push("");
-    md.push(technicalNotes);
-    md.push("");
-  }
-  
-  md.push("---");
+  md.push("### Technical Notes");
   md.push("");
-  
-  // ========================================================================
-  // 7. Thermal Imaging
-  // ========================================================================
-  md.push("## Thermal Imaging");
-  md.push("");
-  
-  const thermalData = getFieldValue(raw, "thermal") || "";
-  if (thermalData) {
-    md.push(thermalData);
-  } else {
-    md.push("No thermal imaging data captured for this assessment.");
-  }
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 8. CapEx
-  // ========================================================================
-  md.push("## Capital Expenditure Planning");
-  md.push("");
-  
-  if (computed.CAPEX_RANGE && computed.CAPEX_RANGE !== "To be confirmed") {
-    md.push(`**Estimated Range:** ${computed.CAPEX_RANGE}`);
-    md.push("");
-    md.push("This estimate is based on the identified findings and assumes standard market rates. Actual costs may vary based on contractor selection, material availability, and site-specific conditions.");
-  } else {
-    md.push("Capital expenditure estimates will be provided upon request based on detailed quotations from licensed electrical contractors.");
-  }
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 9. Options
-  // ========================================================================
-  md.push("## Options & Next Steps");
-  md.push("");
-  md.push("1. **Immediate Actions:** Address all immediate safety concerns as soon as possible.");
-  md.push("2. **Short-term Planning:** Plan and complete recommended actions within 0-3 months.");
-  md.push("3. **Ongoing Monitoring:** Monitor planning items and address during routine maintenance.");
-  md.push("4. **Follow-up Assessment:** Consider a follow-up assessment after completing recommended actions.");
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 10. Disclaimer
-  // ========================================================================
-  md.push("## Disclaimer");
-  md.push("");
-  md.push("This report is based on a visual inspection and limited electrical testing of accessible areas only. It does not constitute a comprehensive electrical audit or guarantee the absence of defects. Some issues may only become apparent during more detailed testing or when systems are under load.");
-  md.push("");
-  md.push("---");
-  md.push("");
-  
-  // ========================================================================
-  // 11. Closing
-  // ========================================================================
-  md.push("## Closing");
-  md.push("");
-  
-  const technicianName = getFieldValue(raw, "signoff.technician_name") || "Licensed Electrician";
-  const assessmentDate = getFieldValue(raw, "created_at") || new Date().toISOString();
-  const formattedDate = new Date(assessmentDate).toLocaleDateString("en-AU", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
-  
-  md.push(`Prepared by: ${technicianName}`);
-  md.push(`Assessment Date: ${formattedDate}`);
-  md.push("");
-  md.push("For questions or clarifications regarding this report, please contact the inspection provider.");
+  const technicalNotes = canonical.technician_notes || defaultText.TECHNICAL_NOTES ||
+    "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.";
+  md.push(technicalNotes);
   md.push("");
   
   return md.join("\n");
 }
 
 /**
- * 获取 finding 的友好标题
+ * Build report Markdown following strict REPORT_STRUCTURE.md order
  */
-function getFindingTitle(
-  finding: { id: string; title?: string },
-  findingsMap: Record<string, { title?: string }>
-): string {
-  return findingsMap[finding.id]?.title || 
-    finding.title || 
-    finding.id.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+export async function buildReportMarkdown(params: BuildReportMarkdownParams): Promise<string> {
+  const { inspection, canonical, findings, computed, event } = params;
+  
+  // Load default text
+  const defaultText = await loadDefaultText(event);
+  
+  const sections: string[] = [];
+  
+  // 1. Cover
+  sections.push(buildCoverSection(canonical, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 2. Document Purpose & How to Read This Report
+  sections.push(buildPurposeSection(defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 3. Executive Summary (One-Page Only)
+  sections.push(buildExecutiveSummarySection(computed, findings, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 4. Priority Overview (Single Table)
+  sections.push(buildPriorityOverviewSection(findings));
+  sections.push(PAGE_BREAK);
+  
+  // 5. Assessment Scope & Limitations
+  sections.push(buildScopeSection(inspection, canonical, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 6. Observed Conditions & Risk Interpretation (Dynamic Pages)
+  const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event);
+  sections.push(observedConditions);
+  sections.push(PAGE_BREAK);
+  
+  // 7. Thermal Imaging Analysis (If Applicable)
+  sections.push(buildThermalImagingSection(canonical, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 8. 5-Year Capital Expenditure (CapEx) Roadmap
+  sections.push(buildCapExRoadmapSection(computed, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 9. Decision Pathways (was Investor Options & Next Steps)
+  sections.push(buildDecisionPathwaysSection(defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 10. Important Legal Limitations & Disclaimer (Terms & Conditions)
+  const terms = await buildTermsSection();
+  sections.push(terms);
+  sections.push(PAGE_BREAK);
+  
+  // 11. Closing Statement
+  sections.push(buildClosingSection(canonical, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 12. Appendix (Optional)
+  sections.push(buildAppendixSection(canonical, defaultText));
+  
+  return sections.join("");
 }
