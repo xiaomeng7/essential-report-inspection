@@ -916,9 +916,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     
     if (!foundMdTemplate) {
-      console.log("⚠️ report-template-md.docx not found in any location, using report-template.docx");
-      console.log("⚠️ Searched paths:", possibleMdPaths);
-      templateBuffer = loadWordTemplate();
+      console.error("❌ report-template-md.docx not found in any location!");
+      console.error("Searched paths:", possibleMdPaths);
+      console.error("This means the Markdown-based report generation cannot work.");
+      console.error("Please ensure report-template-md.docx is copied to netlify/functions/ during build.");
+      throw new Error("找不到 report-template-md.docx 模板文件。请确保构建时复制了该文件到 netlify/functions/ 目录。");
     }
     
     // Check if template contains REPORT_BODY_HTML placeholder
@@ -938,11 +940,14 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     if (!hasPlaceholder) {
       // Try to extract a sample of the document to help debug
       const sampleXml = documentXml.substring(0, 2000);
+      const templateSize = templateBuffer.length;
       console.error("❌ 模板中未找到 {{REPORT_BODY_HTML}} 占位符");
+      console.error("模板文件大小:", templateSize, "bytes");
       console.error("文档 XML 长度:", documentXml.length);
       console.error("文档 XML 前 2000 字符:", sampleXml);
       console.error("请确保模板文件 report-template-md.docx 中包含 {{REPORT_BODY_HTML}} 占位符");
-      throw new Error("模板中未找到 {{REPORT_BODY_HTML}} 占位符。请在模板正文插入 {{REPORT_BODY_HTML}}。");
+      console.error("提示：如果模板大小约为 19078 bytes，说明是正确的模板；如果约为 111440 bytes，说明使用了旧的模板");
+      throw new Error(`模板中未找到 {{REPORT_BODY_HTML}} 占位符。模板文件大小: ${templateSize} bytes。请确保使用 report-template-md.docx（约 19078 bytes）而不是 report-template.docx（约 111440 bytes）。`);
     }
     console.log("✅ Template contains {{REPORT_BODY_HTML}} placeholder");
     

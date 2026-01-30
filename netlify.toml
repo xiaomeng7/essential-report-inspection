@@ -6,6 +6,7 @@
 [functions]
   included_files = [
     "./netlify/functions/report-template.docx",
+    "./netlify/functions/report-template-md.docx",
     "./netlify/functions/report-template.html",
     "./netlify/functions/rules.yml",
     "./netlify/functions/responses.yml",
