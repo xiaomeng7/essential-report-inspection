@@ -2,16 +2,151 @@
 
 本文档详细说明了电气检查报告的生成规则、数据流程和格式要求。
 
+**⚠️ 重要：本文档包含非协商性规则（NON-NEGOTIABLE RULES），AI 必须严格遵守。违反任何规则都会使输出无效。**
+
 ## 📋 目录
 
-1. [报告生成流程](#报告生成流程)
-2. [数据源优先级](#数据源优先级)
-3. [风险评级规则](#风险评级规则)
-4. [报告结构](#报告结构)
-5. [Findings 格式化规则](#findings-格式化规则)
-6. [Executive Summary 生成规则](#executive-summary-生成规则)
-7. [模板要求](#模板要求)
-8. [数据验证规则](#数据验证规则)
+1. [非协商性规则（NON-NEGOTIABLE RULES）](#非协商性规则non-negotiable-rules)
+2. [报告生成流程](#报告生成流程)
+3. [数据源优先级](#数据源优先级)
+4. [风险评级规则](#风险评级规则)
+5. [报告结构](#报告结构)
+6. [Findings 格式化规则](#findings-格式化规则)
+7. [Executive Summary 生成规则](#executive-summary-生成规则)
+8. [模板要求](#模板要求)
+9. [数据验证规则](#数据验证规则)
+
+---
+
+## 非协商性规则（NON-NEGOTIABLE RULES）
+
+**这些规则是强制性的，AI 必须严格遵守。违反任何规则都会使输出无效。**
+
+### 1. 整体报告定位（Overall Report Positioning）
+
+- **报告性质**：这是一份决策支持文档（decision-support document）
+- **报告不是**：
+  - ❌ 检查报告（inspection report）
+  - ❌ 合规证书（compliance certificate）
+  - ❌ 维修报价（repair quotation）
+- **语言风格**：所有语言必须面向投资者（investor-facing），而不是面向技术人员（technician-facing）
+
+### 2. Executive Summary 规则
+
+#### EXECUTIVE_DECISION_SIGNALS（执行决策信号）
+
+此部分必须满足以下所有要求：
+
+**必需内容：**
+- ✅ **至少一句话说明**：如果不采取行动会发生什么
+- ✅ **至少一句话说明**：为什么这种情况不是立即或紧急风险
+- ✅ **至少一句话说明**：为什么风险可以在正常的资产规划周期内管理
+
+**严格禁止：**
+- ❌ 技术组件名称
+- ❌ 标准引用（AS/NZS, RCBO 等）
+- ❌ 检查式摘要
+
+**目的**：此部分用于支持决策，而不是描述发现。
+
+### 3. Finding 页面结构（Pages 6–10）
+
+每个 finding 必须遵循以下精确的结构和顺序：
+
+#### 3.1 Asset Component（资产组件）
+- **格式**：仅使用简短的名词短语
+- **示例**：`Main Switchboard`, `Distribution Board`, `RCD Protection`
+
+#### 3.2 Observed Condition（观察到的状况）
+- **要求**：仅客观描述，不含意见
+- **禁止**：主观判断、建议性语言
+
+#### 3.3 Evidence（证据）
+- **要求**：说明观察到、测量到或验证到的内容
+- **禁止**：解释或推断
+
+#### 3.4 Risk Interpretation（风险解释）
+
+**强制性要求：**
+- ✅ 最少 2 句话
+- ✅ 必须包含 "if not addressed"（如果不解决）的逻辑
+- ✅ 必须解释随时间推移的后果，而不是立即后果
+
+**示例格式：**
+```
+If this condition is not addressed, [consequence over time].
+[Explanation of why this is manageable within normal planning cycles].
+```
+
+#### 3.5 Priority Classification（优先级分类）
+
+使用以下分类之一：
+- **Urgent Liability Risk**（紧急责任风险）
+- **Budgetary Provision Recommended**（建议预算准备）
+- **Acceptable**（可接受）
+
+#### 3.6 Budgetary Planning Range（预算规划范围）
+- **要求**：仅提供指示性财务范围
+- **禁止**：建议或行动号召
+
+### 4. Thermal Imaging Section（热成像部分）
+
+**要求：**
+- ✅ 必须解释为什么热成像增加了风险识别的价值
+- ✅ 将其定位为非侵入性决策支持工具
+
+**禁止：**
+- ❌ 解释热成像的工作原理
+- ❌ 技术性描述
+
+### 5. CapEx Roadmap Rules（资本支出路线图规则）
+
+**要求：**
+- ✅ 所有数字都是指示性市场基准
+- ✅ 必须包含免责声明：
+  ```
+  "Provided for financial provisioning only. Not a quotation or scope of works."
+  ```
+  （仅用于财务准备。不是报价或工作范围。）
+
+### 6. Language Guardrails（语言护栏）
+
+#### AI 必须（MUST）：
+- ✅ 使用中性、咨询性语调
+- ✅ 避免指令性语言（"should", "must", "recommended to"）
+- ✅ 避免维修建议
+
+#### AI 不得（MUST NOT）：
+- ❌ 听起来像承包商
+- ❌ 听起来像电工
+- ❌ 听起来像检查清单
+
+**语言示例：**
+
+**❌ 错误（技术性）：**
+```
+The RCD protection should be upgraded to meet AS/NZS 3000 requirements.
+```
+
+**✅ 正确（投资者面向）：**
+```
+Current protection levels may require enhancement to align with contemporary standards, 
+which could be factored into future capital planning cycles.
+```
+
+### 7. Legal Positioning（法律定位）
+
+**要求：**
+至少一个部分必须说明：
+- ✅ 风险并未消除
+- ✅ 本报告提供了管理风险的框架，而不是消除风险
+
+**示例文本：**
+```
+This assessment provides a framework for managing electrical risk within acceptable 
+parameters. It does not eliminate risk, but rather identifies areas where proactive 
+management can reduce potential liability and operational disruption.
+```
 
 ---
 
@@ -192,8 +327,17 @@ Markdown 报告按以下固定结构生成：
 - 如果没有：显示 "No thermal imaging data captured for this assessment."
 
 ### 8. Capital Expenditure Planning（资本支出规划）
-- 如果 `computed.CAPEX_RANGE` 有值：显示估算范围
-- 否则：显示 "Capital expenditure estimates will be provided upon request..."
+
+**⚠️ 必须遵循非协商性规则：**
+- ✅ 所有数字都是指示性市场基准
+- ✅ 必须包含免责声明：
+  ```
+  "Provided for financial provisioning only. Not a quotation or scope of works."
+  ```
+
+**内容要求：**
+- 如果 `computed.CAPEX_RANGE` 有值：显示估算范围 + 免责声明
+- 否则：显示 "Capital expenditure estimates will be provided upon request..." + 免责声明
 
 ### 9. Options & Next Steps（选项和后续步骤）
 固定格式的 4 条建议
@@ -212,6 +356,8 @@ Markdown 报告按以下固定结构生成：
 
 ### 字段使用规则
 
+**⚠️ 重要：必须遵循非协商性规则中的 Finding 页面结构要求。**
+
 根据 `finding.priority` 使用不同的字段组合：
 
 #### IMMEDIATE（立即）
@@ -220,15 +366,26 @@ Markdown 报告按以下固定结构生成：
 - `recommended_action` - 推荐行动（必需）
 - `planning_guidance` - 规划指导（可选）
 
-**格式：**
+**格式（必须遵循非协商性规则）：**
 ```
-{title}
+## Asset Component
+{title}  // 简短名词短语
 
-Why it matters: {why_it_matters}
+## Observed Condition
+{observed_condition}  // 客观描述，无意见
 
-Recommended action: {recommended_action}
+## Evidence
+{evidence}  // 观察到、测量到或验证到的内容
 
-[Planning guidance: {planning_guidance}]  // 可选
+## Risk Interpretation
+{if_not_addressed_consequence}  // 必须包含 "if not addressed" 逻辑
+{consequence_over_time}  // 解释随时间推移的后果，最少 2 句话
+
+## Priority Classification
+Urgent Liability Risk
+
+## Budgetary Planning Range
+{indicative_range}  // 仅指示性财务范围，无建议
 ```
 
 #### RECOMMENDED_0_3_MONTHS（推荐 0-3 个月）
@@ -237,15 +394,26 @@ Recommended action: {recommended_action}
 - `recommended_action` - 推荐行动
 - `planning_guidance` - 规划指导
 
-**格式：**
+**格式（必须遵循非协商性规则）：**
 ```
-{title}
+## Asset Component
+{title}  // 简短名词短语
 
-Why it matters: {why_it_matters}
+## Observed Condition
+{observed_condition}  // 客观描述，无意见
 
-Recommended action: {recommended_action}
+## Evidence
+{evidence}  // 观察到、测量到或验证到的内容
 
-Planning guidance: {planning_guidance}
+## Risk Interpretation
+{if_not_addressed_consequence}  // 必须包含 "if not addressed" 逻辑
+{consequence_over_time}  // 解释随时间推移的后果，最少 2 句话
+
+## Priority Classification
+Budgetary Provision Recommended
+
+## Budgetary Planning Range
+{indicative_range}  // 仅指示性财务范围，无建议
 ```
 
 #### PLAN_MONITOR（规划监控）
@@ -254,15 +422,26 @@ Planning guidance: {planning_guidance}
 - `why_it_matters` - 为什么重要（次要）
 - `recommended_action` - 推荐行动（可选）
 
-**格式：**
+**格式（必须遵循非协商性规则）：**
 ```
-{title}
+## Asset Component
+{title}  // 简短名词短语
 
-Why it matters: {why_it_matters}
+## Observed Condition
+{observed_condition}  // 客观描述，无意见
 
-[Recommended action: {recommended_action}]  // 可选
+## Evidence
+{evidence}  // 观察到、测量到或验证到的内容
 
-Planning guidance: {planning_guidance}
+## Risk Interpretation
+{if_not_addressed_consequence}  // 必须包含 "if not addressed" 逻辑
+{consequence_over_time}  // 解释随时间推移的后果，最少 2 句话
+
+## Priority Classification
+Acceptable
+
+## Budgetary Planning Range
+{indicative_range}  // 仅指示性财务范围，无建议
 ```
 
 ### 标题生成规则
@@ -284,6 +463,20 @@ function getFindingTitle(finding, findingsMap) {
 ---
 
 ## Executive Summary 生成规则
+
+**⚠️ 重要：必须遵循非协商性规则中的 Executive Summary 规则。**
+
+### EXECUTIVE_DECISION_SIGNALS 生成规则
+
+**强制性要求：**
+1. ✅ 至少一句话说明：如果不采取行动会发生什么
+2. ✅ 至少一句话说明：为什么这种情况不是立即或紧急风险
+3. ✅ 至少一句话说明：为什么风险可以在正常的资产规划周期内管理
+
+**严格禁止：**
+- ❌ 技术组件名称
+- ❌ 标准引用（AS/NZS, RCBO 等）
+- ❌ 检查式摘要
 
 ### 模板选择
 
@@ -529,6 +722,46 @@ Low risk template text...
 
 ---
 
+## 语言风格检查清单
+
+### ✅ 必须使用（MUST）
+
+- [ ] 中性、咨询性语调
+- [ ] 投资者面向的语言
+- [ ] "if not addressed" 逻辑
+- [ ] 解释随时间推移的后果
+- [ ] 指示性财务范围（非报价）
+- [ ] 法律定位说明（风险未消除）
+
+### ❌ 禁止使用（MUST NOT）
+
+- [ ] 技术组件名称（在 Executive Summary 中）
+- [ ] 标准引用（AS/NZS, RCBO 等，在 Executive Summary 中）
+- [ ] 指令性语言（"should", "must", "recommended to"）
+- [ ] 维修建议
+- [ ] 承包商/电工/检查清单风格的语言
+- [ ] 立即后果描述（应描述随时间推移的后果）
+
+### 语言转换示例
+
+#### ❌ 错误示例（技术性、指令性）
+
+```
+The RCD protection should be upgraded to meet AS/NZS 3000 requirements. 
+The electrician must install new RCBO devices immediately to ensure compliance.
+```
+
+#### ✅ 正确示例（投资者面向、咨询性）
+
+```
+Current protection levels may require enhancement to align with contemporary 
+standards. If not addressed, this could impact insurance coverage and compliance 
+confidence over the next 12-24 months. This can be factored into normal asset 
+planning cycles without immediate urgency.
+```
+
+---
+
 ## 最佳实践
 
 ### 1. 模板维护
@@ -574,3 +807,11 @@ Low risk template text...
 - **2026-01-30**: 创建文档，记录完整的报告生成规则
 - **2026-01-30**: 添加风险评级规则和 Executive Summary 生成规则
 - **2026-01-30**: 添加 Findings 格式化规则和模板要求
+- **2026-01-30**: 添加非协商性规则（NON-NEGOTIABLE RULES）
+  - 整体报告定位规则
+  - Executive Summary 严格规则
+  - Finding 页面结构规则
+  - Thermal Imaging 规则
+  - CapEx Roadmap 规则
+  - 语言护栏规则
+  - 法律定位规则
