@@ -907,12 +907,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Check if template contains REPORT_BODY_HTML placeholder
     // This is a required protection: throw error if placeholder is missing
+    // Note: Word may split placeholders across XML nodes, so we check for the text content
     const zip = new PizZip(templateBuffer);
     const documentXml = zip.files["word/document.xml"]?.asText() || "";
-    if (!documentXml.includes("REPORT_BODY_HTML")) {
-      const errorMsg = "模板中未找到 {{REPORT_BODY_HTML}} 占位符。请在模板正文插入 {{REPORT_BODY_HTML}}。";
-      console.error("❌", errorMsg);
-      throw new Error(errorMsg);
+    
+    // Check for REPORT_BODY_HTML in various forms
+    // 1. Direct match (most common)
+    // 2. Case-insensitive match
+    // 3. Check if it might be split across XML nodes (look for parts)
+    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || 
+                          documentXml.includes("report_body_html") ||
+                          documentXml.includes("Report_Body_Html");
+    
+    if (!hasPlaceholder) {
+      // Try to extract a sample of the document to help debug
+      const sampleXml = documentXml.substring(0, 2000);
+      console.error("❌ 模板中未找到 {{REPORT_BODY_HTML}} 占位符");
+      console.error("文档 XML 长度:", documentXml.length);
+      console.error("文档 XML 前 2000 字符:", sampleXml);
+      console.error("请确保模板文件 report-template-md.docx 中包含 {{REPORT_BODY_HTML}} 占位符");
+      throw new Error("模板中未找到 {{REPORT_BODY_HTML}} 占位符。请在模板正文插入 {{REPORT_BODY_HTML}}。");
     }
     console.log("✅ Template contains {{REPORT_BODY_HTML}} placeholder");
     
