@@ -18,7 +18,9 @@
 import type { StoredInspection } from "./store.js";
 import { loadDefaultText } from "./defaultTextLoader.js";
 import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader.js";
-import { loadResponses, buildReportData } from "../generateWordReport.js";
+import { loadResponses, buildReportData, type ReportData } from "../generateWordReport";
+import { normalizeInspection, type CanonicalInspection } from "./normalizeInspection.js";
+import { getFindingProfile } from "./findingProfilesLoader.js";
 
 export type GenerateReportParams = {
   inspection: StoredInspection;
@@ -207,7 +209,12 @@ function generateExecutiveDecisionSignals(
 export async function buildMarkdownReport(params: GenerateReportParams): Promise<string> {
   const { inspection, findings, responses, event } = params;
   const findingsMap = responses.findings || {};
-  const raw = inspection.raw || {};
+  
+  // Normalize inspection raw data to canonical fields
+  const { canonical, missingFields } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
+  if (missingFields.length > 0) {
+    console.warn(`⚠️ Missing canonical fields: ${missingFields.join(", ")}`);
+  }
   
   // 加载默认文本和模板
   const defaultText = await loadDefaultText(event);
@@ -220,14 +227,14 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   const capexCurrency = reportData.capex_currency || "AUD";
   const capexNote = reportData.capex_note;
   
-  // 计算风险评级
+  // 使用从 finding profiles 计算的风险评级
+  const riskRating = reportData.RISK_RATING;
+  const overallStatus = reportData.OVERALL_STATUS;
+  
+  // 保留计数用于其他用途
   const immediateCount = findings.filter(f => f.priority === "IMMEDIATE").length;
   const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
   const planCount = findings.filter(f => f.priority === "PLAN_MONITOR").length;
-  
-  const riskRating = immediateCount > 0 ? "HIGH" : 
-                    (recommendedCount > 0 ? "MODERATE" : "LOW");
-  const overallStatus = `${riskRating} RISK`;
   
   // 生成 Executive Summary
   let executiveSummary: string;
@@ -363,16 +370,17 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
     md.push("");
   }
   
-  // Access Information
+  // Access Information (from test_data if available, otherwise empty)
+  const testData = canonical.test_data || {};
+  const switchboardAccessible = (testData as any)?.access?.switchboard_accessible;
+  const roofAccessible = (testData as any)?.access?.roof_accessible;
+  const underfloorAccessible = (testData as any)?.access?.underfloor_accessible;
+  
   md.push("### Access Information");
   md.push("");
-  const switchboardAccessible = getFieldValue(raw, "access.switchboard_accessible");
-  const roofAccessible = getFieldValue(raw, "access.roof_accessible");
-  const underfloorAccessible = getFieldValue(raw, "access.underfloor_accessible");
-  
-  md.push(`- **Switchboard:** ${switchboardAccessible === "true" ? "Accessible" : "Not accessible"}`);
-  md.push(`- **Roof space:** ${roofAccessible === "true" ? "Accessible" : "Not accessible"}`);
-  md.push(`- **Underfloor:** ${underfloorAccessible === "true" ? "Accessible" : "Not accessible"}`);
+  md.push(`- **Switchboard:** ${switchboardAccessible === "true" || switchboardAccessible === true ? "Accessible" : "Not accessible"}`);
+  md.push(`- **Roof space:** ${roofAccessible === "true" || roofAccessible === true ? "Accessible" : "Not accessible"}`);
+  md.push(`- **Underfloor:** ${underfloorAccessible === "true" || underfloorAccessible === true ? "Accessible" : "Not accessible"}`);
   md.push("");
   md.push("---");
   md.push("");
@@ -398,8 +406,14 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
     });
     
     sortedFindings.forEach((finding, index) => {
-      const response = findingsMap[finding.id] || {};
-      const assetComponent = getAssetComponent(finding, findingsMap);
+      // 获取 finding profile（新结构）
+      const profile = getFindingProfile(finding.id);
+      
+      // 使用 profile.messaging.title（不再只用 responses.yml title）
+      const assetComponent = profile.messaging?.title || 
+                            findingsMap[finding.id]?.title || 
+                            finding.title || 
+                            finding.id.replace(/_/g, " ");
       const priorityEmoji = getPriorityEmoji(finding.priority);
       const priorityClassification = getPriorityClassification(finding.priority);
       
@@ -411,81 +425,146 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       // 固定输出顺序（严格遵守 REPORT_GENERATION_RULES.md）
       // ========================================================================
       
-      // 1. Asset Component（简短名词短语）
+      // 1. Asset Component（title）
       md.push("#### Asset Component");
       md.push(assetComponent);
       md.push("");
       
-      // 2. Observed Condition（客观描述，无意见）
+      // 2. Observed Condition（来自 raw evidence 或默认一句）
       md.push("#### Observed Condition");
-      // observed_condition 可能是数组或字符串
       let observedCondition: string;
-      if (Array.isArray(response.observed_condition)) {
-        observedCondition = response.observed_condition.join(" ");
+      
+      // 优先从 responses.yml 读取（保持向后兼容）
+      const response = findingsMap[finding.id] || {};
+      if (Array.isArray(response.observed_condition) && response.observed_condition.length > 0) {
+        observedCondition = response.observed_condition.join(". ");
+        if (!observedCondition.endsWith(".")) {
+          observedCondition += ".";
+        }
       } else if (typeof response.observed_condition === "string") {
         observedCondition = response.observed_condition;
       } else {
+        // 尝试从 raw 读取 observed/facts
         observedCondition = finding.observed || 
                            finding.facts || 
-                           response.title ||
-                           "Condition observed during inspection.";
+                           `${assetComponent} was observed during the visual inspection.`;
       }
       md.push(observedCondition);
       md.push("");
       
-      // 3. Evidence（来自 observed_condition）
+      // 3. Evidence（如果 raw 没有就写 "No photo/evidence provided."）
       md.push("#### Evidence");
-      // Evidence 应该来自 observed_condition 数组
-      let evidence: string;
-      if (Array.isArray(response.observed_condition) && response.observed_condition.length > 0) {
-        // 使用 observed_condition 数组作为证据
-        evidence = response.observed_condition.join(". ");
-        if (!evidence.endsWith(".")) {
-          evidence += ".";
+      let evidence: string = "No photo/evidence provided.";
+      
+      // 尝试从 raw 读取 photo_ids 或 evidence
+      const rawForEvidence = inspection.raw || {};
+      const testDataForEvidence = canonical.test_data || {};
+      
+      // 检查是否有 photo_ids（可能在 finding 对象中，或在 raw 的各个 section 中）
+      const findingPhotoIds = (finding as any)?.photo_ids || (finding as any)?.evidence?.photo_ids;
+      
+      // 尝试从 raw 的各个 section 查找 photo_ids
+      let sectionPhotoIds: unknown = undefined;
+      const findingIdLower = finding.id.toLowerCase();
+      
+      // 辅助函数：从对象中获取嵌套值（支持数组）
+      function getNestedValue(obj: unknown, path: string): unknown {
+        const parts = path.split(".");
+        let current: unknown = obj;
+        for (const part of parts) {
+          if (current == null || typeof current !== "object") return undefined;
+          current = (current as Record<string, unknown>)[part];
         }
-      } else if (response.evidence) {
-        evidence = response.evidence;
-      } else if (finding.facts) {
-        evidence = finding.facts;
-      } else {
-        evidence = "Visual inspection and limited electrical testing performed in accordance with applicable standards.";
+        return extractValue(current);
       }
+      
+      // 检查常见的位置
+      const possiblePaths = [
+        `${findingIdLower}.photo_ids`,
+        `exceptions.${findingIdLower}.photo_ids`,
+        `rcd_tests.exceptions.photo_ids`,
+        `gpo_tests.exceptions.photo_ids`,
+      ];
+      
+      for (const path of possiblePaths) {
+        const value = getNestedValue(rawForEvidence, path) || getNestedValue(testDataForEvidence, path);
+        if (value && (Array.isArray(value) || typeof value === "string")) {
+          sectionPhotoIds = value;
+          break;
+        }
+      }
+      
+      if (findingPhotoIds && Array.isArray(findingPhotoIds) && findingPhotoIds.length > 0) {
+        evidence = `Photo evidence provided: ${findingPhotoIds.join(", ")}.`;
+      } else if (sectionPhotoIds) {
+        if (Array.isArray(sectionPhotoIds) && sectionPhotoIds.length > 0) {
+          evidence = `Photo evidence provided: ${sectionPhotoIds.join(", ")}.`;
+        } else if (typeof sectionPhotoIds === "string" && sectionPhotoIds.trim().length > 0) {
+          evidence = sectionPhotoIds;
+        }
+      }
+      
+      // 如果还没有 evidence，尝试其他来源
+      if (evidence === "No photo/evidence provided.") {
+        if (finding.facts && finding.facts.trim().length > 0) {
+          evidence = finding.facts;
+        } else if (Array.isArray(response.observed_condition) && response.observed_condition.length > 0) {
+          // 使用 observed_condition 作为证据
+          evidence = response.observed_condition.join(". ");
+          if (!evidence.endsWith(".")) {
+            evidence += ".";
+          }
+        }
+      }
+      
       md.push(evidence);
       md.push("");
       
-      // 4. Risk Interpretation（必须遵守非协商性规则）
+      // 4. Risk Interpretation（必须包含 why_it_matters + if_not_addressed）
       md.push("#### Risk Interpretation");
-      let riskInterpretation = response.risk_interpretation || response.why_it_matters || "";
       
-      // 确保包含 "if not addressed" 逻辑
-      if (!riskInterpretation.toLowerCase().includes("if not addressed") && 
-          !riskInterpretation.toLowerCase().includes("if not")) {
-        const ifNotAddressed = response.why_it_matters || 
-                              "If this condition is not addressed, it may impact long-term reliability or compliance confidence.";
-        riskInterpretation = `${ifNotAddressed}\n\n${riskInterpretation || "This risk can be managed within normal asset planning cycles."}`;
-      }
+      // 使用 profile.messaging 中的 why_it_matters 和 if_not_addressed
+      const whyItMatters = profile.messaging?.why_it_matters || 
+                          response.why_it_matters || 
+                          "This condition may affect electrical safety, reliability, or compliance depending on severity and location.";
+      
+      const ifNotAddressed = profile.messaging?.if_not_addressed || 
+                            response.risk_interpretation?.match(/If.*not.*addressed[^.]*\./i)?.[0] ||
+                            "If this condition is not addressed, it may impact long-term reliability or compliance confidence.";
+      
+      // 组合 why_it_matters + if_not_addressed
+      let riskInterpretation = `${whyItMatters}\n\n${ifNotAddressed}`;
       
       // 确保最少 2 句话
       const sentences = riskInterpretation.split(/[.!?]+/).filter(s => s.trim().length > 0);
       if (sentences.length < 2) {
-        riskInterpretation += " This can be factored into future capital planning cycles without immediate urgency.";
+        riskInterpretation += " This risk can be managed within normal asset planning cycles.";
       }
       
       md.push(riskInterpretation);
       md.push("");
       
-      // 5. Priority Classification
+      // 5. Priority Classification（由 priority）
       md.push("#### Priority Classification");
       md.push(`${priorityEmoji} ${priorityClassification}`);
       md.push("");
       
-      // 6. Budgetary Planning Range（仅指示性财务范围，无建议）
+      // 6. Budgetary Planning Range（由 budget 级别映射区间）
       md.push("#### Budgetary Planning Range");
       
-      // 格式化 budgetary_range
+      // 使用 profile.budget 映射到预算区间
+      const budgetLevel = profile.budget || "horizon";
       let budgetaryRangeText: string;
+      
+      // budget 级别映射到预算区间
+      const budgetRanges: Record<string, { low: number; high: number }> = {
+        horizon: { low: 0, high: 0 },      // 长期规划，无具体预算
+        low: { low: 200, high: 1000 },      // 低预算范围
+        high: { low: 2000, high: 10000 },   // 高预算范围
+      };
+      
+      // 如果 responses.yml 中有 budgetary_range，优先使用（向后兼容）
       if (response.budgetary_range) {
-        // budgetary_range 可能是对象 {low, high, currency, note} 或字符串
         if (typeof response.budgetary_range === "object" && response.budgetary_range !== null) {
           const range = response.budgetary_range as { low?: number; high?: number; currency?: string; note?: string };
           const currency = range.currency || "AUD";
@@ -498,17 +577,27 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
               budgetaryRangeText += `. ${range.note}`;
             }
           } else {
-            budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
-                                "Indicative market benchmark range to be confirmed through contractor quotations.";
+            // Fallback to budget level mapping
+            const mappedRange = budgetRanges[budgetLevel] || budgetRanges.horizon;
+            if (mappedRange.low === 0 && mappedRange.high === 0) {
+              budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
+                                  "Indicative market benchmark range to be confirmed through contractor quotations.";
+            } else {
+              budgetaryRangeText = `AUD $${mappedRange.low} – $${mappedRange.high} (indicative, planning only)`;
+            }
           }
         } else {
-          // 如果是字符串，直接使用
           budgetaryRangeText = String(response.budgetary_range);
         }
       } else {
-        // 使用默认文本
-        budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
-                            "Indicative market benchmark range to be confirmed through contractor quotations.";
+        // 使用 budget level 映射
+        const mappedRange = budgetRanges[budgetLevel] || budgetRanges.horizon;
+        if (mappedRange.low === 0 && mappedRange.high === 0) {
+          budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
+                              "Indicative market benchmark range to be confirmed through contractor quotations.";
+        } else {
+          budgetaryRangeText = `AUD $${mappedRange.low} – $${mappedRange.high} (indicative, planning only)`;
+        }
       }
       
       md.push(budgetaryRangeText);
@@ -525,7 +614,9 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("## Thermal Imaging Analysis");
   md.push("");
   
-  const thermalData = getFieldValue(raw, "thermal") || "";
+  // Thermal data from test_data if available
+  const testDataForThermal = canonical.test_data || {};
+  const thermalData = (testDataForThermal as any)?.thermal || "";
   if (thermalData) {
     // 必须解释为什么热成像增加了风险识别的价值（非协商性规则）
     md.push("Thermal imaging analysis provides a non-invasive method for identifying potential electrical issues that may not be visible during standard visual inspection.");
@@ -548,31 +639,131 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("");
   
   // ========================================================================
-  // 7. 5-Year Capital Expenditure (CapEx) Roadmap
+  // 6.5. Test Data & Technical Notes（强制兜底规则）
+  // ========================================================================
+  md.push("## Test Data & Technical Notes");
+  md.push("");
+  
+  // TEST_SUMMARY（强制兜底规则：永不输出 undefined）
+  md.push("### Test Summary");
+  md.push("");
+  const testDataForSummary = canonical.test_data || {};
+  const rawForSummary = inspection.raw || {};
+  
+  // 显式判断：尝试从 raw 读取测试摘要
+  let testSummary: string = ""; // 初始化为空字符串，确保不是 undefined
+  
+  const rcdSummary = (testDataForSummary as any)?.rcd_tests?.summary || 
+                     getFieldValue(rawForSummary, "rcd_tests.summary");
+  const gpoSummary = (testDataForSummary as any)?.gpo_tests?.summary || 
+                     getFieldValue(rawForSummary, "gpo_tests.summary");
+  
+  // 显式判断：如果有实际数据，使用实际数据
+  if (rcdSummary && String(rcdSummary).trim().length > 0) {
+    const summaries: string[] = [];
+    summaries.push(`RCD Testing: ${String(rcdSummary)}`);
+    if (gpoSummary && String(gpoSummary).trim().length > 0) {
+      summaries.push(`GPO Testing: ${String(gpoSummary)}`);
+    }
+    testSummary = summaries.join(". ");
+  } else if (gpoSummary && String(gpoSummary).trim().length > 0) {
+    testSummary = `GPO Testing: ${String(gpoSummary)}`;
+  }
+  
+  // 强制兜底：如果无数据，使用默认文本
+  if (!testSummary || testSummary.trim().length === 0) {
+    testSummary = defaultText.TEST_SUMMARY || 
+                  "Electrical safety inspection completed in accordance with applicable standards.";
+  }
+  
+  // 确保不是 undefined
+  testSummary = String(testSummary || "");
+  md.push(testSummary);
+  md.push("");
+  
+  // TECHNICAL_NOTES（强制兜底规则：永不输出 undefined）
+  md.push("### Technical Notes");
+  md.push("");
+  let technicalNotes: string = ""; // 初始化为空字符串，确保不是 undefined
+  
+  // 显式判断：尝试从 canonical 读取 technician_notes
+  const canonicalNotes = canonical.technician_notes || "";
+  if (canonicalNotes && String(canonicalNotes).trim().length > 0) {
+    technicalNotes = String(canonicalNotes);
+  } else {
+    // 显式判断：尝试从 raw 读取
+    const rawNotes = getFieldValue(rawForSummary, "signoff.office_notes_internal") ||
+                     getFieldValue(rawForSummary, "access.notes");
+    if (rawNotes && String(rawNotes).trim().length > 0) {
+      technicalNotes = String(rawNotes);
+    }
+  }
+  
+  // 强制兜底：如果无数据，使用默认文本
+  if (!technicalNotes || technicalNotes.trim().length === 0) {
+    technicalNotes = defaultText.TECHNICAL_NOTES || 
+                     "This is a non-invasive visual inspection limited to accessible areas.";
+  }
+  
+  // 确保不是 undefined
+  technicalNotes = String(technicalNotes || "");
+  md.push(technicalNotes);
+  md.push("");
+  md.push("---");
+  md.push("");
+  
+  // ========================================================================
+  // 7. 5-Year Capital Expenditure (CapEx) Roadmap（强制兜底规则）
   // ========================================================================
   md.push("## 5-Year Capital Expenditure (CapEx) Roadmap");
   md.push("");
   
-  // 必须包含免责声明（非协商性规则）
-  md.push("**Important:** All figures provided in this section are indicative market benchmarks for financial provisioning purposes only. They are not quotations or scope of works.");
+  // 强制兜底：免责声明（使用默认文本，永不 undefined）
+  const capexDisclaimer = defaultText.CAPEX_DISCLAIMER || 
+                          "**Important:** All figures provided in this section are indicative market benchmarks for financial provisioning purposes only. They are not quotations or scope of works.";
+  md.push(String(capexDisclaimer));
   md.push("");
   
-  // Use CapEx summary (already calculated above)
-  if (capexLow === 0 && capexHigh === 0) {
-    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $0 – $0`);
+  // 显式判断：Use CapEx summary (already calculated above)
+  // 确保所有变量都不是 undefined
+  const safeCapexLow = typeof capexLow === "number" ? capexLow : 0;
+  const safeCapexHigh = typeof capexHigh === "number" ? capexHigh : 0;
+  const safeCapexCurrency = String(capexCurrency || "AUD");
+  const safeCapexNote = String(capexNote || "");
+  
+  // 显式判断：是否有 CapEx 数据
+  const hasCapExData = safeCapexLow > 0 || safeCapexHigh > 0;
+  
+  if (!hasCapExData) {
+    // 无数据情况：使用默认文本，保留页面结构
+    md.push(`**Estimated Capital Expenditure Range:** ${safeCapexCurrency} $0 – $0`);
     md.push("");
-    md.push(capexNote || "No budgetary estimates available. Detailed quotations required from licensed electrical contractors.");
+    
+    // 强制兜底：使用默认文本
+    const capexNoDataText = defaultText.CAPEX_NO_DATA || 
+                            "Capital expenditure estimates will be provided upon request based on detailed quotations from licensed electrical contractors.";
+    md.push(String(capexNoDataText));
   } else {
-    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $${capexLow} – $${capexHigh} (indicative, planning only)`);
+    // 有数据情况：显示实际范围
+    md.push(`**Estimated Capital Expenditure Range:** ${safeCapexCurrency} $${safeCapexLow} – $${safeCapexHigh} (indicative, planning only)`);
     md.push("");
-    if (capexNote) {
-      md.push(capexNote);
+    
+    // 显式判断：如果有 note，显示 note
+    if (safeCapexNote && safeCapexNote.trim().length > 0) {
+      md.push(safeCapexNote);
       md.push("");
     }
+    
+    // 添加说明文本（固定内容，不依赖数据）
     md.push("This estimate is based on the identified findings and assumes standard market rates. Actual costs may vary based on contractor selection, material availability, and site-specific conditions.");
   }
+  
   md.push("");
-  md.push("**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.");
+  
+  // 强制兜底：免责声明 footer（使用默认文本，永不 undefined）
+  const capexDisclaimerFooter = defaultText.CAPEX_DISCLAIMER_FOOTER || 
+                                "**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.";
+  md.push(String(capexDisclaimerFooter));
   md.push("");
   md.push("---");
   md.push("");
@@ -649,13 +840,26 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("## Closing Statement");
   md.push("");
   
-  const technicianName = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
-  const assessmentDate = getFieldValue(raw, "created_at") || new Date().toISOString();
-  const formattedDate = new Date(assessmentDate).toLocaleDateString("en-AU", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
+  // Use canonical fields
+  const technicianName = canonical.prepared_by || defaultText.PREPARED_BY;
+  const assessmentDate = canonical.assessment_date || new Date().toISOString();
+  
+  // Format date
+  let formattedDate: string;
+  try {
+    const date = new Date(assessmentDate);
+    if (!isNaN(date.getTime())) {
+      formattedDate = date.toLocaleDateString("en-AU", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } else {
+      formattedDate = assessmentDate; // Use as-is if parsing fails
+    }
+  } catch (e) {
+    formattedDate = assessmentDate; // Use as-is if formatting fails
+  }
   
   md.push(`**Prepared by:** ${technicianName}`);
   md.push(`**Assessment Date:** ${formattedDate}`);

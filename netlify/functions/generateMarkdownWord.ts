@@ -8,10 +8,11 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { get } from "./lib/store.js";
 import { buildMarkdownReport } from "./lib/generateReport.js";
-import { loadResponses } from "./generateWordReport.js";
+import { loadResponses } from "./generateWordReport";
 import { markdownToHtml } from "./lib/markdownToHtml.js";
 import { renderDocx } from "./lib/renderDocx.js";
 import { loadDefaultText } from "./lib/defaultTextLoader.js";
+import { normalizeInspection } from "./lib/normalizeInspection.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -110,11 +111,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
 
-    // 2. 加载 responses.yml
+    // 2. 规范化检查数据（canonical layer）
+    const { canonical } = normalizeInspection(inspection.raw, inspection.inspection_id);
+    console.log("✅ Normalized inspection data");
+
+    // 3. 加载 responses.yml
     const responses = await loadResponses(event);
     console.log("✅ Loaded responses.yml");
 
-    // 3. 生成 Markdown 报告
+    // 4. 生成 Markdown 报告
     console.log("📝 Generating Markdown report...");
     const markdown = await buildMarkdownReport({
       inspection,
@@ -124,48 +129,46 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     });
     console.log(`✅ Markdown report generated: ${markdown.length} characters`);
 
-    // 4. 将 Markdown 转换为 HTML
+    // 5. 将 Markdown 转换为 HTML
     console.log("🔄 Converting Markdown to HTML...");
     const html = markdownToHtml(markdown);
     console.log(`✅ HTML generated: ${html.length} characters`);
 
-    // 5. 加载 Word 模板
+    // 6. 加载 Word 模板
     console.log("📄 Loading Word template...");
     const templateBuffer = loadWordTemplate();
 
-    // 6. 准备模板数据（封面页数据）
+    // 7. 准备模板数据（封面页数据，使用 canonical）
     const defaultText = await loadDefaultText(event);
-    const raw = inspection.raw || {};
     
-    // Extract basic info from inspection.raw
-    const job = raw.job as Record<string, unknown> | undefined;
-    const address = getFieldValue(raw, "job.address") || defaultText.PROPERTY_ADDRESS;
-    const technicianName = getFieldValue(raw, "signoff.technician_name") || defaultText.PREPARED_BY;
-    const assessmentDate = getFieldValue(raw, "created_at") || new Date().toISOString();
-    
-    // Format date
+    // Format assessment_date
+    let assessmentDate = canonical.assessment_date || new Date().toISOString();
     let formattedDate = defaultText.ASSESSMENT_DATE;
     try {
       const date = new Date(assessmentDate);
-      formattedDate = date.toLocaleDateString("en-AU", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      });
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toLocaleDateString("en-AU", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+      } else {
+        formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
+      }
     } catch (e) {
       formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
     }
     
     const coverData = {
-      INSPECTION_ID: inspection.inspection_id || defaultText.INSPECTION_ID,
+      INSPECTION_ID: canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID,
       ASSESSMENT_DATE: formattedDate,
-      PREPARED_FOR: getFieldValue(raw, "job.prepared_for") || defaultText.PREPARED_FOR,
-      PREPARED_BY: technicianName,
-      PROPERTY_ADDRESS: address,
-      PROPERTY_TYPE: getFieldValue(raw, "job.property_type") || defaultText.PROPERTY_TYPE
+      PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR,
+      PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY,
+      PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS,
+      PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
     };
 
-    // 7. 渲染 Word 文档
+    // 8. 渲染 Word 文档
     console.log("📝 Rendering Word document...");
     const wordBuffer = await renderDocx(templateBuffer, {
       ...coverData,
@@ -173,7 +176,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     });
     console.log(`✅ Word document generated: ${wordBuffer.length} bytes`);
 
-    // 8. 返回 Word 文档
+    // 9. 返回 Word 文档
     const filename = `${inspectionId}-report.docx`;
     
     return {

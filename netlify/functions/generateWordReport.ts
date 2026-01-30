@@ -9,16 +9,16 @@ import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { loadExecutiveSummaryTemplates } from "./lib/executiveSummaryLoader";
-import { buildReportMarkdown } from "./lib/buildReportMarkdown.js";
-import { markdownToHtml } from "./lib/markdownToHtml.js";
-import { renderDocx } from "./lib/renderDocx.js";
-import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection.js";
-import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader.js";
-import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring.js";
-import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals.js";
-import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages.js";
-import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap.js";
-import { ensureAllPlaceholders, DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS } from "../../src/reporting/placeholderMap.js";
+import { buildReportMarkdown } from "./lib/buildReportMarkdown";
+import { markdownToHtml } from "./lib/markdownToHtml";
+import { renderDocx } from "./lib/renderDocx";
+import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection";
+import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader";
+import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring";
+import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals";
+import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
+import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
+import { ensureAllPlaceholders, DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS } from "../../src/reporting/placeholderMap";
 
 // Get __dirname equivalent for ES modules
 let __dirname: string;
@@ -1998,6 +1998,3 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   }
 };
-
-// Explicit export to ensure Netlify bundler recognizes it
-export { loadResponses };
