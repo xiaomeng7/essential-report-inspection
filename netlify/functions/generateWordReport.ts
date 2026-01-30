@@ -895,13 +895,29 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
     let templateBuffer: Buffer;
     const mdTemplatePath = path.join(__dirname, "report-template-md.docx");
-    const regularTemplatePath = path.join(__dirname, "report-template.docx");
     
-    if (fs.existsSync(mdTemplatePath)) {
-      console.log("Using report-template-md.docx for Markdown-based generation");
-      templateBuffer = fs.readFileSync(mdTemplatePath);
-    } else {
-      console.log("report-template-md.docx not found, using report-template.docx");
+    // Try multiple possible paths for report-template-md.docx
+    const possibleMdPaths = [
+      mdTemplatePath,
+      path.join(process.cwd(), "netlify", "functions", "report-template-md.docx"),
+      path.join(process.cwd(), "report-template-md.docx"),
+      "/opt/build/repo/netlify/functions/report-template-md.docx",
+      "/opt/build/repo/report-template-md.docx",
+    ];
+    
+    let foundMdTemplate = false;
+    for (const templatePath of possibleMdPaths) {
+      if (fs.existsSync(templatePath)) {
+        console.log(`✅ Found report-template-md.docx at: ${templatePath}`);
+        templateBuffer = fs.readFileSync(templatePath);
+        foundMdTemplate = true;
+        break;
+      }
+    }
+    
+    if (!foundMdTemplate) {
+      console.log("⚠️ report-template-md.docx not found in any location, using report-template.docx");
+      console.log("⚠️ Searched paths:", possibleMdPaths);
       templateBuffer = loadWordTemplate();
     }
     
