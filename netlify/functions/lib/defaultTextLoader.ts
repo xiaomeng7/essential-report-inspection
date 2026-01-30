@@ -64,11 +64,28 @@ export type DefaultText = {
 let defaultTextCache: DefaultText | null = null;
 
 /**
- * Find the path to DEFAULT_REPORT_TEXT.md
- * Tries multiple possible locations
+ * Find the path to DEFAULT_TEXT_LIBRARY.md or DEFAULT_REPORT_TEXT.md
+ * Tries multiple possible locations, prioritizing DEFAULT_TEXT_LIBRARY.md
  */
 function findDefaultTextPath(): string {
-  const possiblePaths = [
+  // First try DEFAULT_TEXT_LIBRARY.md (preferred)
+  const libraryPaths = [
+    path.join(__dirname, "DEFAULT_TEXT_LIBRARY.md"),
+    path.join(__dirname, "..", "DEFAULT_TEXT_LIBRARY.md"),
+    path.join(process.cwd(), "DEFAULT_TEXT_LIBRARY.md"),
+    path.join(process.cwd(), "netlify", "functions", "DEFAULT_TEXT_LIBRARY.md"),
+    "/opt/build/repo/DEFAULT_TEXT_LIBRARY.md",
+    "/opt/build/repo/netlify/functions/DEFAULT_TEXT_LIBRARY.md",
+  ];
+  
+  for (const filePath of libraryPaths) {
+    if (fs.existsSync(filePath)) {
+      return filePath;
+    }
+  }
+  
+  // Fallback to DEFAULT_REPORT_TEXT.md
+  const reportPaths = [
     path.join(__dirname, "DEFAULT_REPORT_TEXT.md"),
     path.join(__dirname, "..", "DEFAULT_REPORT_TEXT.md"),
     path.join(process.cwd(), "DEFAULT_REPORT_TEXT.md"),
@@ -77,14 +94,14 @@ function findDefaultTextPath(): string {
     "/opt/build/repo/netlify/functions/DEFAULT_REPORT_TEXT.md",
   ];
   
-  for (const filePath of possiblePaths) {
+  for (const filePath of reportPaths) {
     if (fs.existsSync(filePath)) {
       return filePath;
     }
   }
   
-  // Return the first path as default (will fail gracefully if file doesn't exist)
-  return possiblePaths[0];
+  // Return the first library path as default (will fail gracefully if file doesn't exist)
+  return libraryPaths[0];
 }
 
 /**
