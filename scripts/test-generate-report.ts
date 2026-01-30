@@ -23,15 +23,15 @@ const __dirname = path.dirname(__filename);
 function loadMockResponses() {
   return {
     findings: {
-      MEN_NOT_VERIFIED: {
+      MEN_LINK: {
         title: "MEN Link",
-        why_it_matters: "The MEN link is critical for electrical safety and must be verified by a licensed electrician.",
-        recommended_action: "Have a licensed electrician verify and test the MEN link immediately.",
-        planning_guidance: "This is an urgent safety requirement.",
-        observed_condition: ["MEN link verification status could not be confirmed during visual inspection."],
-        evidence: "Visual inspection only. No electrical testing was performed to verify MEN link integrity.",
-        risk_interpretation: "If this condition is not addressed, the electrical installation may not have proper earth fault protection, which could pose a significant safety risk over time. This risk can be managed by engaging a licensed electrician for verification within normal planning cycles.",
-        budgetary_range: { low: 200, high: 500, currency: "AUD", note: "Verification and testing" }
+        why_it_matters: "Earthing and bonding are fundamental for correct operation of protective devices and reducing touch voltage risk.",
+        planning_guidance: "Prioritise where test results are marginal or site conditions increase corrosion risk.",
+        observed_condition: ["Men Link was observed during the visual inspection."],
+        risk_interpretation: "If this condition is not addressed, it may pose immediate safety risks or escalate into significant liability exposure within the next 6-12 months. While this requires attention, it does not represent an emergency that would prevent continued use of the property under normal conditions, but should be addressed promptly to prevent escalation.",
+        priority_rationale: "This item requires immediate attention due to potential safety risks or liability exposure that could escalate if not addressed promptly.",
+        budgetary_range: { low: 200, high: 500, currency: "AUD", note: "Verification and testing" },
+        default_priority: "IMMEDIATE"
       },
       PARTIAL_RCD_COVERAGE: {
         title: "Partial RCD Protection",
@@ -83,23 +83,23 @@ async function main() {
       report_html: "",
       findings: [
         { 
-          id: "MEN_NOT_VERIFIED", 
+          id: "MEN_LINK", 
           priority: "IMMEDIATE", 
-          title: "MEN Link Not Verified",
+          title: "MEN Link",
           observed: "MEN link verification status could not be confirmed",
           facts: "Visual inspection only"
         },
         { 
           id: "PARTIAL_RCD_COVERAGE", 
           priority: "RECOMMENDED_0_3_MONTHS", 
-          title: "Partial RCD Coverage",
+          title: "Partial RCD Protection",
           observed: "Some circuits lack RCD protection",
           facts: "Mixed protection types observed"
         },
         { 
           id: "LABELING_POOR", 
           priority: "PLAN_MONITOR", 
-          title: "Poor Labeling",
+          title: "Circuit Labeling",
           observed: "Circuit labels are missing or unclear",
           facts: "Many breakers lack clear labels"
         }
@@ -111,7 +111,7 @@ async function main() {
     console.log(`   - Findings: ${inspection.findings.length}`);
     console.log(`   - Limitations: ${inspection.limitations.length}\n`);
     
-    // 3. 加载 responses（模拟）
+    // 3. 加载 responses（使用 mock 数据，包含 budgetary_range）
     const responses = loadMockResponses();
     console.log("✅ 已加载 responses 数据\n");
     

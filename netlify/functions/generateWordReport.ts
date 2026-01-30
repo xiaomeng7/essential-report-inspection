@@ -315,6 +315,10 @@ export type ReportData = {
   recommended: string[];
   plan: string[];
   limitations: string[];
+  capex_low_total: number;
+  capex_high_total: number;
+  capex_currency: string;
+  capex_note: string;
 };
 
 /**
@@ -359,6 +363,81 @@ export type WordTemplateData = {
 };
 
 /**
+ * Calculate CapEx summary from findings
+ * Sums up all budgetary_range for findings where priority != "PLAN_MONITOR" (ACCEPTABLE)
+ * 
+ * @param findings Array of findings
+ * @param findingsMap Responses map from responses.yml
+ * @returns CapEx summary with low_total, high_total, currency, and note
+ */
+function calculateCapExSummary(
+  findings: Array<{ id: string; priority: string }>,
+  findingsMap: Record<string, any>
+): { low_total: number; high_total: number; currency: string; note: string } {
+  let lowTotal = 0;
+  let highTotal = 0;
+  let currency = "AUD"; // Default currency
+  const notes: string[] = [];
+  let hasAnyRange = false;
+  
+  // Filter findings where priority != "PLAN_MONITOR" (ACCEPTABLE)
+  const relevantFindings = findings.filter(f => f.priority !== "PLAN_MONITOR");
+  
+  relevantFindings.forEach((finding) => {
+    const response = findingsMap[finding.id];
+    if (!response || !response.budgetary_range) {
+      return;
+    }
+    
+    const range = response.budgetary_range;
+    
+    // Handle object format {low, high, currency, note}
+    if (typeof range === "object" && range !== null) {
+      const low = typeof range.low === "number" ? range.low : 0;
+      const high = typeof range.high === "number" ? range.high : 0;
+      
+      if (low > 0 || high > 0) {
+        lowTotal += low;
+        highTotal += high;
+        hasAnyRange = true;
+        
+        // Use first currency found (assume all are same)
+        if (range.currency && !currency || currency === "AUD") {
+          currency = range.currency || "AUD";
+        }
+        
+        // Collect notes (optional)
+        if (range.note && typeof range.note === "string") {
+          notes.push(range.note);
+        }
+      }
+    }
+  });
+  
+  // If no budgetary ranges found, return $0 – $0 with explanatory note
+  if (!hasAnyRange || (lowTotal === 0 && highTotal === 0)) {
+    return {
+      low_total: 0,
+      high_total: 0,
+      currency: "AUD",
+      note: "No budgetary estimates available. Detailed quotations required from licensed electrical contractors."
+    };
+  }
+  
+  // Combine notes if multiple
+  const combinedNote = notes.length > 0 
+    ? `Indicative ranges based on ${relevantFindings.length} finding(s). ${notes.slice(0, 2).join("; ")}`
+    : `Indicative ranges based on ${relevantFindings.length} finding(s).`;
+  
+  return {
+    low_total: lowTotal,
+    high_total: highTotal,
+    currency,
+    note: combinedNote
+  };
+}
+
+/**
  * Build report data from inspection - unified data structure for HTML and Word
  * Returns findings grouped by priority
  */
@@ -392,12 +471,19 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     }
   });
   
+  // Calculate CapEx summary
+  const capexSummary = calculateCapExSummary(inspection.findings || [], findingsMap);
+  
   return {
     inspection_id: inspection.inspection_id,
     immediate,
     recommended,
     plan,
     limitations: inspection.limitations || [],
+    capex_low_total: capexSummary.low_total,
+    capex_high_total: capexSummary.high_total,
+    capex_currency: capexSummary.currency,
+    capex_note: capexSummary.note,
   };
 }
 

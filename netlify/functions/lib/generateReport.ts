@@ -18,7 +18,7 @@
 import type { StoredInspection } from "./store.js";
 import { loadDefaultText } from "./defaultTextLoader.js";
 import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader.js";
-import { loadResponses } from "../generateWordReport.js";
+import { loadResponses, buildReportData } from "../generateWordReport.js";
 
 export type GenerateReportParams = {
   inspection: StoredInspection;
@@ -213,6 +213,13 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   const defaultText = await loadDefaultText(event);
   const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
   
+  // 计算 CapEx summary（供 Executive Summary 和 CapEx Roadmap 使用）
+  const reportData = await buildReportData(inspection, event);
+  const capexLow = reportData.capex_low_total;
+  const capexHigh = reportData.capex_high_total;
+  const capexCurrency = reportData.capex_currency || "AUD";
+  const capexNote = reportData.capex_note;
+  
   // 计算风险评级
   const immediateCount = findings.filter(f => f.priority === "IMMEDIATE").length;
   const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
@@ -297,8 +304,19 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   // Financial Planning Snapshot
   md.push("### Financial Planning Snapshot");
   md.push("");
-  const capexRange = "To be confirmed"; // Can be enhanced later
-  md.push(`**Estimated Capital Expenditure Range:** ${capexRange}`);
+  
+  // Use CapEx summary (already calculated above)
+  if (capexLow === 0 && capexHigh === 0) {
+    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $0 – $0`);
+    md.push("");
+    md.push(`*${capexNote}*`);
+  } else {
+    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $${capexLow} – $${capexHigh} (indicative, planning only)`);
+    if (capexNote) {
+      md.push("");
+      md.push(`*${capexNote}*`);
+    }
+  }
   md.push("");
   md.push("---");
   md.push("");
@@ -539,12 +557,19 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("**Important:** All figures provided in this section are indicative market benchmarks for financial provisioning purposes only. They are not quotations or scope of works.");
   md.push("");
   
-  if (capexRange && capexRange !== "To be confirmed") {
-    md.push(`**Estimated Capital Expenditure Range:** ${capexRange}`);
+  // Use CapEx summary (already calculated above)
+  if (capexLow === 0 && capexHigh === 0) {
+    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $0 – $0`);
     md.push("");
-    md.push("This estimate is based on the identified findings and assumes standard market rates. Actual costs may vary based on contractor selection, material availability, and site-specific conditions.");
+    md.push(capexNote || "No budgetary estimates available. Detailed quotations required from licensed electrical contractors.");
   } else {
-    md.push("Capital expenditure estimates will be provided upon request based on detailed quotations from licensed electrical contractors.");
+    md.push(`**Estimated Capital Expenditure Range:** ${capexCurrency} $${capexLow} – $${capexHigh} (indicative, planning only)`);
+    md.push("");
+    if (capexNote) {
+      md.push(capexNote);
+      md.push("");
+    }
+    md.push("This estimate is based on the identified findings and assumes standard market rates. Actual costs may vary based on contractor selection, material availability, and site-specific conditions.");
   }
   md.push("");
   md.push("**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.");
