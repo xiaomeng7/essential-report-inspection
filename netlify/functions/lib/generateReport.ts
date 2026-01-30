@@ -480,7 +480,8 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
               budgetaryRangeText += `. ${range.note}`;
             }
           } else {
-            budgetaryRangeText = "Indicative market benchmark range to be confirmed through contractor quotations.";
+            budgetaryRangeText = defaultText.BUDGETARY_RANGE_DEFAULT || 
+                                "Indicative market benchmark range to be confirmed through contractor quotations.";
           }
         } else {
           // 如果是字符串，直接使用

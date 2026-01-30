@@ -28,30 +28,30 @@ function loadMockResponses() {
         why_it_matters: "The MEN link is critical for electrical safety and must be verified by a licensed electrician.",
         recommended_action: "Have a licensed electrician verify and test the MEN link immediately.",
         planning_guidance: "This is an urgent safety requirement.",
-        observed_condition: "MEN link verification status could not be confirmed during visual inspection.",
+        observed_condition: ["MEN link verification status could not be confirmed during visual inspection."],
         evidence: "Visual inspection only. No electrical testing was performed to verify MEN link integrity.",
         risk_interpretation: "If this condition is not addressed, the electrical installation may not have proper earth fault protection, which could pose a significant safety risk over time. This risk can be managed by engaging a licensed electrician for verification within normal planning cycles.",
-        budgetary_range: "Indicative range: $200-$500 for verification and testing."
+        budgetary_range: { low: 200, high: 500, currency: "AUD", note: "Verification and testing" }
       },
       PARTIAL_RCD_COVERAGE: {
         title: "Partial RCD Protection",
         why_it_matters: "Incomplete RCD protection may leave some circuits vulnerable to earth fault risks.",
         recommended_action: "Consider installing additional RCD protection to cover all circuits.",
         planning_guidance: "This can be planned with other electrical works.",
-        observed_condition: "Some circuits are protected by RCD devices, but not all circuits have RCD protection.",
+        observed_condition: ["Some circuits are protected by RCD devices, but not all circuits have RCD protection."],
         evidence: "Visual inspection of switchboard revealed mixed protection types. Some circuits have RCD/RCBO protection, while others have MCB-only protection.",
         risk_interpretation: "If this condition is not addressed, unprotected circuits may remain vulnerable to earth fault risks over time. This can be factored into future capital planning cycles without immediate urgency.",
-        budgetary_range: "Indicative range: $800-$2000 depending on the number of circuits requiring protection."
+        budgetary_range: { low: 800, high: 2000, currency: "AUD", note: "Depending on number of circuits" }
       },
       LABELING_POOR: {
         title: "Circuit Labeling",
         why_it_matters: "Poor labeling makes it difficult to identify circuits during maintenance or emergencies.",
         recommended_action: "Improve circuit labeling for better identification.",
         planning_guidance: "This can be addressed during routine maintenance.",
-        observed_condition: "Circuit labels are missing, unclear, or outdated.",
+        observed_condition: ["Circuit labels are missing, unclear, or outdated."],
         evidence: "Visual inspection revealed that many circuit breakers lack clear labels or have labels that are difficult to read.",
         risk_interpretation: "If this condition is not addressed, it may become more difficult to manage the electrical installation over time. This can be addressed during routine maintenance cycles.",
-        budgetary_range: "Indicative range: $100-$300 for professional labeling."
+        budgetary_range: { low: 100, high: 300, currency: "AUD", note: "Professional labeling" }
       }
     },
     defaults: {}
