@@ -398,28 +398,151 @@ function buildThermalImagingSection(canonical: CanonicalInspection, defaultText:
 }
 
 /**
+ * Get timeline based on priority (fallback when profile timeline is missing)
+ */
+function getTimelineFromPriority(priority: string): string {
+  const upper = priority.toUpperCase();
+  if (upper === "IMMEDIATE") return "Now";
+  if (upper === "URGENT") return "0–3 months";
+  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "12–24 months";
+  if (upper === "PLAN_MONITOR" || upper === "PLAN") return "Next renovation";
+  return "To be confirmed";
+}
+
+/**
+ * Get priority display text
+ */
+function getPriorityDisplayText(priority: string): string {
+  const upper = priority.toUpperCase();
+  if (upper === "IMMEDIATE") return "IMMEDIATE";
+  if (upper === "URGENT") return "URGENT";
+  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "RECOMMENDED";
+  if (upper === "PLAN_MONITOR" || upper === "PLAN") return "PLAN";
+  return priority;
+}
+
+/**
+ * Get observed condition summary from finding data
+ */
+function getObservedConditionSummary(
+  finding: { id: string; priority: string; title?: string; observed?: string; facts?: string },
+  response?: { observed_condition?: string | string[] },
+  profile?: any
+): string {
+  // Try response.observed_condition first
+  if (response?.observed_condition) {
+    if (Array.isArray(response.observed_condition)) {
+      return response.observed_condition.join(". ").substring(0, 100);
+    }
+    return String(response.observed_condition).substring(0, 100);
+  }
+  
+  // Try finding.observed
+  if (finding.observed) {
+    return String(finding.observed).substring(0, 100);
+  }
+  
+  // Try finding.facts
+  if (finding.facts) {
+    return String(finding.facts).substring(0, 100);
+  }
+  
+  // Fallback to profile messaging or title
+  if (profile?.messaging?.why_it_matters) {
+    return String(profile.messaging.why_it_matters).substring(0, 100);
+  }
+  
+  return "Condition observed during inspection";
+}
+
+/**
  * Section 8: 5-Year Capital Expenditure (CapEx) Roadmap
  */
-function buildCapExRoadmapSection(computed: ComputedFields, defaultText: any): string {
+function buildCapExRoadmapSection(
+  computed: ComputedFields,
+  defaultText: any,
+  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>,
+  responses: { findings?: Record<string, any> }
+): string {
   const md: string[] = [];
   
   md.push("## 5-Year Capital Expenditure (CapEx) Roadmap");
   md.push("");
   
-  // CapEx Table Rows
-  const capexTableRows = computed.CAPEX_TABLE_ROWS;
-  if (capexTableRows) {
-    md.push(capexTableRows);
-  } else {
-    md.push("| Year | Item | Indicative Range |");
-    md.push("|------|------|------------------|");
-    md.push("| - | No capital expenditure items identified | - |");
+  // Filter findings that should appear in CapEx roadmap
+  const relevantFindings = findings.filter(f => {
+    const priority = f.priority || "";
+    return priority === "IMMEDIATE" || 
+           priority === "URGENT" || 
+           priority === "RECOMMENDED_0_3_MONTHS" || 
+           priority === "RECOMMENDED" ||
+           priority === "PLAN_MONITOR" ||
+           priority === "PLAN";
+  });
+  
+  if (relevantFindings.length === 0) {
+    md.push("| Asset Item | Current Condition | Priority | Suggested Timeline | Budgetary Range |");
+    md.push("|------------|-------------------|----------|-------------------|-----------------|");
+    md.push("| - | No capital expenditure items identified | - | - | - |");
+    md.push("");
+    md.push("**Indicative market benchmarks provided for financial provisioning only. Not a quotation or scope of works.**");
+    md.push("");
+    return md.join("\n");
   }
+  
+  // Build table header
+  md.push("| Asset Item | Current Condition | Priority | Suggested Timeline | Budgetary Range |");
+  md.push("|------------|-------------------|----------|-------------------|-----------------|");
+  
+  // Build table rows for each finding
+  for (const finding of relevantFindings) {
+    const profile = getFindingProfile(finding.id);
+    const response = responses.findings?.[finding.id];
+    
+    // Asset Item: asset_component from profile
+    const assetItem = profile.asset_component || 
+                      profile.messaging?.title || 
+                      finding.title || 
+                      finding.id.replace(/_/g, " ");
+    
+    // Current Condition: observed_condition summary
+    const currentCondition = getObservedConditionSummary(finding, response, profile);
+    
+    // Priority
+    const priority = getPriorityDisplayText(finding.priority || "PLAN");
+    
+    // Suggested Timeline: timeline from profile; fallback based on priority
+    const timeline = profile.timeline || getTimelineFromPriority(finding.priority || "PLAN");
+    
+    // Budgetary Range: budget_range from profile; if missing, show "Pending"
+    let budgetaryRange = "Pending";
+    if (profile.budget_range) {
+      budgetaryRange = String(profile.budget_range);
+    } else if (response?.budget_range_text) {
+      budgetaryRange = String(response.budget_range_text);
+    } else if (response?.budget_range_low !== undefined && response?.budget_range_high !== undefined) {
+      budgetaryRange = `AUD $${response.budget_range_low}–$${response.budget_range_high}`;
+    } else if (profile.budget_band) {
+      // Generate from budget_band if available
+      const band = profile.budget_band.toUpperCase();
+      const ranges: Record<string, string> = {
+        LOW: "AUD $100–$500",
+        MED: "AUD $500–$2,000",
+        HIGH: "AUD $2,000–$10,000",
+      };
+      budgetaryRange = ranges[band] || "Pending";
+    }
+    
+    // Escape pipe characters in table cells
+    const escapeCell = (text: string) => String(text).replace(/\|/g, "\\|").replace(/\n/g, " ");
+    
+    md.push(`| ${escapeCell(assetItem)} | ${escapeCell(currentCondition)} | ${escapeCell(priority)} | ${escapeCell(timeline)} | ${escapeCell(budgetaryRange)} |`);
+  }
+  
   md.push("");
   
-  // Disclaimer
-  md.push(defaultText.CAPEX_DISCLAIMER_LINE ||
-    "**Disclaimer:** Provided for financial provisioning only. Not a quotation or scope of works.");
+  // Footer disclaimer
+  md.push("**Indicative market benchmarks provided for financial provisioning only. Not a quotation or scope of works.**");
   md.push("");
   
   return md.join("\n");
@@ -721,7 +844,7 @@ export async function buildReportMarkdown(params: BuildReportMarkdownParams): Pr
   sections.push(PAGE_BREAK);
   
   // 8. 5-Year Capital Expenditure (CapEx) Roadmap
-  sections.push(buildCapExRoadmapSection(computed, defaultText));
+  sections.push(buildCapExRoadmapSection(computed, defaultText, findings, params.responses));
   sections.push(PAGE_BREAK);
   
   // 9. Decision Pathways (was Investor Options & Next Steps)
