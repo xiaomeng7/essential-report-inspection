@@ -419,6 +419,23 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   return (
     <div className="review-page">
+      {/* Success banner after submission */}
+      <div style={{
+        backgroundColor: "#d4edda",
+        border: "1px solid #c3e6cb",
+        color: "#155724",
+        padding: "16px",
+        borderRadius: "8px",
+        marginBottom: "20px",
+        textAlign: "center"
+      }}>
+        <div style={{ fontSize: "32px", marginBottom: "8px" }}>✅</div>
+        <strong>Inspection Submitted Successfully!</strong>
+        <p style={{ margin: "8px 0 0", fontSize: "14px" }}>
+          Add photo evidence below, then generate your report.
+        </p>
+      </div>
+
       <div style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
           <h1 style={{ margin: 0, flex: 1 }}>

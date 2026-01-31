@@ -61,10 +61,12 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // setPathname is stable from useState, doesn't need to be in deps
 
-  const handleSubmitted = useCallback((inspectionId: string, address?: string, technicianName?: string) => {
-    setSuccessData({ inspectionId, address, technicianName });
-    window.history.replaceState(null, "", `/success/${inspectionId}`);
-    setPathname(`/success/${inspectionId}`);
+  const handleSubmitted = useCallback((inspectionId: string, _address?: string, _technicianName?: string) => {
+    // Navigate to ReviewPage after submission (instead of SuccessPage)
+    // This allows immediate photo upload and report generation
+    setReviewId(inspectionId);
+    window.history.replaceState(null, "", `/review/${inspectionId}`);
+    setPathname(`/review/${inspectionId}`);
   }, []);
 
   const handleNewInspection = useCallback(() => {
