@@ -4,6 +4,10 @@ import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
 import { validateSection } from "../lib/validation";
 import { useInspection } from "../hooks/useInspection";
 import { SectionForm } from "./SectionForm";
+import { SectionPhotoEvidence } from "./SectionPhotoEvidence";
+import { getBlockForSection } from "../lib/inspectionBlocks";
+import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
+import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
 
 const GATE_KEYS = new Set([
   "rcd_tests.performed",
@@ -13,10 +17,47 @@ const GATE_KEYS = new Set([
   "assets.has_ev_charger",
 ]);
 
+/** Sections that have a photo evidence block (fill + photo in one place). */
+const SECTIONS_WITH_PHOTOS = new Set([
+  "S1_ACCESS_LIMITATIONS",
+  "S2_SUPPLY_OVERVIEW",
+  "S2_MAIN_SWITCH",
+  "S2_SWITCHBOARD_OVERVIEW",
+  "S3_SWITCHBOARD_CAPACITY_LABELS",
+  "S4_EARTHING_MEN",
+  "S4_CABLES_LEGACY",
+  "S5_RCD_TESTS_SUMMARY",
+  "S6_RCD_TESTS_EXCEPTIONS",
+  "S7_GPO_LIGHTING_SUMMARY",
+  "S8_GPO_LIGHTING_EXCEPTIONS",
+  "S3A_POWER_POINTS",
+  "S3B_LIGHTING_SWITCHES",
+  "S3C_KITCHEN",
+  "S3D_BATHROOMS",
+  "S3E_LAUNDRY",
+  "S3F_ROOF_SPACE",
+  "S3G_EXTERIOR_GARAGE",
+  "S3H_SMOKE_ALARMS",
+  "S3I_GENERAL_OBSERVATIONS",
+  "S9_SOLAR_BATTERY_EV",
+  "S9B_POOL_HIGH_LOAD",
+]);
+
 type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
 
 export function Wizard({ onSubmitted }: Props) {
-  const { state, setAnswer, setAnswerWithGateCheck, getValue, getAnswer, clearDraft } = useInspection();
+  const {
+    state,
+    setAnswer,
+    setAnswerWithGateCheck,
+    getValue,
+    getAnswer,
+    clearDraft,
+    getStagedPhotos,
+    addStagedPhoto,
+    removeStagedPhoto,
+    updateStagedPhotoCaption,
+  } = useInspection();
   const [step, setStep] = useState(0);
   const [sectionErrors, setSectionErrors] = useState<Record<string, Record<string, string>>>({});
 
@@ -58,7 +99,8 @@ export function Wizard({ onSubmitted }: Props) {
   };
 
   const submitInspection = async () => {
-    const payload = { created_at: new Date().toISOString(), ...state };
+    const { _staged_photos, ...rest } = state as Record<string, unknown>;
+    const payload = { created_at: new Date().toISOString(), ...rest };
     try {
       const res = await fetch("/api/submitInspection", {
         method: "POST",
@@ -78,10 +120,39 @@ export function Wizard({ onSubmitted }: Props) {
         throw new Error(msg);
       }
       const data = JSON.parse(text) as { inspection_id: string; status: string; review_url: string };
+      const inspectionId = data.inspection_id;
+
+      // Upload staged photos after submit (assign to findings by section mapping)
+      const stagedBySection = (typeof _staged_photos === "object" && _staged_photos !== null && !Array.isArray(_staged_photos))
+        ? (_staged_photos as Record<string, Array<{ caption: string; dataUrl: string }>>)
+        : {};
+      const hasStaged = Object.keys(stagedBySection).some((k) => (stagedBySection[k]?.length ?? 0) > 0);
+      if (hasStaged) {
+        try {
+          const reviewRes = await fetch(`/api/review/${inspectionId}`);
+          if (reviewRes.ok) {
+            const reviewJson = (await reviewRes.json()) as { findings?: Array<{ id: string }> };
+            const findingIds = (reviewJson.findings ?? []).map((f) => f.id);
+            const toUpload = assignStagedPhotosToFindings(stagedBySection, findingIds);
+            for (const item of toUpload) {
+              await uploadInspectionPhoto({
+                inspection_id: inspectionId,
+                finding_id: item.finding_id,
+                caption: item.caption,
+                image: item.dataUrl,
+              });
+            }
+          }
+        } catch (uploadErr) {
+          console.error("Staged photo upload failed:", uploadErr);
+          // Don't fail submit; inspection is saved
+        }
+      }
+
       clearDraft();
       const address = getValue("job.address") as string | undefined;
       const technicianName = getValue("signoff.technician_name") as string | undefined;
-      onSubmitted(data.inspection_id, address, technicianName);
+      onSubmitted(inspectionId, address, technicianName);
     } catch (e) {
       setSectionErrors((prev) => ({
         ...prev,
@@ -103,6 +174,12 @@ export function Wizard({ onSubmitted }: Props) {
 
       {current && (
         <>
+          {/* Block title when section belongs to a logical block */}
+          {getBlockForSection(current.id) && (
+            <div style={{ margin: "12px 12px 0", fontSize: 12, color: "var(--text-muted)" }}>
+              {getBlockForSection(current.id)?.title} → {current.title}
+            </div>
+          )}
           {(sectionErrors[current.id]?._submit) && (
             <div className="section" style={{ margin: 12 }}>
               <p className="validation-msg">{sectionErrors[current.id]._submit}</p>
@@ -118,6 +195,16 @@ export function Wizard({ onSubmitted }: Props) {
             errors={sectionErrors[current.id] ?? {}}
             gateKeys={GATE_KEYS}
           />
+          {SECTIONS_WITH_PHOTOS.has(current.id) && (
+            <SectionPhotoEvidence
+              sectionId={current.id}
+              sectionTitle={current.title}
+              photos={getStagedPhotos()[current.id] ?? []}
+              onAddPhoto={addStagedPhoto}
+              onRemovePhoto={removeStagedPhoto}
+              onUpdateCaption={updateStagedPhotoCaption}
+            />
+          )}
         </>
       )}
 

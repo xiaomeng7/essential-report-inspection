@@ -1,10 +1,9 @@
 {
-  "version": "1.0",
-  "generated_at": "2026-01-24T00:00:00+10:30",
+  "version": "1.1",
+  "generated_at": "2026-01-31T00:00:00+10:30",
   "notes": [
-    "Field dictionary for technician inspection wizard (section-based).",
-    "Each field supports status=answered|skipped and optional skip_reason/skip_note when skipped.",
-    "Sections may be skipped based on gate logic; see section.gates."
+    "Aligned with On-Site Technical Checklist MASTER MERGED (Essential Electrical Report Field Data Standard).",
+    "Section-based wizard; gate logic for skip; each field supports status=answered|skipped."
   ],
   "enums": {
     "answer_status": [
@@ -37,10 +36,115 @@
       "owner_occupied"
     ],
     "property_type": [
-      "house",
-      "unit",
+      "detached",
       "townhouse",
+      "apartment",
+      "unit",
+      "commercial",
       "other"
+    ],
+    "year_built": [
+      "before_1990",
+      "1990_2005",
+      "after_2005",
+      "unknown"
+    ],
+    "supply_type": [
+      "single_phase",
+      "two_phase",
+      "three_phase"
+    ],
+    "meter_type": [
+      "accumulation_ferraris",
+      "digital_smart",
+      "mixed_unclear"
+    ],
+    "consumer_main_service": [
+      "overhead",
+      "over_under",
+      "underground_pit"
+    ],
+    "service_fuse_location": [
+      "eave",
+      "stubby_pole",
+      "meter_box",
+      "service_pit"
+    ],
+    "main_switch_type": [
+      "isolator",
+      "circuit_breaker",
+      "old_knife_rotary"
+    ],
+    "service_fuse_type": [
+      "ceramic_rewireable",
+      "cartridge",
+      "not_accessible"
+    ],
+    "switchboard_location": [
+      "indoor",
+      "outdoor"
+    ],
+    "enclosure_condition": [
+      "intact",
+      "cracked",
+      "broken_missing_cover"
+    ],
+    "rcd_type": [
+      "type_a",
+      "type_ac",
+      "unknown"
+    ],
+    "backboard_material": [
+      "timber",
+      "plastic",
+      "cement_sheet",
+      "metal"
+    ],
+    "supply_cable_condition": [
+      "good",
+      "aged",
+      "damaged"
+    ],
+    "cable_support_method": [
+      "clips",
+      "resting",
+      "buried"
+    ],
+    "lamp_type": [
+      "led",
+      "halogen",
+      "incandescent"
+    ],
+    "smoke_alarm_type": [
+      "photoelectric",
+      "ionisation",
+      "unknown"
+    ],
+    "smoke_alarm_power": [
+      "mains",
+      "battery",
+      "both"
+    ],
+    "ev_charger_type": [
+      "wall_mounted",
+      "portable"
+    ],
+    "hot_water_type": [
+      "storage",
+      "instantaneous"
+    ],
+    "ac_type": [
+      "split",
+      "ducted"
+    ],
+    "earth_test_method": [
+      "clamp",
+      "three_pole"
+    ],
+    "inverter_location": [
+      "garage",
+      "outdoor",
+      "roof_space"
     ],
     "condition_grade": [
       "good",
@@ -153,6 +257,15 @@
           "ui": "radio"
         },
         {
+          "key": "job.year_built",
+          "label": "Approx. year built",
+          "type": "enum",
+          "enum": "year_built",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
           "key": "job.vulnerable_occupants",
           "label": "Vulnerable occupants",
           "type": "array_enum",
@@ -249,8 +362,130 @@
       ]
     },
     {
+      "id": "S2_SUPPLY_OVERVIEW",
+      "title": "Supply & Distribution – Supply Overview",
+      "fields": [
+        {
+          "key": "supply.supply_type",
+          "label": "Supply type",
+          "type": "enum",
+          "enum": "supply_type",
+          "required": true,
+          "skippable": false,
+          "ui": "radio"
+        },
+        {
+          "key": "supply.nominal_voltage",
+          "label": "Nominal supply voltage displayed",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "supply.meter_type",
+          "label": "Meter type",
+          "type": "enum",
+          "enum": "meter_type",
+          "required": true,
+          "skippable": false,
+          "ui": "radio"
+        },
+        {
+          "key": "supply.consumer_main_service_type",
+          "label": "Consumer's main service type",
+          "type": "enum",
+          "enum": "consumer_main_service",
+          "required": true,
+          "skippable": false,
+          "ui": "radio"
+        },
+        {
+          "key": "supply.service_fuse_location",
+          "label": "Service fuse location",
+          "type": "enum",
+          "enum": "service_fuse_location",
+          "required": true,
+          "skippable": false,
+          "ui": "radio"
+        }
+      ]
+    },
+    {
+      "id": "S2_MAIN_SWITCH",
+      "title": "Supply & Distribution – Main Switch & Incoming Supply",
+      "gates": [
+        {
+          "depends_on": "access.switchboard_accessible",
+          "equals": true,
+          "on_false": {
+            "section_status": "skipped",
+            "skip_reason": "no_access"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "switchboard.main_switch_present",
+          "label": "Normal supply main switch present?",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.main_switch_rating_a",
+          "label": "Main switch rating (A)",
+          "type": "integer",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "switchboard.main_switch_count",
+          "label": "Number of main switches",
+          "type": "integer",
+          "min": 0,
+          "max": 10,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "switchboard.main_switch_type",
+          "label": "Main switch type",
+          "type": "enum",
+          "enum": "main_switch_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.service_fuse_rating_a",
+          "label": "Service fuse rating (A) if visible",
+          "type": "integer",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "switchboard.service_fuse_type",
+          "label": "Service fuse type",
+          "type": "enum",
+          "enum": "service_fuse_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        }
+      ]
+    },
+    {
       "id": "S2_SWITCHBOARD_OVERVIEW",
-      "title": "Switchboard: Overview",
+      "title": "Switchboard: Enclosure, Backboard & Operational",
       "gates": [
         {
           "depends_on": "access.switchboard_accessible",
@@ -317,8 +552,95 @@
           "ui": "checkboxes"
         },
         {
+          "key": "switchboard.location",
+          "label": "Switchboard location",
+          "type": "enum",
+          "enum": "switchboard_location",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.enclosure_condition",
+          "label": "Enclosure condition",
+          "type": "enum",
+          "enum": "enclosure_condition",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.ip_rating_marked",
+          "label": "IP rating marked?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.dust_insect_contamination",
+          "label": "Dust/insect/spider contamination?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.backboard_material",
+          "label": "Backboard material",
+          "type": "enum",
+          "enum": "backboard_material",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.rcd_type",
+          "label": "RCD type",
+          "type": "enum",
+          "enum": "rcd_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.rcbo_installed",
+          "label": "RCBOs installed?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.circuits_without_rcd",
+          "label": "Any circuits without RCD protection?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.grease_oil_contamination",
+          "label": "Grease/oil contamination?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.loose_components_visible",
+          "label": "Loose components visible?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
           "key": "switchboard.photo_ids",
-          "label": "Photo IDs",
+          "label": "Photo IDs (overall, main switch, MEN, damage, asbestos)",
           "type": "array_string",
           "required": false,
           "skippable": true,
@@ -357,6 +679,16 @@
           "required": true,
           "skippable": false,
           "ui": "radio"
+        },
+        {
+          "key": "switchboard.spare_ways_count",
+          "label": "Spare ways (if yes)",
+          "type": "integer",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
         },
         {
           "key": "switchboard.circuit_schedule_present",
@@ -463,12 +795,157 @@
           "ui": "checkboxes"
         },
         {
+          "key": "earthing.men_accessible",
+          "label": "MEN accessible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "earthing.main_earth_size_adequate",
+          "label": "Main earth conductor size appears adequate?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "earthing.bare_earth_in_use",
+          "label": "Bare earth in use?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "earthing.earth_bar_present",
+          "label": "Earth bar present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "earthing.neutral_bar_present",
+          "label": "Neutral bar present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "earthing.earth_neutral_mixed_downstream",
+          "label": "Earth & neutral mixed downstream?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "earthing.main_earthing_conductor_size_mm2",
+          "label": "Main earthing conductor size (mm²)",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
           "key": "earthing.photo_ids",
           "label": "Photo IDs / Notes",
           "type": "string",
           "required": false,
           "skippable": true,
           "ui": "textarea"
+        }
+      ]
+    },
+    {
+      "id": "S4_CABLES_LEGACY",
+      "title": "Supply & Distribution – Cables, Entries & Legacy Items",
+      "gates": [
+        {
+          "depends_on": "access.switchboard_accessible",
+          "equals": true,
+          "on_false": {
+            "section_status": "skipped",
+            "skip_reason": "no_access"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "switchboard.supply_cable_condition",
+          "label": "Supply cable condition",
+          "type": "enum",
+          "enum": "supply_cable_condition",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.cracked_brittle_insulation",
+          "label": "Cracked/brittle insulation?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.unprotected_cable_entries",
+          "label": "Unprotected cable entries (no grommet)?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.exposed_single_insulated",
+          "label": "Exposed single insulated conductors?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.incorrect_colour_identification",
+          "label": "Incorrect colour identification?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "switchboard.ceramic_fuse_holders_present",
+          "label": "Ceramic fuse holders present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.rewireable_fuses_present",
+          "label": "Rewireable fuses present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "switchboard.mixed_old_new_devices",
+          "label": "Mixed old & new devices?",
+          "type": "enum",
+          "enum": "yes_no_unsure",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
         }
       ]
     },
@@ -785,31 +1262,736 @@
       ]
     },
     {
-      "id": "S9_SOLAR_BATTERY_EV",
-      "title": "Solar / Battery / EV",
+      "id": "S3A_POWER_POINTS",
+      "title": "Internal Installation – Power Points (All Areas)",
       "fields": [
         {
-          "key": "assets.has_solar_pv",
-          "label": "Has solar PV?",
+          "key": "internal.power_point_present_count",
+          "label": "Power point present (number)",
+          "type": "integer",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.power_point_moves_count",
+          "label": "Power point moves when lightly touched (number)",
+          "type": "integer",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.cracks_visible_count",
+          "label": "Cracks visible on faceplate (number)",
+          "type": "integer",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.burn_marks_count",
+          "label": "Burn marks visible (number)",
+          "type": "integer",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.plug_disengages_count",
+          "label": "Plug disengages under own weight (number)",
+          "type": "integer",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.surface_warm_to_touch",
+          "label": "Surface feels abnormally warm (photo required)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.distance_to_sink_mm",
+          "label": "Horizontal distance from power point to sink/tap edge (mm)",
+          "type": "integer",
+          "min": 0,
+          "max": 2000,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.extension_lead_connected",
+          "label": "Extension lead connected at time of inspection?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3B_LIGHTING_SWITCHES",
+      "title": "Internal Installation – Lighting & Switches",
+      "fields": [
+        {
+          "key": "internal.switch_plate_cracked",
+          "label": "Switch plate cracked or damaged?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.switch_body_moves",
+          "label": "Switch body moves when touched?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.unusual_audible_sound",
+          "label": "Unusual audible sound (buzz, crackle)?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.light_fitting_moves",
+          "label": "Light fitting moves when lightly touched?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.lamp_type",
+          "label": "Lamp type observed",
+          "type": "enum",
+          "enum": "lamp_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "internal.bare_wire_visible",
+          "label": "Bare metal wire core visible? (photo)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3C_KITCHEN",
+      "title": "Internal Installation – Kitchen (Fixed Installations)",
+      "fields": [
+        {
+          "key": "internal.kitchen.oven_present",
+          "label": "Oven present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.cooktop_present",
+          "label": "Cooktop present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.dishwasher_present",
+          "label": "Dishwasher present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.dedicated_outlet_visible",
+          "label": "Dedicated outlet or isolator visible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.cable_distance_cooktop_mm",
+          "label": "Supply cable within ___ mm of cooktop surface",
+          "type": "integer",
+          "min": 0,
+          "max": 2000,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.kitchen.power_points_above_bench",
+          "label": "Number of power points above bench",
+          "type": "integer",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.kitchen.distance_to_sink_mm",
+          "label": "Horizontal distance from power point to sink edge (mm)",
+          "type": "integer",
+          "min": 0,
+          "max": 2000,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.kitchen.range_hood_present",
+          "label": "Range hood present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.grease_residue",
+          "label": "Grease residue on rangehood filter/cover?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3D_BATHROOMS",
+      "title": "Internal Installation – Bathrooms & Damp Areas",
+      "fields": [
+        {
+          "key": "internal.bathroom.power_point_present",
+          "label": "Power point present in bathroom?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.light_above_bath",
+          "label": "Light fitting present above bath/shower?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.exhaust_fan_present",
+          "label": "Exhaust fan present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.heated_towel_rail",
+          "label": "Heated towel rail present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.moisture_staining",
+          "label": "Moisture staining visible? (photo)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3E_LAUNDRY",
+      "title": "Internal Installation – Laundry",
+      "fields": [
+        {
+          "key": "internal.laundry.washing_machine_outlet",
+          "label": "Washing machine outlet present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.laundry.dryer_outlet",
+          "label": "Dryer outlet present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.laundry.outlet_height_mm",
+          "label": "Outlet height above finished floor (mm)",
+          "type": "integer",
+          "min": 0,
+          "max": 2000,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.laundry.water_tap_distance_mm",
+          "label": "Water tap within ___ mm of outlet",
+          "type": "integer",
+          "min": 0,
+          "max": 2000,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.laundry.extension_lead_connected",
+          "label": "Extension lead connected at time of inspection?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3F_ROOF_SPACE",
+      "title": "Internal Installation – Roof Space / Ceiling",
+      "gates": [
+        {
+          "depends_on": "access.roof_accessible",
+          "equals": true,
+          "on_false": {
+            "section_status": "skipped",
+            "skip_reason": "no_access"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "key": "internal.roof.accessed",
+          "label": "Roof space accessed?",
           "type": "boolean",
           "required": true,
           "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.cable_support_method",
+          "label": "Cable support method observed",
+          "type": "enum",
+          "enum": "cable_support_method",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "internal.roof.insulation_contact",
+          "label": "Insulation contact observed?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.non_modern_cable",
+          "label": "Cable with non‑modern (non‑PVC) insulation?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.taped_connection",
+          "label": "Taped connection (non‑box) visible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.transformer_present",
+          "label": "Transformer present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.transformer_on_insulation",
+          "label": "Transformer resting on insulation?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.roof.not_accessed_reason",
+          "label": "If not accessed: reason",
+          "type": "enum",
+          "enum": "skip_reason",
+          "required_when": "internal.roof.accessed==false",
+          "skippable": true,
+          "ui": "select"
+        }
+      ]
+    },
+    {
+      "id": "S3G_EXTERIOR_GARAGE",
+      "title": "Internal Installation – Exterior & Garage",
+      "fields": [
+        {
+          "key": "internal.exterior.outdoor_power_point",
+          "label": "Outdoor power point present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.exterior.weatherproof_cover",
+          "label": "Weatherproof cover present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.exterior.cover_broken_missing",
+          "label": "Cover broken or missing?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.exterior.exterior_light",
+          "label": "Exterior light present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.exterior.garage_door_opener",
+          "label": "Garage door opener present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.exterior.flexible_lead_fixed",
+          "label": "Flexible lead fixed with clips/screws?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S3H_SMOKE_ALARMS",
+      "title": "Internal Installation – Smoke Alarms",
+      "fields": [
+        {
+          "key": "internal.smoke_alarm.present",
+          "label": "Smoke alarm present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.smoke_alarm.location_photographed",
+          "label": "Location photographed?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.smoke_alarm.type",
+          "label": "Type observed",
+          "type": "enum",
+          "enum": "smoke_alarm_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "internal.smoke_alarm.interconnected_tested",
+          "label": "Interconnected (pressing test activates others)?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.smoke_alarm.test_button_pressed",
+          "label": "Test button pressed?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.smoke_alarm.alarm_sounded",
+          "label": "Alarm sounded?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.smoke_alarm.manufacture_date",
+          "label": "Manufacture date recorded",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "ui": "text"
+        },
+        {
+          "key": "internal.smoke_alarm.power_source",
+          "label": "Power source observed",
+          "type": "enum",
+          "enum": "smoke_alarm_power",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        }
+      ]
+    },
+    {
+      "id": "S3I_GENERAL_OBSERVATIONS",
+      "title": "Internal Installation – General Observations",
+      "fields": [
+        {
+          "key": "internal.general.ceramic_fuse_holder_visible",
+          "label": "Ceramic fuse holder visible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.general.bakelite_ceramic_visible",
+          "label": "Bakelite or ceramic accessory visible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.general.non_standard_wiring",
+          "label": "Non‑standard wiring or added component?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.general.power_boards_count",
+          "label": "Number of power boards observed",
+          "type": "integer",
+          "min": 0,
+          "max": 99,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "internal.general.cable_damage_visible",
+          "label": "Cable damage visible?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S9_SOLAR_BATTERY_EV",
+      "title": "Renewable, Storage & High-Load – Solar / Battery / EV",
+      "fields": [
+        {
+          "key": "assets.has_solar_pv",
+          "label": "Solar PV installed?",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.solar.inverter_capacity_kw",
+          "label": "Inverter rated capacity (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.solar.inverter_location",
+          "label": "Inverter location",
+          "type": "enum",
+          "enum": "inverter_location",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "assets.solar.inverter_alarm",
+          "label": "Inverter has alarm on screen?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.solar.main_pv_isolator",
+          "label": "Main PV isolator present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.solar.dc_isolator_marked",
+          "label": "DC isolator marked 'DC'?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.solar.roof_isolator",
+          "label": "Roof isolator present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
           "ui": "radio_yes_no"
         },
         {
           "key": "assets.has_battery",
-          "label": "Has battery?",
+          "label": "Battery ESS installed?",
           "type": "boolean",
           "required": true,
           "skippable": false,
           "ui": "radio_yes_no"
         },
         {
+          "key": "assets.battery.capacity_kwh",
+          "label": "Battery capacity (kWh)",
+          "type": "number",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.battery.continuous_output_kw",
+          "label": "Continuous output (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.battery.isolator_present",
+          "label": "Isolator present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.battery.heat_swelling_odour",
+          "label": "Signs of heat/swelling/odour?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
           "key": "assets.has_ev_charger",
-          "label": "Has EV charger?",
+          "label": "EV charging equipment installed?",
           "type": "boolean",
           "required": true,
           "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.ev.charger_type",
+          "label": "Charger type",
+          "type": "enum",
+          "enum": "ev_charger_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "assets.ev.rated_current_a",
+          "label": "Rated current (A)",
+          "type": "integer",
+          "min": 0,
+          "max": 200,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.ev.rated_power_kw",
+          "label": "Rated power (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 350,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.ev.dedicated_circuit",
+          "label": "Dedicated circuit?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.ev.local_isolator",
+          "label": "Local isolator present?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
           "ui": "radio_yes_no"
         },
         {
@@ -861,7 +2043,7 @@
         }
       ],
       "section_auto_skip": {
-        "when": "assets.has_solar_pv==false && assets.has_battery==false && assets.has_ev_charger==false",
+        "when": "any(assets.has_solar_pv,assets.has_battery,assets.has_ev_charger)==false",
         "set": {
           "status": "skipped",
           "skip_reason": "not_applicable"
@@ -900,8 +2082,352 @@
       ]
     },
     {
+      "id": "S9B_POOL_HIGH_LOAD",
+      "title": "Renewable & High-Load – Pool, Cooktop, Hot Water, AC",
+      "fields": [
+        {
+          "key": "assets.pool_installed",
+          "label": "Swimming pool / spa equipment installed?",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.pool.pump_motor_kw",
+          "label": "Pump motor rated power (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.pool.heater_kw",
+          "label": "Pool heater rated power (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.pool.dedicated_circuit",
+          "label": "Dedicated circuit identified?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.pool.rcd_protection",
+          "label": "RCD protection indicated?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.cooktop.power_kw",
+          "label": "Electric cooktop rated power (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.hot_water.type",
+          "label": "Hot water system type",
+          "type": "enum",
+          "enum": "hot_water_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "assets.hot_water.power_kw",
+          "label": "Hot water system rated power (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.ac.type",
+          "label": "Air-conditioning type",
+          "type": "enum",
+          "enum": "ac_type",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "assets.ac.electrical_input_kw",
+          "label": "Air-conditioning electrical input (kW)",
+          "type": "number",
+          "min": 0,
+          "max": 50,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "assets.dedicated_circuits",
+          "label": "Dedicated circuit(s) for high-load equipment?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        }
+      ]
+    },
+    {
+      "id": "S5A_MEASURED_DATA",
+      "title": "Measured & Test Data (Mandatory / Conditional)",
+      "fields": [
+        {
+          "key": "measured.supply_voltage_l1_noload",
+          "label": "Supply voltage L1 no-load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.supply_voltage_l1_load",
+          "label": "Supply voltage L1 load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.supply_voltage_l2_noload",
+          "label": "Supply voltage L2 no-load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.supply_voltage_l2_load",
+          "label": "Supply voltage L2 load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.supply_voltage_l3_noload",
+          "label": "Supply voltage L3 no-load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.supply_voltage_l3_load",
+          "label": "Supply voltage L3 load (V)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.load_current_l1",
+          "label": "Load current L1 (A)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.load_current_l2",
+          "label": "Load current L2 (A)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.load_current_l3",
+          "label": "Load current L3 (A)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.load_current_neutral",
+          "label": "Load current Neutral (A)",
+          "type": "number",
+          "min": 0,
+          "max": 500,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.earth_resistance_ohm",
+          "label": "Earth resistance (Ω)",
+          "type": "number",
+          "min": 0,
+          "max": 999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.earth_test_method",
+          "label": "Earth test method",
+          "type": "enum",
+          "enum": "earth_test_method",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "measured.men_continuity",
+          "label": "MEN continuity",
+          "type": "enum",
+          "enum": "rcd_exception_result",
+          "required": false,
+          "skippable": true,
+          "ui": "radio"
+        },
+        {
+          "key": "measured.main_earthing_conductor_size_mm2",
+          "label": "Main earthing conductor size (mm²)",
+          "type": "number",
+          "min": 0,
+          "max": 200,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.thermal_ambient_temp",
+          "label": "Thermal imaging – Ambient temp (°C)",
+          "type": "number",
+          "min": -20,
+          "max": 60,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.thermal_max_main_switch_temp",
+          "label": "Thermal – Max main switch temp (°C)",
+          "type": "number",
+          "min": -20,
+          "max": 100,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.thermal_delta_t",
+          "label": "Thermal – ΔT (°C)",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        },
+        {
+          "key": "measured.insulation_resistance_mohm",
+          "label": "Insulation resistance (MΩ)",
+          "type": "number",
+          "min": 0,
+          "max": 9999,
+          "required": false,
+          "skippable": true,
+          "ui": "number"
+        }
+      ]
+    },
+    {
+      "id": "S6_EXCEPTIONS_COMPLETION",
+      "title": "Exceptions, Client Statements & Completion",
+      "fields": [
+        {
+          "key": "exceptions.observed_exceptions",
+          "label": "Observed exceptions (describe only)",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "ui": "textarea"
+        },
+        {
+          "key": "exceptions.client_previous_issues",
+          "label": "Client statements – Previous issues (verbatim)",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "ui": "textarea"
+        },
+        {
+          "key": "exceptions.client_concerns",
+          "label": "Client statements – Client concerns (verbatim)",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "ui": "textarea"
+        },
+        {
+          "key": "exceptions.completion_all_items",
+          "label": "All checklist items completed",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "checkbox"
+        },
+        {
+          "key": "exceptions.completion_photos_uploaded",
+          "label": "All required photos uploaded",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "checkbox"
+        },
+        {
+          "key": "exceptions.completion_no_advice",
+          "label": "No advice or quotations provided",
+          "type": "boolean",
+          "required": true,
+          "skippable": false,
+          "ui": "checkbox"
+        }
+      ]
+    },
+    {
       "id": "S10_SIGNOFF",
-      "title": "Sign-off",
+      "title": "Technician Sign-off",
       "fields": [
         {
           "key": "signoff.technician_name",
@@ -914,6 +2440,14 @@
         {
           "key": "signoff.licence_no",
           "label": "Licence number (optional)",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "ui": "text"
+        },
+        {
+          "key": "signoff.inspection_date",
+          "label": "Inspection date (DD/MM/YYYY)",
           "type": "string",
           "required": false,
           "skippable": true,

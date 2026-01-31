@@ -56,6 +56,7 @@ function loadReportCss(): string {
       if (fs.existsSync(filePath)) {
         const css = fs.readFileSync(filePath, "utf-8").trim();
         console.log("[report-fp] CSS path:", filePath, "length:", css.length, "sha1:", sha1(css));
+        console.log("[report] CSS loaded from:", filePath);
         return css;
       }
     } catch {
@@ -64,6 +65,7 @@ function loadReportCss(): string {
   }
   const css = FALLBACK_CSS;
   console.log("[report-fp] CSS path: FALLBACK_CSS length:", css.length, "sha1:", sha1(css));
+  console.log("[report] CSS loaded from: FALLBACK_CSS");
   return css;
 }
 

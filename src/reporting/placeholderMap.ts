@@ -77,6 +77,23 @@ export type ReportData = {
   RISK_RATING: string;
   CAPEX_RANGE: string;
   REPORT_BODY_HTML: string; // Full HTML report body (if using HTML-based template)
+
+  // v1.1 Appendix – Test Data & Technical Notes
+  TEST_DATA_SECTION_HTML: string;
+  RCD_TESTS_PERFORMED: string;
+  RCD_TOTAL_TESTED: string;
+  RCD_TOTAL_PASS: string;
+  RCD_TOTAL_FAIL: string;
+  RCD_EXCEPTIONS_TABLE: string;
+  GPO_TESTS_PERFORMED: string;
+  GPO_TOTAL_TESTED: string;
+  GPO_POLARITY_PASS_COUNT: string;
+  GPO_EARTH_PRESENT_PASS_COUNT: string;
+  EARTH_RESISTANCE_OHMS: string;
+  INSULATION_RESISTANCE_MOHM: string;
+  PHOTO_EVIDENCE_ENABLED: string;
+  PHOTO_LINK_TTL_SECONDS: string;
+  ASSESSMENT_PURPOSE: string;
 };
 
 /**
@@ -151,6 +168,23 @@ export const DEFAULT_PLACEHOLDER_VALUES: ReportData = {
   RISK_RATING: "MODERATE",
   CAPEX_RANGE: "To be confirmed",
   REPORT_BODY_HTML: "",
+
+  // v1.1 Appendix – Test Data & Technical Notes (FIELD_DICTIONARY v1.1)
+  TEST_DATA_SECTION_HTML: "",
+  RCD_TESTS_PERFORMED: "not captured",
+  RCD_TOTAL_TESTED: "0",
+  RCD_TOTAL_PASS: "0",
+  RCD_TOTAL_FAIL: "0",
+  RCD_EXCEPTIONS_TABLE: "",
+  GPO_TESTS_PERFORMED: "not captured",
+  GPO_TOTAL_TESTED: "0",
+  GPO_POLARITY_PASS_COUNT: "0",
+  GPO_EARTH_PRESENT_PASS_COUNT: "0",
+  EARTH_RESISTANCE_OHMS: "not captured",
+  INSULATION_RESISTANCE_MOHM: "not captured",
+  PHOTO_EVIDENCE_ENABLED: "true",
+  PHOTO_LINK_TTL_SECONDS: "604800",
+  ASSESSMENT_PURPOSE: "Decision-support electrical risk & CapEx planning assessment",
 };
 
 /**
@@ -185,6 +219,8 @@ export const OPTIONAL_PLACEHOLDERS: Array<keyof ReportData> = [
   "PRIORITY_TABLE_ROWS",
   "CAPEX_TABLE_ROWS",
   "DYNAMIC_FINDING_PAGES_HTML",
+  "TEST_DATA_SECTION_HTML",
+  "RCD_EXCEPTIONS_TABLE",
 ] as const;
 
 /**

@@ -14,6 +14,10 @@ export type Answer = {
 
 export type InspectionState = Record<string, unknown>;
 
+/** Staged photos per section (filled during form; uploaded after submit). */
+export type StagedPhoto = { caption: string; dataUrl: string };
+export type StagedPhotosBySection = Record<string, StagedPhoto[]>;
+
 function getNested(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split(".");
   let v: unknown = obj;
@@ -160,6 +164,68 @@ export function useInspection() {
     setState(buildEmptyState());
   }, []);
 
+  const getStagedPhotos = useCallback((): StagedPhotosBySection => {
+    const v = (state as Record<string, unknown>)._staged_photos;
+    if (v != null && typeof v === "object" && !Array.isArray(v)) {
+      return v as StagedPhotosBySection;
+    }
+    return {};
+  }, [state]);
+
+  const setStagedPhotosForSection = useCallback(
+    (sectionId: string, photos: StagedPhoto[]) => {
+      setState((prev) => {
+        const next = deepClone(prev) as Record<string, unknown>;
+        const current = (next._staged_photos as StagedPhotosBySection) ?? {};
+        next._staged_photos = { ...current, [sectionId]: photos };
+        return next;
+      });
+    },
+    []
+  );
+
+  const addStagedPhoto = useCallback((sectionId: string, photo: StagedPhoto) => {
+    setState((prev) => {
+      const next = deepClone(prev) as Record<string, unknown>;
+      const current = ((next._staged_photos as StagedPhotosBySection) ?? {})[sectionId] ?? [];
+      if (current.length >= 2) return prev;
+      next._staged_photos = {
+        ...(next._staged_photos as StagedPhotosBySection),
+        [sectionId]: [...current, photo],
+      };
+      return next;
+    });
+  }, []);
+
+  const removeStagedPhoto = useCallback((sectionId: string, index: number) => {
+    setState((prev) => {
+      const next = deepClone(prev) as Record<string, unknown>;
+      const current = ((next._staged_photos as StagedPhotosBySection) ?? {})[sectionId] ?? [];
+      const updated = current.filter((_, i) => i !== index);
+      next._staged_photos = {
+        ...(next._staged_photos as StagedPhotosBySection),
+        [sectionId]: updated,
+      };
+      return next;
+    });
+  }, []);
+
+  const updateStagedPhotoCaption = useCallback(
+    (sectionId: string, index: number, caption: string) => {
+      setState((prev) => {
+        const next = deepClone(prev) as Record<string, unknown>;
+        const current = ((next._staged_photos as StagedPhotosBySection) ?? {})[sectionId] ?? [];
+        const updated = current.map((p, i) => (i === index ? { ...p, caption } : p));
+        next._staged_photos = {
+          ...(next._staged_photos as StagedPhotosBySection),
+          [sectionId]: updated,
+        };
+        return next;
+      });
+    },
+    []
+  );
+
   return {
     state,
     setAnswer,
@@ -168,5 +234,10 @@ export function useInspection() {
     getAnswer,
     getValue,
     clearDraft,
+    getStagedPhotos,
+    setStagedPhotosForSection,
+    addStagedPhoto,
+    removeStagedPhoto,
+    updateStagedPhotoCaption,
   };
 }

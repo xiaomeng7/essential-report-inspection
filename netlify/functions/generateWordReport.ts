@@ -2100,6 +2100,25 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       !capExSnapshotRaw || String(capExSnapshotRaw).includes("undefined") || String(capExSnapshotRaw).trim() === ""
         ? "To be confirmed (indicative, planning only)"
         : String(capExSnapshotRaw);
+
+    // Extract v1.1 test data placeholders from canonical (FIELD_DICTIONARY v1.1)
+    const testData = canonical.test_data || {};
+    const rcdTests = (testData.rcd_tests || {}) as Record<string, unknown>;
+    const gpoTests = (testData.gpo_tests || {}) as Record<string, unknown>;
+    const earthing = (testData.earthing || {}) as Record<string, unknown>;
+    const extractTd = (v: unknown): string => {
+      if (v == null) return "";
+      if (typeof v === "object" && "value" in (v as object)) return String((v as { value: unknown }).value ?? "");
+      return String(v);
+    };
+    const rcdPerformed = extractTd(rcdTests.performed);
+    const rcdSummary = (rcdTests.summary || {}) as Record<string, unknown>;
+    const gpoPerformed = extractTd(gpoTests.performed);
+    const gpoSummary = (gpoTests.summary || {}) as Record<string, unknown>;
+    const earthOhms = extractTd(earthing.resistance) || extractTd(earthing.earth_resistance) || "";
+    const insulMohm = extractTd(testData.insulation_resistance) || "";
+    const photoTtl = process.env.REPORT_PHOTO_TTL_SECONDS || "604800";
+
     const rawTemplateData: Record<string, string | number> = {
       INSPECTION_ID: String(coverData.INSPECTION_ID ?? ""),
       ASSESSMENT_DATE: String(coverData.ASSESSMENT_DATE ?? ""),
@@ -2119,6 +2138,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? overallStatus ?? ""),
       CAPEX_RANGE_LOW: overallScore.CAPEX_LOW ?? 0,
       CAPEX_RANGE_HIGH: overallScore.CAPEX_HIGH ?? 0,
+      // v1.1 Appendix – Test Data & Technical Notes (FIELD_DICTIONARY v1.1)
+      TEST_DATA_SECTION_HTML: String(reportData.TEST_DATA_SECTION_HTML ?? ""),
+      RCD_TESTS_PERFORMED: (rcdPerformed === "true" || rcdPerformed === "yes" || rcdPerformed === "1") ? "yes" : "not captured",
+      RCD_TOTAL_TESTED: String(rcdSummary.total_tested ?? "0"),
+      RCD_TOTAL_PASS: String(rcdSummary.total_pass ?? "0"),
+      RCD_TOTAL_FAIL: String(rcdSummary.total_fail ?? "0"),
+      RCD_EXCEPTIONS_TABLE: String(reportData.RCD_EXCEPTIONS_TABLE ?? ""),
+      GPO_TESTS_PERFORMED: (gpoPerformed === "true" || gpoPerformed === "yes" || gpoPerformed === "1") ? "yes" : "not captured",
+      GPO_TOTAL_TESTED: String(gpoSummary.total_tested ?? gpoSummary.total_outlets_tested ?? gpoSummary.total_gpo_tested ?? "0"),
+      GPO_POLARITY_PASS_COUNT: String(gpoSummary.polarity_pass_count ?? gpoSummary.polarity_pass ?? "0"),
+      GPO_EARTH_PRESENT_PASS_COUNT: String(gpoSummary.earth_present_pass_count ?? gpoSummary.earth_present_pass ?? "0"),
+      EARTH_RESISTANCE_OHMS: earthOhms || "not captured",
+      INSULATION_RESISTANCE_MOHM: insulMohm || "not captured",
+      TECHNICAL_NOTES: String(reportData.TECHNICAL_NOTES ?? PLACEHOLDER_DEFAULTS.TECHNICAL_NOTES),
+      PHOTO_EVIDENCE_ENABLED: process.env.REPORT_PHOTO_SIGNING_SECRET ? "true" : "false",
+      PHOTO_LINK_TTL_SECONDS: String(photoTtl),
     };
     
     // Assert no undefined values before sanitization
@@ -2126,7 +2161,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Sanitize and apply placeholder fallback strategy
     const sanitized = sanitizeObject(safeTemplateData);
-    const templateData = applyPlaceholderFallback(sanitized);
+    let templateData = applyPlaceholderFallback(sanitized);
+    // Merge with PLACEHOLDER_DEFAULTS so any v1.1 key has fallback (no undefined)
+    const merged: Record<string, string> = {};
+    for (const k of Object.keys(PLACEHOLDER_DEFAULTS) as Array<keyof typeof PLACEHOLDER_DEFAULTS>) {
+      const v = templateData[k];
+      merged[k] = (v !== undefined && v !== null && String(v) !== "undefined") ? String(v) : (PLACEHOLDER_DEFAULTS[k] ?? "-");
+    }
+    for (const [k, v] of Object.entries(templateData)) {
+      if (!(k in merged)) merged[k] = String(v ?? "");
+    }
+    templateData = merged;
     
     // [DEV] Log template keys and key field values to ensure no undefined
     const templateKeys = Object.keys(templateData);
