@@ -13,6 +13,7 @@ import type { StoredInspection } from "./store";
 import type { CanonicalInspection } from "./normalizeInspection";
 import { loadDefaultText } from "./defaultTextLoader";
 import { loadFindingProfiles, getFindingProfile } from "./findingProfilesLoader";
+import { getAssetDisplayTitle } from "./assetTitles";
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
 import { markdownToHtml } from "./markdownToHtml";
 import type { HandlerEvent } from "@netlify/functions";
@@ -372,10 +373,12 @@ function buildWhatThisMeansSection(
     md.push("The following items should be addressed as soon as practically possible:");
     md.push("");
     urgent.forEach(f => {
+      const profile = getFindingProfile(f.id);
+      const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
       const timeline = resp?.timeline || "immediately";
       const reason = resp?.why_it_matters || "to reduce liability risk";
-      md.push(`- **${f.title || f.id}** should be addressed ${timeline} ${reason}.`);
+      md.push(`- **${displayTitle}** should be addressed ${timeline} ${reason}.`);
     });
   }
   md.push("");
@@ -388,10 +391,12 @@ function buildWhatThisMeansSection(
     md.push("These items do not represent active faults, but **modernisation or upgrades are recommended** to improve safety margins and avoid reactive call-outs:");
     md.push("");
     budgetary.forEach(f => {
+      const profile = getFindingProfile(f.id);
+      const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
       const timeline = resp?.timeline || "within 12 months";
       const reason = resp?.why_it_matters || "to reduce future risk";
-      md.push(`- **${f.title || f.id}** recommended ${timeline} ${reason}.`);
+      md.push(`- **${displayTitle}** recommended ${timeline} ${reason}.`);
     });
   }
   md.push("");
@@ -404,9 +409,11 @@ function buildWhatThisMeansSection(
     md.push("These items can be addressed during next renovation or scheduled electrical works:");
     md.push("");
     monitor.forEach(f => {
+      const profile = getFindingProfile(f.id);
+      const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
       const context = resp?.planning_guidance || "during next scheduled electrical works";
-      md.push(`- **${f.title || f.id}** can be addressed ${context}.`);
+      md.push(`- **${displayTitle}** can be addressed ${context}.`);
     });
   }
   md.push("");
@@ -688,10 +695,11 @@ function buildCapExRoadmapSection(
       const profile = getFindingProfile(finding.id);
       const response = responses.findings?.[finding.id];
       
-      const assetItem = profile.asset_component || 
-                        profile.messaging?.title || 
-                        finding.title || 
-                        finding.id.replace(/_/g, " ");
+      const assetItem = getAssetDisplayTitle(
+        finding.id,
+        profile.asset_component || profile.messaging?.title,
+        finding.title
+      );
       const currentCondition = getObservedConditionSummary(finding, response, profile);
       const priority = getPriorityDisplayText(finding.priority || "PLAN");
       const timeline = profile.timeline || getTimelineFromPriority(finding.priority || "PLAN");

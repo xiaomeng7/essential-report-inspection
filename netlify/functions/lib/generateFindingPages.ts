@@ -17,6 +17,7 @@ const VERSION = "2026-01-31-v1";
 import type { HandlerEvent } from "@netlify/functions";
 import type { FindingProfile } from "./findingProfilesLoader";
 import { loadCategoryDefaults, generateBudgetRangeFromBand } from "./findingProfilesLoader";
+import { getAssetDisplayTitle as getAssetTitle } from "./assetTitles";
 import { getPhotoMetadata } from "./store";
 import { signPhotoUrl } from "./photoUrl";
 
@@ -98,6 +99,22 @@ function normalizePriority(priority: string): "IMMEDIATE" | "RECOMMENDED" | "PLA
   if (priority === "IMMEDIATE") return "IMMEDIATE";
   if (priority === "RECOMMENDED" || priority === "RECOMMENDED_0_3_MONTHS") return "RECOMMENDED";
   return "PLAN";
+}
+
+/** Get asset-oriented display title (Gold Sample format). */
+function getAssetDisplayTitle(
+  findingId: string,
+  profile: FindingProfile,
+  response: Response,
+  findingTitle?: string
+): string {
+  const fromProfile = profile.asset_component || profile.messaging?.title;
+  const fromResponse = response?.title?.trim();
+  return getAssetTitle(
+    findingId,
+    fromProfile ?? fromResponse ?? undefined,
+    findingTitle ?? fromResponse
+  );
 }
 
 /**
@@ -262,12 +279,8 @@ function generateFindingPageHtml(
   // Normalize priority
   const effectivePriority = normalizePriority(profile.priority || finding.priority);
   
-  // 1. Asset Component (used as finding title and first section)
-  const assetComponent = profile.asset_component || 
-                        profile.messaging?.title || 
-                        response.title || 
-                        finding.title || 
-                        finding.id.replace(/_/g, " ");
+  // 1. Asset Component (Gold Sample: asset-oriented title, e.g. "Main Switchboard – Ageing Components")
+  const assetComponent = getAssetDisplayTitle(finding.id, profile, response, finding.title);
   
   if (!assetComponent || assetComponent.trim().length === 0) {
     errors.push({ field: "asset_component", message: "Asset Component is missing or empty" });

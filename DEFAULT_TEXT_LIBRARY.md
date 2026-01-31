@@ -88,7 +88,16 @@ No ongoing monitoring required.
 ### BUDGETARY_RANGE_DEFAULT
 Indicative market benchmark range to be confirmed through contractor quotations.
 
+### RISK_INTERPRETATION_DEFAULT (template)
+This condition may affect electrical safety, reliability, or compliance depending on severity and location. If this condition is not addressed, it may impact long-term reliability or compliance confidence. From an asset management perspective, this item can be deferred to the next planned electrical upgrade cycle without significant additional risk. Not classified as urgent because it can be factored into future capital planning cycles without immediate urgency.
+
+### PRIORITY_SNAPSHOT_NOTE
+This assessment identified: [urgent] urgent, [recommended] recommended, [acceptable] acceptable items.
+
 ## Document Purpose & How to Read This Report
+
+### PURPOSE_PARAGRAPH
+This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.
 
 ### DOCUMENT_PURPOSE_INTRO
 This report is a **decision-support document** designed to assist property owners, investors, and asset managers in understanding the electrical risk profile of the property and planning for future capital expenditure.
@@ -98,6 +107,12 @@ This report is a **decision-support document** designed to assist property owner
 - An inspection report
 - A compliance certificate
 - A repair quotation
+
+### HOW_TO_READ_INTRO
+This report is designed to help you make electrical decisions with clarity and confidence. It separates (a) what was observed, (b) what it means from a risk perspective, and (c) what to plan for financially.
+
+### HOW_TO_READ_ORDER
+Most owners should: (1) Start with Pages 3–4 (Executive Summary + What This Means for You); (2) Use the CapEx Roadmap (Page 10) to set a realistic budget provision for the next 0–5 years; (3) Read the Evidence section (Page 7) only if you want the underlying observations and photos.
 
 ### DOCUMENT_PURPOSE_HOW_TO_USE
 **How to use this report:**
