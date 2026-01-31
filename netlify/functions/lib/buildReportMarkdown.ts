@@ -232,7 +232,7 @@ function buildCoverSection(canonical: CanonicalInspection, defaultText: any): st
 }
 
 /**
- * Section 2: Document Purpose & How to Read This Report
+ * Section 2: Document Purpose & How to Read This Report (Gold Sample format)
  */
 function buildPurposeSection(defaultText: any): string {
   const md: string[] = [];
@@ -240,15 +240,40 @@ function buildPurposeSection(defaultText: any): string {
   md.push('<h2 class="page-title">Page 2 | Document Purpose & How to Read This Report</h2>');
   md.push("");
   
-  // First paragraph (Purpose): only use PURPOSE_PARAGRAPH; append one sentence at end (do not rewrite whole paragraph)
+  // Document Purpose
+  md.push("## Document Purpose");
+  md.push("");
   const purposeText = defaultText.PURPOSE_PARAGRAPH || 
     "This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.";
   md.push(purposeText + " This report is designed to support decisions where technical expertise, financial exposure, and long-term asset planning intersect.");
   md.push("");
   
-  // Second paragraph (How to Read): use HOW_TO_READ_PARAGRAPH || HOW_TO_READ_TEXT || fallback
-  md.push(defaultText.HOW_TO_READ_PARAGRAPH || defaultText.HOW_TO_READ_TEXT ||
-    "This report is a decision-support document designed to assist property owners, investors, and asset managers in understanding the electrical risk profile of the property and planning for future capital expenditure.");
+  // What this report IS NOT
+  md.push("### What This Report Is NOT");
+  md.push("");
+  md.push("- An inspection report with pass/fail certification");
+  md.push("- A compliance certificate");
+  md.push("- A repair quotation or scope of works");
+  md.push("");
+  
+  // How to Read This Report (NEW - Gold Sample format)
+  md.push("## How to Read This Report");
+  md.push("");
+  md.push("This report is designed to help you make electrical decisions with clarity and confidence. It separates:");
+  md.push("");
+  md.push("- **(a)** what was observed");
+  md.push("- **(b)** what it means from a risk perspective");
+  md.push("- **(c)** what to plan for financially");
+  md.push("");
+  
+  // Recommended Reading Order (NEW - Gold Sample)
+  md.push("### Recommended Reading Order");
+  md.push("");
+  md.push("Most owners should:");
+  md.push("");
+  md.push("1. **Start with Pages 3-4** (Executive Summary + What This Means for You)");
+  md.push("2. **Use the CapEx Roadmap** (Page 10) to set a realistic budget provision for the next 0–5 years");
+  md.push("3. **Read the Evidence section** (Page 7) only if you want the underlying observations and photos");
   md.push("");
   
   return md.join("\n");
@@ -278,6 +303,22 @@ function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<
     "This property presents a moderate electrical risk profile at the time of inspection.";
   
   md.push(executiveSignals);
+  md.push("");
+  
+  // Priority Snapshot (NEW - Gold Sample)
+  md.push("### Priority Snapshot");
+  md.push("");
+  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
+  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED" || f.priority === "RECOMMENDED_0_3_MONTHS").length;
+  const planCount = findings.filter(f => f.priority === "PLAN" || f.priority === "PLAN_MONITOR" || f.priority === "MONITOR").length;
+  
+  md.push("| Priority | Meaning | Investor Interpretation |");
+  md.push("|----------|---------|-------------------------|");
+  md.push("| 🔴 Urgent liability risk | Immediate action required | Do not defer. Treat as time-critical risk control. |");
+  md.push("| 🟡 Budgetary provision recommended | No active fault, but upgrade advisable | Plan into CapEx and schedule within window. |");
+  md.push("| 🟢 Monitor / Acceptable | No action required at this stage | Keep on watchlist; avoid unnecessary spend now. |");
+  md.push("");
+  md.push(`*This assessment identified: ${immediateCount} urgent, ${recommendedCount} recommended, ${planCount} acceptable items*`);
   md.push("");
   
   // CapEx Snapshot
@@ -532,27 +573,26 @@ function buildThermalImagingSection(canonical: CanonicalInspection, defaultText:
 }
 
 /**
- * Get timeline based on priority (fallback when profile timeline is missing)
+ * Get timeline based on priority (Gold Sample format - month ranges)
  */
 function getTimelineFromPriority(priority: string): string {
   const upper = priority.toUpperCase();
-  if (upper === "IMMEDIATE") return "Now";
+  if (upper === "IMMEDIATE") return "0–1 month";
   if (upper === "URGENT") return "0–3 months";
-  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "12–24 months";
+  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "6–18 months";
   if (upper === "PLAN_MONITOR" || upper === "PLAN") return "Next renovation";
   return "To be confirmed";
 }
 
 /**
- * Get priority display text
+ * Get priority display text (Gold Sample format - investor labels)
  */
 function getPriorityDisplayText(priority: string): string {
   const upper = priority.toUpperCase();
-  if (upper === "IMMEDIATE") return "IMMEDIATE";
-  if (upper === "URGENT") return "URGENT";
-  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "RECOMMENDED";
-  if (upper === "PLAN_MONITOR" || upper === "PLAN") return "PLAN";
-  return priority;
+  if (upper === "IMMEDIATE" || upper === "URGENT") return "Urgent liability risk";
+  if (upper === "RECOMMENDED_0_3_MONTHS" || upper === "RECOMMENDED") return "Budgetary provision recommended";
+  if (upper === "PLAN_MONITOR" || upper === "PLAN") return "Monitor / Acceptable";
+  return "Monitor / Acceptable";
 }
 
 /**
