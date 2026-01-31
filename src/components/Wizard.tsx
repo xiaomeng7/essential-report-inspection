@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { getSections } from "../lib/fieldDictionary";
 import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
 import { validateSection } from "../lib/validation";
-import { useInspection } from "../hooks/useInspection";
+import { useInspection, type IssueDetailsByField } from "../hooks/useInspection";
 import { SectionForm } from "./SectionForm";
 import { SectionPhotoEvidence } from "./SectionPhotoEvidence";
 import { getBlockForSection } from "../lib/inspectionBlocks";
 import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
 import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
+import { getFindingForField } from "../lib/fieldToFindingMap";
 
 const GATE_KEYS = new Set([
   "rcd_tests.performed",
@@ -59,7 +60,6 @@ export function Wizard({ onSubmitted }: Props) {
     updateStagedPhotoCaption,
     getIssueDetail,
     setIssueDetail,
-    getIssueDetails: _getIssueDetails,
   } = useInspection();
   const [step, setStep] = useState(0);
   const [sectionErrors, setSectionErrors] = useState<Record<string, Record<string, string>>>({});
@@ -102,8 +102,20 @@ export function Wizard({ onSubmitted }: Props) {
   };
 
   const submitInspection = async () => {
-    const { _staged_photos, ...rest } = state as Record<string, unknown>;
-    const payload = { created_at: new Date().toISOString(), ...rest };
+    const { _staged_photos, _issue_details, ...rest } = state as Record<string, unknown>;
+    // Include _issue_details (without photos) in payload for backend storage
+    const issueDetailsForPayload: Record<string, { location: string; notes: string }> = {};
+    const issueDetails = (_issue_details as IssueDetailsByField) ?? {};
+    for (const [fieldKey, detail] of Object.entries(issueDetails)) {
+      if (detail && (detail.location || detail.notes || detail.photo_ids?.length)) {
+        issueDetailsForPayload[fieldKey] = { location: detail.location, notes: detail.notes };
+      }
+    }
+    const payload = {
+      created_at: new Date().toISOString(),
+      ...rest,
+      _issue_details_meta: issueDetailsForPayload, // Store location/notes, photos uploaded separately
+    };
     try {
       const res = await fetch("/api/submitInspection", {
         method: "POST",
@@ -125,30 +137,66 @@ export function Wizard({ onSubmitted }: Props) {
       const data = JSON.parse(text) as { inspection_id: string; status: string; review_url: string };
       const inspectionId = data.inspection_id;
 
-      // Upload staged photos after submit (assign to findings by section mapping)
+      // Get findings from server to know which ones were created
+      let findingIds: string[] = [];
+      try {
+        const reviewRes = await fetch(`/api/review/${inspectionId}`);
+        if (reviewRes.ok) {
+          const reviewJson = (await reviewRes.json()) as { findings?: Array<{ id: string }> };
+          findingIds = (reviewJson.findings ?? []).map((f) => f.id);
+        }
+      } catch {
+        console.warn("Could not fetch findings for photo upload");
+      }
+
+      // Upload issue detail photos (each field → finding mapping)
+      for (const [fieldKey, detail] of Object.entries(issueDetails)) {
+        if (!detail?.photo_ids?.length) continue;
+        const findingId = getFindingForField(fieldKey);
+        if (!findingId) {
+          console.warn(`No finding mapping for field: ${fieldKey}`);
+          continue;
+        }
+        // Only upload if this finding was actually created
+        if (!findingIds.includes(findingId)) {
+          console.warn(`Finding ${findingId} not in inspection, skipping photos for ${fieldKey}`);
+          continue;
+        }
+        const location = detail.location || "";
+        const notes = detail.notes || "";
+        const caption = location ? `${location}${notes ? " - " + notes : ""}` : (notes || "Issue photo");
+        for (const dataUrl of detail.photo_ids.slice(0, 2)) {
+          try {
+            await uploadInspectionPhoto({
+              inspection_id: inspectionId,
+              finding_id: findingId,
+              caption,
+              image: dataUrl,
+            });
+          } catch (uploadErr) {
+            console.error(`Photo upload failed for ${fieldKey}:`, uploadErr);
+          }
+        }
+      }
+
+      // Upload staged section photos (legacy flow)
       const stagedBySection = (typeof _staged_photos === "object" && _staged_photos !== null && !Array.isArray(_staged_photos))
         ? (_staged_photos as Record<string, Array<{ caption: string; dataUrl: string }>>)
         : {};
       const hasStaged = Object.keys(stagedBySection).some((k) => (stagedBySection[k]?.length ?? 0) > 0);
-      if (hasStaged) {
+      if (hasStaged && findingIds.length > 0) {
         try {
-          const reviewRes = await fetch(`/api/review/${inspectionId}`);
-          if (reviewRes.ok) {
-            const reviewJson = (await reviewRes.json()) as { findings?: Array<{ id: string }> };
-            const findingIds = (reviewJson.findings ?? []).map((f) => f.id);
-            const toUpload = assignStagedPhotosToFindings(stagedBySection, findingIds);
-            for (const item of toUpload) {
-              await uploadInspectionPhoto({
-                inspection_id: inspectionId,
-                finding_id: item.finding_id,
-                caption: item.caption,
-                image: item.dataUrl,
-              });
-            }
+          const toUpload = assignStagedPhotosToFindings(stagedBySection, findingIds);
+          for (const item of toUpload) {
+            await uploadInspectionPhoto({
+              inspection_id: inspectionId,
+              finding_id: item.finding_id,
+              caption: item.caption,
+              image: item.dataUrl,
+            });
           }
         } catch (uploadErr) {
           console.error("Staged photo upload failed:", uploadErr);
-          // Don't fail submit; inspection is saved
         }
       }
 
