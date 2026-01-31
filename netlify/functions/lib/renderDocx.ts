@@ -76,15 +76,17 @@ export async function renderDocxWithHtmlMerge(
     throw new Error("REPORT_BODY_HTML 不能为空");
   }
 
-  const htmlDocxBlob = await asBlob(htmlContent, {
+  const htmlDocxResult = await asBlob(htmlContent, {
     pageSize: {
       width: 12240, // A4 width in twips (8.5 inches)
       height: 15840, // A4 height in twips (11 inches)
     },
   });
 
-  // 4. 将 Blob 转换为 Buffer
-  const htmlDocxBuffer = Buffer.from(await htmlDocxBlob.arrayBuffer());
+  // 4. 转为 Buffer（Node 返回 Buffer，浏览器返回 Blob）
+  const htmlDocxBuffer = Buffer.isBuffer(htmlDocxResult)
+    ? htmlDocxResult
+    : Buffer.from(await (htmlDocxResult as Blob).arrayBuffer());
 
   // 5. 使用 docx-merger 合并两个 DOCX（封面 + 正文）
   return new Promise((resolve, reject) => {

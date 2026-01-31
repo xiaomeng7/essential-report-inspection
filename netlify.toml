@@ -5,6 +5,8 @@
 
 [functions]
   included_files = [
+    "./profiles/finding_profiles.yml",
+    "./mappings/raw_to_canonical.yml",
     "./netlify/functions/report-template.docx",
     "./netlify/functions/report-template-md.docx",
     "./netlify/functions/report-template.html",
