@@ -57,6 +57,9 @@ export function Wizard({ onSubmitted }: Props) {
     addStagedPhoto,
     removeStagedPhoto,
     updateStagedPhotoCaption,
+    getIssueDetail,
+    setIssueDetail,
+    getIssueDetails: _getIssueDetails,
   } = useInspection();
   const [step, setStep] = useState(0);
   const [sectionErrors, setSectionErrors] = useState<Record<string, Record<string, string>>>({});
@@ -194,6 +197,8 @@ export function Wizard({ onSubmitted }: Props) {
             getAnswer={getAnswer}
             errors={sectionErrors[current.id] ?? {}}
             gateKeys={GATE_KEYS}
+            getIssueDetail={getIssueDetail}
+            setIssueDetail={setIssueDetail}
           />
           {SECTIONS_WITH_PHOTOS.has(current.id) && (
             <SectionPhotoEvidence

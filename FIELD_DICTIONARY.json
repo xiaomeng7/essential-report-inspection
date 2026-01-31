@@ -5,6 +5,19 @@
     "Aligned with On-Site Technical Checklist MASTER MERGED (Essential Electrical Report Field Data Standard).",
     "Section-based wizard; gate logic for skip; each field supports status=answered|skipped."
   ],
+  "on_issue_capture": {
+    "description": "When a field has on_issue_capture=true and the answer indicates an issue (boolean=true OR enum=yes), the UI expands a sub-form to capture: location, photo(s), and optional notes. The captured data is stored as {field_key}_detail object.",
+    "triggers": {
+      "boolean": "value === true",
+      "yes_no_unsure": "value === 'yes'"
+    },
+    "detail_fields": {
+      "location": { "type": "string", "label": "Location / Room", "required": true, "placeholder": "e.g. Kitchen, Bedroom 2, Garage, Main switchboard" },
+      "photo_ids": { "type": "array_string", "label": "Photos (required)", "max": 2, "required": true },
+      "notes": { "type": "string", "label": "Notes (optional)", "required": false }
+    },
+    "storage_pattern": "{field_key}_detail"
+  },
   "enums": {
     "answer_status": [
       "answered",
@@ -513,7 +526,8 @@
           "enum": "yes_no_unsure",
           "required": true,
           "skippable": false,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.burn_marks_or_carbon",
@@ -522,7 +536,8 @@
           "enum": "yes_no_unsure",
           "required": true,
           "skippable": false,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.water_ingress",
@@ -531,7 +546,8 @@
           "enum": "yes_no_unsure",
           "required": true,
           "skippable": false,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.asbestos_suspected",
@@ -540,7 +556,8 @@
           "enum": "yes_no_unsure",
           "required": true,
           "skippable": false,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.protection_types_present",
@@ -584,7 +601,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.backboard_material",
@@ -627,7 +645,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.loose_components_visible",
@@ -636,7 +655,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.photo_ids",
@@ -817,7 +837,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "earthing.earth_bar_present",
@@ -841,7 +862,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "earthing.main_earthing_conductor_size_mm2",
@@ -893,7 +915,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.unprotected_cable_entries",
@@ -902,7 +925,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.exposed_single_insulated",
@@ -911,7 +935,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.incorrect_colour_identification",
@@ -920,7 +945,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.ceramic_fuse_holders_present",
@@ -928,7 +954,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.rewireable_fuses_present",
@@ -936,7 +963,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "switchboard.mixed_old_new_devices",
@@ -945,7 +973,8 @@
           "enum": "yes_no_unsure",
           "required": false,
           "skippable": true,
-          "ui": "radio"
+          "ui": "radio",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1162,7 +1191,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "lighting.issues_observed",
@@ -1321,7 +1351,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.distance_to_sink_mm",
@@ -1353,7 +1384,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.switch_body_moves",
@@ -1361,7 +1393,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.unusual_audible_sound",
@@ -1369,7 +1402,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.light_fitting_moves",
@@ -1377,7 +1411,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.lamp_type",
@@ -1394,7 +1429,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1478,7 +1514,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1524,7 +1561,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1615,7 +1653,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.roof.non_modern_cable",
@@ -1623,7 +1662,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.roof.taped_connection",
@@ -1631,7 +1671,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.roof.transformer_present",
@@ -1647,7 +1688,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.roof.not_accessed_reason",
@@ -1686,7 +1728,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.exterior.exterior_light",
@@ -1710,7 +1753,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1796,7 +1840,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.general.bakelite_ceramic_visible",
@@ -1804,7 +1849,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.general.non_standard_wiring",
@@ -1812,7 +1858,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "internal.general.power_boards_count",
@@ -1830,7 +1877,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         }
       ]
     },
@@ -1871,7 +1919,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "assets.solar.main_pv_isolator",
@@ -1939,7 +1988,8 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "ui": "radio_yes_no"
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
         },
         {
           "key": "assets.has_ev_charger",

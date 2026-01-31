@@ -13,6 +13,8 @@ export type FieldDef = {
   max?: number;
   item_schema?: Record<string, { type: string; enum?: string; enum_values?: string[]; required?: boolean; min?: number; max?: number }>;
   ui: string;
+  /** When true/yes is selected, expand sub-form to capture location, photo, notes */
+  on_issue_capture?: boolean;
 };
 
 export type GateDef = {

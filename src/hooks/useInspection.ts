@@ -18,6 +18,14 @@ export type InspectionState = Record<string, unknown>;
 export type StagedPhoto = { caption: string; dataUrl: string };
 export type StagedPhotosBySection = Record<string, StagedPhoto[]>;
 
+/** Issue detail captured when a field with on_issue_capture=true is triggered */
+export type IssueDetail = {
+  location: string;
+  photo_ids: string[];  // base64 dataUrls until upload
+  notes: string;
+};
+export type IssueDetailsByField = Record<string, IssueDetail>;
+
 function getNested(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split(".");
   let v: unknown = obj;
@@ -226,6 +234,28 @@ export function useInspection() {
     []
   );
 
+  // Issue detail management (for on_issue_capture fields)
+  const getIssueDetail = useCallback(
+    (fieldKey: string): IssueDetail | undefined => {
+      const details = (state._issue_details as IssueDetailsByField) ?? {};
+      return details[fieldKey];
+    },
+    [state]
+  );
+
+  const setIssueDetail = useCallback((fieldKey: string, detail: IssueDetail) => {
+    setState((prev) => {
+      const next = deepClone(prev) as Record<string, unknown>;
+      const current = (next._issue_details as IssueDetailsByField) ?? {};
+      next._issue_details = { ...current, [fieldKey]: detail };
+      return next;
+    });
+  }, []);
+
+  const getIssueDetails = useCallback((): IssueDetailsByField => {
+    return (state._issue_details as IssueDetailsByField) ?? {};
+  }, [state]);
+
   return {
     state,
     setAnswer,
@@ -239,5 +269,9 @@ export function useInspection() {
     addStagedPhoto,
     removeStagedPhoto,
     updateStagedPhotoCaption,
+    // Issue detail for on_issue_capture fields
+    getIssueDetail,
+    setIssueDetail,
+    getIssueDetails,
   };
 }

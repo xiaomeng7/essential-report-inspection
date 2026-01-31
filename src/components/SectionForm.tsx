@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import type { SectionDef, FieldDef } from "../lib/fieldDictionary";
 import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
 import type { InspectionState } from "../hooks/useInspection";
 import { FieldRenderer } from "./FieldRenderer";
+import { IssueDetailCapture, createEmptyIssueDetail, type IssueDetail } from "./IssueDetailCapture";
 
 type Props = {
   section: SectionDef;
@@ -13,7 +14,19 @@ type Props = {
   getAnswer: (key: string) => import("../hooks/useInspection").Answer | undefined;
   errors: Record<string, string>;
   gateKeys: Set<string>;
+  /** Get issue detail for a field key */
+  getIssueDetail?: (fieldKey: string) => IssueDetail | undefined;
+  /** Set issue detail for a field key */
+  setIssueDetail?: (fieldKey: string, detail: IssueDetail) => void;
 };
+
+/** Check if a field value indicates an issue (true for boolean, "yes" for yes_no_unsure) */
+function isIssueTriggered(field: FieldDef, value: unknown): boolean {
+  if (!field.on_issue_capture) return false;
+  if (field.type === "boolean") return value === true;
+  if (field.enum === "yes_no_unsure") return value === "yes";
+  return false;
+}
 
 function getNested(obj: unknown, path: string): unknown {
   if (obj == null || typeof obj !== "object") return undefined;
@@ -104,10 +117,21 @@ export function SectionForm({
   getAnswer,
   errors,
   gateKeys,
+  getIssueDetail,
+  setIssueDetail,
 }: Props) {
   const flat = useMemo(() => flattenValues(state), [state]);
   const gatedOut = isSectionGatedOut(section.id, state);
   const autoSkipped = isSectionAutoSkipped(section.id, state);
+
+  const handleIssueDetailChange = useCallback(
+    (fieldKey: string, detail: IssueDetail) => {
+      if (setIssueDetail) {
+        setIssueDetail(fieldKey, detail);
+      }
+    },
+    [setIssueDetail]
+  );
 
   const visibleFields = useMemo(() => {
     const out: FieldDef[] = [];
@@ -140,16 +164,27 @@ export function SectionForm({
         if (f.required) {
           console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
         }
+        const showIssueCapture = isIssueTriggered(f, value);
+        const issueDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
         return (
-          <FieldRenderer
-            key={f.key}
-            field={f}
-            value={answer ?? value}
-            onChange={setAnswer}
-            error={errors[f.key]}
-            isGate={gateKeys.has(f.key)}
-            onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
-          />
+          <div key={f.key}>
+            <FieldRenderer
+              field={f}
+              value={answer ?? value}
+              onChange={setAnswer}
+              error={errors[f.key]}
+              isGate={gateKeys.has(f.key)}
+              onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
+            />
+            {showIssueCapture && setIssueDetail && (
+              <IssueDetailCapture
+                fieldKey={f.key}
+                fieldLabel={f.label}
+                detail={issueDetail ?? createEmptyIssueDetail()}
+                onDetailChange={handleIssueDetailChange}
+              />
+            )}
+          </div>
         );
       })}
     </div>
