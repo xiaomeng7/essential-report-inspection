@@ -218,3 +218,22 @@ button {
 }
 
 .review-actions button:hover { background: var(--primary-hover); }
+
+/* Photo Evidence Section - Mobile friendly */
+.photo-evidence-section {
+  touch-action: manipulation;
+}
+
+@media (max-width: 480px) {
+  .review-page {
+    padding: 12px;
+  }
+  .review-page h1 {
+    font-size: 1.1rem;
+  }
+  /* Ensure buttons are large enough for touch */
+  .photo-evidence-section button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+}

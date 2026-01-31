@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { PhotoEvidenceSection } from "./PhotoEvidenceSection";
 
 type Props = {
   inspectionId: string;
@@ -576,12 +577,52 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
-          <h2>Findings</h2>
-          <ul>
-            {data.findings.map((f) => (
-              <li key={f.id}><strong>{f.priority}</strong> — {f.title ?? f.id}</li>
-            ))}
-          </ul>
+          <h2>Findings &amp; Photo Evidence</h2>
+          <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
+            Add photo evidence for each finding. Max 2 photos per finding. Photos will be included in the final report.
+          </p>
+          {data.findings.map((f) => (
+            <div
+              key={f.id}
+              style={{
+                border: "1px solid #e0e0e0",
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 16,
+                backgroundColor: "#fff",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <span
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    backgroundColor:
+                      f.priority === "IMMEDIATE"
+                        ? "#dc3545"
+                        : f.priority === "RECOMMENDED_0_3_MONTHS"
+                        ? "#ffc107"
+                        : "#28a745",
+                    color: f.priority === "RECOMMENDED_0_3_MONTHS" ? "#000" : "#fff",
+                  }}
+                >
+                  {f.priority === "IMMEDIATE"
+                    ? "IMMEDIATE"
+                    : f.priority === "RECOMMENDED_0_3_MONTHS"
+                    ? "RECOMMENDED"
+                    : "PLAN/MONITOR"}
+                </span>
+                <span style={{ fontWeight: 500 }}>{f.title ?? f.id}</span>
+              </div>
+              <PhotoEvidenceSection
+                inspectionId={data.inspection_id}
+                findingId={f.id}
+                findingTitle={f.title}
+              />
+            </div>
+          ))}
         </div>
       )}
       {data.limitations && data.limitations.length > 0 && (
