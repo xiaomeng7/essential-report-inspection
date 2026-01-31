@@ -11,6 +11,8 @@ import { buildMarkdownReport } from "./lib/generateReport";
 import { loadResponses } from "./generateWordReport";
 import { markdownToHtml } from "./lib/markdownToHtml";
 import { renderDocx } from "./lib/renderDocx";
+import { sha1 } from "./lib/fingerprint";
+import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { normalizeInspection } from "./lib/normalizeInspection";
 import fs from "fs";
@@ -78,8 +80,9 @@ function loadWordTemplate(): Buffer {
   
   for (const templatePath of possiblePaths) {
     if (fs.existsSync(templatePath)) {
-      console.log("✅ Loaded Word template from:", templatePath);
-      return fs.readFileSync(templatePath);
+      const buf = fs.readFileSync(templatePath);
+      console.log("[report-fp] template path:", templatePath, "buffer.length:", buf.length, "sha1:", sha1(buf));
+      return buf;
     }
   }
   
@@ -88,6 +91,22 @@ function loadWordTemplate(): Buffer {
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   try {
+    resetSanitizeFingerprint();
+    const buildRef = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "?";
+    let pkgVersion = "?";
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+      pkgVersion = pkg.version ?? "?";
+    } catch {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8"));
+        pkgVersion = pkg.version ?? "?";
+      } catch {
+        // ignore
+      }
+    }
+    console.log("[report-fp] BUILD COMMIT_REF/CONTEXT/BRANCH:", buildRef, "package.version:", pkgVersion);
+
     // 获取 inspection_id
     const inspectionId = event.queryStringParameters?.inspection_id;
     
@@ -168,12 +187,23 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
     };
 
+    const templateData = { ...coverData, REPORT_BODY_HTML: html };
+    const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+    if (undefinedKeys.length > 0) {
+      console.log("[report-fp] placeholder undefined keys:", undefinedKeys.join(", "));
+    } else {
+      console.log("[report-fp] placeholder: no undefined keys");
+    }
+    const sf = getSanitizeFingerprint();
+    console.log("[report-fp] sanitize callCount:", sf.count, "preserveEmoji:", sf.preserveEmoji);
+    for (const f of inspection.findings || []) {
+      const count = (f as any).photo_ids && Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
+      console.log("[report-fp] photo finding.id:", f.id, "photo_ids:", count);
+    }
+
     // 8. 渲染 Word 文档
     console.log("📝 Rendering Word document...");
-    const wordBuffer = await renderDocx(templateBuffer, {
-      ...coverData,
-      REPORT_BODY_HTML: html
-    });
+    const wordBuffer = await renderDocx(templateBuffer, templateData);
     console.log(`✅ Word document generated: ${wordBuffer.length} bytes`);
 
     // 9. 返回 Word 文档

@@ -10,6 +10,18 @@ export type SanitizeTextOptions = {
   preserveEmoji?: boolean;
 };
 
+let _sanitizeCallCount = 0;
+let _sanitizePreserveEmojiUsed = false;
+
+export function getSanitizeFingerprint(): { count: number; preserveEmoji: boolean } {
+  return { count: _sanitizeCallCount, preserveEmoji: _sanitizePreserveEmojiUsed };
+}
+
+export function resetSanitizeFingerprint(): void {
+  _sanitizeCallCount = 0;
+  _sanitizePreserveEmojiUsed = false;
+}
+
 /**
  * Sanitize text for safe rendering
  * 
@@ -26,6 +38,8 @@ export type SanitizeTextOptions = {
  * @returns Sanitized string
  */
 export function sanitizeText(input: unknown, options?: SanitizeTextOptions): string {
+  _sanitizeCallCount += 1;
+  if (options?.preserveEmoji === true) _sanitizePreserveEmojiUsed = true;
   const preserveEmoji = options?.preserveEmoji ?? false;
 
   // Handle null/undefined

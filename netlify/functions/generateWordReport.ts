@@ -13,6 +13,8 @@ import { buildReportHtml, buildStructuredReport, renderReportFromSlots } from ".
 import { markdownToHtml } from "./lib/markdownToHtml";
 import { assertReportReady } from "./lib/reportContract";
 import { renderDocx } from "./lib/renderDocx";
+import { sha1 } from "./lib/fingerprint";
+import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
 import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection";
 import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader";
 import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring";
@@ -661,7 +663,8 @@ export async function loadResponses(event?: HandlerEvent): Promise<any> {
       if (blobContent) {
         try {
           responsesCache = yaml.load(blobContent) as any;
-          console.log("✅ Loaded responses.yml from blob store");
+          const raw = typeof blobContent === "string" ? blobContent : String(blobContent);
+          console.log("[report-fp] responses source: blob length:", raw.length, "sha1:", sha1(raw));
           return responsesCache;
         } catch (e) {
           console.warn("Failed to parse responses from blob:", e);
@@ -674,10 +677,12 @@ export async function loadResponses(event?: HandlerEvent): Promise<any> {
 
   // Fallback to file system
   const possiblePaths = [
+    path.join(__dirname, "responses.yml"),
     path.join(__dirname, "..", "..", "responses.yml"),
     path.join(process.cwd(), "responses.yml"),
     path.join(process.cwd(), "netlify", "functions", "responses.yml"),
     "/opt/build/repo/responses.yml",
+    "/opt/build/repo/netlify/functions/responses.yml",
   ];
 
   for (const responsesPath of possiblePaths) {
@@ -685,7 +690,7 @@ export async function loadResponses(event?: HandlerEvent): Promise<any> {
       if (fs.existsSync(responsesPath)) {
         const content = fs.readFileSync(responsesPath, "utf8");
         responsesCache = yaml.load(content) as any;
-        console.log(`✅ Loaded responses.yml from: ${responsesPath}`);
+        console.log("[report-fp] responses source: fs path:", responsesPath, "length:", content.length, "sha1:", sha1(content));
         return responsesCache;
       }
     } catch (e) {
@@ -694,7 +699,7 @@ export async function loadResponses(event?: HandlerEvent): Promise<any> {
     }
   }
 
-  console.warn("⚠️ Could not load responses.yml, using fallback");
+  console.warn("[report-fp] responses source: fallback (empty)");
   responsesCache = { findings: {}, defaults: {} };
   return responsesCache;
 }
@@ -1904,8 +1909,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   try {
+    resetSanitizeFingerprint();
     const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     console.log("[report][RUN_ID]", RUN_ID, "handler started");
+
+    const buildRef = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "?";
+    let pkgVersion = "?";
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+      pkgVersion = pkg.version ?? "?";
+    } catch {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8"));
+        pkgVersion = pkg.version ?? "?";
+      } catch {
+        // ignore
+      }
+    }
+    console.log("[report-fp] BUILD COMMIT_REF/CONTEXT/BRANCH:", buildRef, "package.version:", pkgVersion);
 
     // Extract inspection_id from query string or POST body
     let inspection_id: string | undefined;
@@ -2122,10 +2143,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     console.log("[DEV] templateData keys:", templateKeys.length, templateKeys.sort().join(", "));
     console.log("[DEV] templateData sample (no undefined):", JSON.stringify(sampleValues, null, 0));
-    const hasUndefined = Object.entries(templateData).some(([, v]) => v === undefined);
-    if (hasUndefined) {
-      const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
-      console.warn("[report] templateData has undefined:", undefinedKeys);
+    const undefinedKeys2 = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+    if (undefinedKeys2.length > 0) {
+      console.log("[report-fp] placeholder undefined keys:", undefinedKeys2.join(", "));
+    } else {
+      console.log("[report-fp] placeholder: no undefined keys");
+    }
+    const sf = getSanitizeFingerprint();
+    console.log("[report-fp] sanitize callCount:", sf.count, "preserveEmoji:", sf.preserveEmoji);
+    for (const f of inspection.findings) {
+      const count = (f as any).photo_ids && Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
+      console.log("[report-fp] photo finding.id:", f.id, "photo_ids:", count);
     }
 
     // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
@@ -2142,13 +2170,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     ];
     
     let foundMdTemplate = false;
+    let templatePathHit = "";
     for (const templatePath of possibleMdPaths) {
       if (fs.existsSync(templatePath)) {
-        console.log(`✅ Found report-template-md.docx at: ${templatePath}`);
+        templatePathHit = templatePath;
         templateBuffer = fs.readFileSync(templatePath);
         foundMdTemplate = true;
         break;
       }
+    }
+    if (foundMdTemplate) {
+      console.log("[report-fp] template path:", templatePathHit, "buffer.length:", templateBuffer!.length, "sha1:", sha1(templateBuffer!));
     }
     
     if (!foundMdTemplate) {

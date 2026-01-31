@@ -30,7 +30,7 @@ export async function renderDocxWithHtmlMerge(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Promise<Buffer> {
-  console.log("[report] renderDocx VERSION=" + VERSION);
+  console.log("[report-fp] Using renderer: HTML_MERGE(A)");
   // 1. 使用 docxtemplater 填充封面信息
   const zip = new PizZip(templateBuffer);
   const doc = new Docxtemplater(zip, {
@@ -114,6 +114,7 @@ export function renderDocxWithHtmlAsText(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Buffer {
+  console.log("[report-fp] Using renderer: HTML_ASTEXT(B)");
   const zip = new PizZip(templateBuffer);
   
   // 检查模板是否包含 REPORT_BODY_HTML 占位符

@@ -13,6 +13,7 @@ import * as path from "path";
 import MarkdownIt from "markdown-it";
 import { markdownItTable } from "markdown-it-table";
 import { sanitizeText } from "./sanitizeText";
+import { sha1 } from "./fingerprint";
 
 const FALLBACK_CSS = `
 /* Report styles (docx-safe) - fallback */
@@ -42,15 +43,6 @@ h2, h3, h4, table, tr { page-break-inside: avoid; }
 tbody { page-break-inside: auto; }
 `.trim();
 
-function simpleChecksum(text: string): string {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) {
-    h = (h << 5) - h + text.charCodeAt(i);
-    h = h & h;
-  }
-  return Math.abs(h).toString(16).slice(0, 8);
-}
-
 function loadReportCss(): string {
   const possiblePaths = [
     path.join(__dirname, "..", "reportStyles.css"),
@@ -63,16 +55,16 @@ function loadReportCss(): string {
     try {
       if (fs.existsSync(filePath)) {
         const css = fs.readFileSync(filePath, "utf-8").trim();
-        console.log("[report] css source:", filePath, "checksum:", simpleChecksum(css));
+        console.log("[report-fp] CSS path:", filePath, "length:", css.length, "sha1:", sha1(css));
         return css;
       }
     } catch {
       // continue to next path
     }
   }
-  const checksum = simpleChecksum(FALLBACK_CSS);
-  console.log("[report] css source: FALLBACK_CSS checksum:", checksum);
-  return FALLBACK_CSS;
+  const css = FALLBACK_CSS;
+  console.log("[report-fp] CSS path: FALLBACK_CSS length:", css.length, "sha1:", sha1(css));
+  return css;
 }
 
 const md = new MarkdownIt({
@@ -121,7 +113,7 @@ export function markdownToHtml(markdown: string): string {
   }
 
   const css = loadReportCss();
-  return `<!doctype html>
+  const fullHtml = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -131,4 +123,6 @@ export function markdownToHtml(markdown: string): string {
 ${htmlBody}
 </body>
 </html>`;
+  console.log("[report-fp] HTML length:", fullHtml.length, "css sha1:", sha1(css));
+  return fullHtml;
 }
