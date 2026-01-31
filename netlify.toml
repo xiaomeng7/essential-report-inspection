@@ -13,7 +13,10 @@
     "./netlify/functions/CHECKLIST_TO_FINDINGS_MAP.json",
     "./netlify/functions/DEFAULT_REPORT_TEXT.md",
     "./netlify/functions/DEFAULT_TEXT_LIBRARY.md",
-    "./netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md"
+    "./netlify/functions/DEFAULT_TERMS.md",
+    "./netlify/functions/finding_profiles.yml",
+    "./netlify/functions/EXECUTIVE_SUMMARY_TEMPLATES.md",
+    "./netlify/functions/reportStyles.css"
   ]
 
 [[redirects]]

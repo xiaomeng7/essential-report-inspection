@@ -1,0 +1,25 @@
+/* Report styles (docx-safe) */
+body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.35; color: #111; padding: 18pt 20pt; }
+p { margin: 0 0 8pt 0; }
+strong { font-weight: 700; }
+h1 { font-size: 20pt; margin: 0 0 10pt 0; font-weight: 700; }
+h2 { font-size: 15pt; margin: 14pt 0 8pt 0; font-weight: 700; }
+h2.page-title { page-break-before: always; margin-top: 0; }
+h3 { font-size: 12.5pt; margin: 10pt 0 6pt 0; font-weight: 700; }
+h4 { font-size: 11.5pt; margin: 8pt 0 4pt 0; font-weight: 700; }
+ul, ol { margin: 0 0 10pt 18pt; padding: 0; }
+li { margin: 0 0 4pt 0; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0 10pt 0; table-layout: fixed; }
+th, td { border: 1px solid #cfcfcf; padding: 6pt; vertical-align: top; word-wrap: break-word; }
+th { font-weight: 700; background: #f2f2f2; }
+.table-compact th, .table-compact td { padding: 4pt 5pt; }
+.kv { width: 100%; border: 0; }
+.kv td { border: 0; padding: 2pt 0; }
+.kv td.k { width: 140pt; font-weight: 700; }
+.small { font-size: 9.5pt; color: #444; }
+.note { font-size: 10pt; color: #333; margin: 8pt 0 10pt 0; }
+.disclaimer { font-size: 9.5pt; color: #444; margin: 8pt 0 0 0; }
+.badge { font-weight: 700; }
+.page-break, div[style*="page-break-after"] { page-break-after: always; }
+h2, h3, h4, table, tr { page-break-inside: avoid; }
+tbody { page-break-inside: auto; }

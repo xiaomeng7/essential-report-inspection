@@ -389,7 +389,9 @@ function generateFindingPage(
  */
 export async function generateDynamicFindingPages(
   inspection: StoredInspection,
-  event?: HandlerEvent
+  event?: HandlerEvent,
+  baseUrl?: string,
+  signingSecret?: string
 ): Promise<string> {
   const responses = await loadResponses(event);
   const responsesMap: Record<string, Response> = responses.findings || {};
@@ -417,13 +419,16 @@ export async function generateDynamicFindingPages(
     profiles[finding.id] = getFindingProfile(finding.id);
   }
   
-  // Generate finding pages with strict validation
-  const result = generateFindingPages(
+  const result = await generateFindingPages(
     findings,
     profiles,
     responsesMap,
     inspection.raw || {},
-    canonical.test_data || {}
+    canonical.test_data || {},
+    inspection.inspection_id,
+    event,
+    baseUrl,
+    signingSecret
   );
   
   // Errors are already thrown by generateFindingPages, but we check anyway for safety

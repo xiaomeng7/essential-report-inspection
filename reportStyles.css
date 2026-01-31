@@ -1,0 +1,109 @@
+/* Report styles – add rules as needed */
+/* ===== Better Home Report Styles (docx-safe) ===== */
+
+/* Base */
+body {
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.35;
+    color: #111;
+  }
+  
+  p {
+    margin: 0 0 8pt 0;
+  }
+  
+  strong { font-weight: 700; }
+  
+  /* Headings */
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 10pt 0;
+    font-weight: 700;
+  }
+  
+  h2 {
+    font-size: 15pt;
+    margin: 14pt 0 8pt 0;
+    font-weight: 700;
+  }
+  
+  h3 {
+    font-size: 12.5pt;
+    margin: 10pt 0 6pt 0;
+    font-weight: 700;
+  }
+  
+  h4 {
+    font-size: 11.5pt;
+    margin: 8pt 0 4pt 0;
+    font-weight: 700;
+  }
+  
+  /* Lists */
+  ul, ol {
+    margin: 0 0 10pt 18pt;
+    padding: 0;
+  }
+  
+  li { margin: 0 0 4pt 0; }
+  
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8pt 0 10pt 0;
+    table-layout: fixed;
+  }
+  
+  th, td {
+    border: 1px solid #cfcfcf;
+    padding: 6pt 6pt;
+    vertical-align: top;
+    word-wrap: break-word;
+  }
+  
+  th {
+    font-weight: 700;
+    background: #f2f2f2;
+  }
+  
+  /* Compact helper class for tight tables */
+  .table-compact th, .table-compact td {
+    padding: 4pt 5pt;
+  }
+  
+  /* Notes / Disclaimer blocks */
+  .note {
+    font-size: 10pt;
+    color: #333;
+    margin: 8pt 0 10pt 0;
+  }
+  
+  .disclaimer {
+    font-size: 9.5pt;
+    color: #444;
+    margin: 8pt 0 0 0;
+  }
+  
+  /* Badge-like inline markers (docx-safe) */
+  .badge {
+    font-weight: 700;
+  }
+  
+  /* Simple “pill” simulation without border-radius (docx converters can be flaky) */
+  .badge-low { }
+  .badge-mod { }
+  .badge-high { }
+  
+  /* Page break */
+  .page-break {
+    page-break-after: always;
+  }
+  
+  /* Prevent awkward page breaks for headings and tables (best-effort) */
+  h2, h3, h4, table, tr {
+    page-break-inside: avoid;
+  }
+  
+  tbody { page-break-inside: auto; }

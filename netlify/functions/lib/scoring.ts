@@ -77,7 +77,36 @@ export type OverallScore = {
   capex_high: number;
   capex_incomplete: boolean;  // true if any finding missing budget range
   dominant_risk: string[];     // top 1-2 finding categories or ids
+  /** CapEx low sum or null when no budget data */
+  CAPEX_LOW: number | null;
+  /** CapEx high sum or null when no budget data */
+  CAPEX_HIGH: number | null;
+  /** Stable display string for CapEx; never empty */
+  CAPEX_SNAPSHOT: string;
 };
+
+const CAPEX_SUFFIX = " (indicative, planning only)";
+
+/**
+ * Format CapEx range for display (stable string, never empty).
+ * - Both low/high valid numbers: "AUD $X – $Y (indicative, planning only)"
+ * - Only one valid: "AUD $X+ (indicative, planning only)"
+ * - Neither: "To be confirmed (indicative, planning only)"
+ */
+export function formatCapexRange(low?: number, high?: number): string {
+  const hasLow = typeof low === "number" && !Number.isNaN(low);
+  const hasHigh = typeof high === "number" && !Number.isNaN(high);
+  if (hasLow && hasHigh) {
+    return `AUD $${low} – $${high}${CAPEX_SUFFIX}`;
+  }
+  if (hasLow) {
+    return `AUD $${low}+${CAPEX_SUFFIX}`;
+  }
+  if (hasHigh) {
+    return `AUD $${high}+${CAPEX_SUFFIX}`;
+  }
+  return `To be confirmed${CAPEX_SUFFIX}`;
+}
 
 /**
  * Priority weight mapping (deterministic)
@@ -150,6 +179,7 @@ export function computeOverall(
   let capexLow = 0;
   let capexHigh = 0;
   let capexIncomplete = false;
+  let hadAnyBudget = false;
   
   // Track finding scores and categories/ids for dominant_risk
   const findingScores: Array<{ id: string; score: number; category?: string }> = [];
@@ -176,6 +206,7 @@ export function computeOverall(
     if (profile.budget && typeof profile.budget.low === "number" && typeof profile.budget.high === "number") {
       capexLow += profile.budget.low;
       capexHigh += profile.budget.high;
+      hadAnyBudget = true;
     } else {
       // Flag incomplete if budget range is missing
       capexIncomplete = true;
@@ -224,6 +255,11 @@ export function computeOverall(
                 overallLevel === "MODERATE" ? "🟡 Moderate" :
                 "🟢 Low";
   
+  // CapEx: null when no budget data, else numeric sums; snapshot string never empty
+  const CAPEX_LOW: number | null = hadAnyBudget ? capexLow : null;
+  const CAPEX_HIGH: number | null = hadAnyBudget ? capexHigh : null;
+  const CAPEX_SNAPSHOT = formatCapexRange(CAPEX_LOW ?? undefined, CAPEX_HIGH ?? undefined);
+  
   return {
     overall_level: overallLevel,
     badge,
@@ -232,6 +268,9 @@ export function computeOverall(
     capex_high: capexHigh,
     capex_incomplete: capexIncomplete,
     dominant_risk: dominantRisk,
+    CAPEX_LOW,
+    CAPEX_HIGH,
+    CAPEX_SNAPSHOT,
   };
 }
 

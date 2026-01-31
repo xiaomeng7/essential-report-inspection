@@ -1,8 +1,10 @@
 /**
  * 构建报告 Markdown 内容
- * 
+ *
  * 严格遵循 REPORT_STRUCTURE.md 的页面顺序
  * 确保所有部分都有值，不会出现 undefined
+ *
+ * Pipeline: buildStructuredReport → assertReportReady → renderReportFromSlots → markdownToHtml
  */
 
 import type { StoredInspection } from "./store";
@@ -10,7 +12,9 @@ import type { CanonicalInspection } from "./normalizeInspection";
 import { loadDefaultText } from "./defaultTextLoader";
 import { loadFindingProfiles, getFindingProfile } from "./findingProfilesLoader";
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
+import { markdownToHtml } from "./markdownToHtml";
 import type { HandlerEvent } from "@netlify/functions";
+import type { StructuredReport } from "./reportContract";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -59,9 +63,9 @@ export type BuildReportMarkdownParams = {
 };
 
 /**
- * Page break marker (used consistently across the project)
+ * Page break marker: HTML-friendly so Word/HTML renderers respect it (with blank lines)
  */
-const PAGE_BREAK = "\n\n---\n\n";
+const PAGE_BREAK = "\n\n<div class=\"page-break\" style=\"page-break-after:always;\"></div>\n\n";
 
 // Cache for responses.yml
 let responsesCache: any = null;
@@ -199,16 +203,29 @@ function htmlToMarkdown(html: string): string {
  */
 function buildCoverSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
-  
-  md.push("# Electrical Property Health Assessment");
+  const addr = canonical.property_address || defaultText.PROPERTY_ADDRESS || "-";
+  const client = canonical.prepared_for || defaultText.PREPARED_FOR || "-";
+  const date = canonical.assessment_date || defaultText.ASSESSMENT_DATE || "-";
+  const inspId = canonical.inspection_id || defaultText.INSPECTION_ID || "-";
+  const preparedBy = canonical.prepared_by || defaultText.PREPARED_BY || "-";
+
+  md.push('<h2 class="page-title">Page 1 | Cover</h2>');
   md.push("");
-  md.push(`**Property Address:** ${canonical.property_address || defaultText.PROPERTY_ADDRESS || "-"}`);
-  md.push(`**Client:** ${canonical.prepared_for || defaultText.PREPARED_FOR || "-"}`);
-  md.push(`**Assessment Date:** ${canonical.assessment_date || defaultText.ASSESSMENT_DATE || "-"}`);
-  md.push(`**Inspection ID:** ${canonical.inspection_id || defaultText.INSPECTION_ID || "-"}`);
-  md.push(`**Prepared By:** ${canonical.prepared_by || defaultText.PREPARED_BY || "-"}`);
+  md.push("# ELECTRICAL ASSET RISK & FINANCIAL FORECAST");
   md.push("");
-  
+  md.push("Electrical Property Health Assessment");
+  md.push("");
+  md.push("<table class=\"kv\">");
+  md.push(`<tr><td class=\"k\">Property Address</td><td>${addr}</td></tr>`);
+  md.push(`<tr><td class=\"k\">Client</td><td>${client}</td></tr>`);
+  md.push(`<tr><td class=\"k\">Assessment Date</td><td>${date}</td></tr>`);
+  md.push(`<tr><td class=\"k\">Inspection ID</td><td>${inspId}</td></tr>`);
+  md.push(`<tr><td class=\"k\">Prepared By</td><td>${preparedBy}</td></tr>`);
+  md.push("</table>");
+  md.push("");
+  md.push("<p class=\"small\">Independent – No Repair Services Provided</p>");
+  md.push("");
+
   return md.join("\n");
 }
 
@@ -218,11 +235,16 @@ function buildCoverSection(canonical: CanonicalInspection, defaultText: any): st
 function buildPurposeSection(defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Document Purpose & How to Read This Report");
+  md.push('<h2 class="page-title">Page 2 | Document Purpose & How to Read This Report</h2>');
   md.push("");
-  md.push(defaultText.PURPOSE_PARAGRAPH || defaultText.HOW_TO_READ_PARAGRAPH || 
-    "This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.");
+  
+  // First paragraph (Purpose): only use PURPOSE_PARAGRAPH; append one sentence at end (do not rewrite whole paragraph)
+  const purposeText = defaultText.PURPOSE_PARAGRAPH || 
+    "This report provides a comprehensive assessment of the electrical condition of the property, identifying safety concerns, compliance issues, and maintenance recommendations based on a visual inspection and electrical testing performed in accordance with applicable standards.";
+  md.push(purposeText + " This report is designed to support decisions where technical expertise, financial exposure, and long-term asset planning intersect.");
   md.push("");
+  
+  // Second paragraph (How to Read): use HOW_TO_READ_PARAGRAPH || HOW_TO_READ_TEXT || fallback
   md.push(defaultText.HOW_TO_READ_PARAGRAPH || defaultText.HOW_TO_READ_TEXT ||
     "This report is a decision-support document designed to assist property owners, investors, and asset managers in understanding the electrical risk profile of the property and planning for future capital expenditure.");
   md.push("");
@@ -236,12 +258,16 @@ function buildPurposeSection(defaultText: any): string {
 function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<{ priority: string }>, defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Executive Summary");
+  md.push('<h2 class="page-title">Page 3 | Executive Summary (One-Page Only)</h2>');
   md.push("");
   
-  // Overall Status Badge
-  const overallStatus = computed.OVERALL_STATUS || computed.RISK_RATING || defaultText.OVERALL_STATUS || "MODERATE RISK";
-  md.push(`### Overall Status: ${overallStatus}`);
+  // Overall Status / Risk Level: unified emoji badge (🟢 Low / 🟡 Moderate / 🔴 Elevated), no bracket labels
+  const rawStatus = (computed.OVERALL_STATUS || computed.RISK_RATING || defaultText.OVERALL_STATUS || "").toUpperCase();
+  const riskLevelBadge =
+    rawStatus.includes("ELEVATED") || rawStatus.includes("HIGH") ? "🔴 Elevated" :
+    rawStatus.includes("MODERATE") || rawStatus.includes("MODERATE RISK") ? "🟡 Moderate" :
+    rawStatus.includes("LOW") ? "🟢 Low" : "🟡 Moderate";
+  md.push(`### Overall Status: ${riskLevelBadge}`);
   md.push("");
   
   // Executive Decision Signals
@@ -267,18 +293,21 @@ function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<
 function buildPriorityOverviewSection(findings: Array<{ priority: string }>): string {
   const md: string[] = [];
   
-  md.push("## Priority Overview");
+  md.push('<h2 class="page-title">Page 4 | Priority Overview</h2>');
   md.push("");
   
-  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE").length;
-  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
-  const planCount = findings.filter(f => f.priority === "PLAN_MONITOR").length;
+  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
+  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS" || f.priority === "RECOMMENDED").length;
+  const planCount = findings.filter(f => f.priority === "PLAN_MONITOR" || f.priority === "PLAN").length;
   
-  md.push("| Priority | Count | Description |");
-  md.push("|----------|-------|-------------|");
-  md.push(`| 🔴 Immediate | ${immediateCount} | Urgent Liability Risk |`);
-  md.push(`| 🟡 Recommended (0-3 months) | ${recommendedCount} | Budgetary Provision Recommended |`);
-  md.push(`| 🟢 Planning & Monitoring | ${planCount} | Acceptable |`);
+  md.push("| Priority Level | Meaning | Investor Interpretation |");
+  md.push("|---------------|---------|------------------------|");
+  md.push("| 🔴 Urgent Liability Risk | Action required to reduce safety or legal exposure | Do not defer |");
+  md.push("| 🟡 Budgetary Provision Recommended | No immediate risk, plan within asset cycle | Include in forward planning |");
+  md.push("| 🟢 Acceptable | No action required at this stage | Monitor only |");
+  md.push("");
+  // Count summary below table (emoji only, no bracket labels)
+  md.push(`*🔴 Urgent: ${immediateCount} | 🟡 Recommended: ${recommendedCount} | 🟢 Acceptable: ${planCount}*`);
   md.push("");
   
   return md.join("\n");
@@ -290,7 +319,7 @@ function buildPriorityOverviewSection(findings: Array<{ priority: string }>): st
 function buildScopeSection(inspection: StoredInspection, canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Assessment Scope & Limitations");
+  md.push('<h2 class="page-title">Page 5 | Assessment Scope & Limitations</h2>');
   md.push("");
   
   // Scope
@@ -311,6 +340,8 @@ function buildScopeSection(inspection: StoredInspection, canonical: CanonicalIns
       "Areas that are concealed, locked, or otherwise inaccessible were not inspected.");
   }
   md.push("");
+  md.push("This assessment does not eliminate risk, but provides a structured framework for managing it.");
+  md.push("");
   
   return md.join("\n");
 }
@@ -322,11 +353,13 @@ async function buildObservedConditionsSection(
   inspection: StoredInspection,
   canonical: CanonicalInspection,
   findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>,
-  event?: HandlerEvent
+  event?: HandlerEvent,
+  baseUrl?: string,
+  signingSecret?: string
 ): Promise<string> {
   const md: string[] = [];
   
-  md.push("## Observed Conditions & Risk Interpretation");
+  md.push('<h2 class="page-title">Page 6 | Observed Conditions & Risk Interpretation</h2>');
   md.push("");
   
   if (findings.length === 0) {
@@ -356,19 +389,27 @@ async function buildObservedConditionsSection(
     profiles[finding.id] = getFindingProfile(finding.id);
   }
   
-  // Generate finding pages using strict generator
-  const result = generateFindingPages(
-    findingList,
-    profiles,
-    responsesMap,
-    inspection.raw || {},
-    canonical.test_data || {}
-  );
+  for (let i = 0; i < findingList.length; i++) {
+    const oneFinding = findingList[i];
+    const result = await generateFindingPages(
+      [oneFinding],
+      profiles,
+      responsesMap,
+      inspection.raw || {},
+      canonical.test_data || {},
+      inspection.inspection_id,
+      event,
+      baseUrl,
+      signingSecret
+    );
+    md.push(result.html);
+    
+    // Add page break after each finding (except the last one)
+    if (i < findingList.length - 1) {
+      md.push(PAGE_BREAK);
+    }
+  }
   
-  // Convert HTML to Markdown
-  const findingPagesMarkdown = htmlToMarkdown(result.html);
-  
-  md.push(findingPagesMarkdown);
   md.push("");
   
   return md.join("\n");
@@ -380,7 +421,7 @@ async function buildObservedConditionsSection(
 function buildThermalImagingSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Thermal Imaging Analysis");
+  md.push('<h2 class="page-title">Page 7 | Thermal Imaging Analysis (If Applicable)</h2>');
   md.push("");
   
   const testData = canonical.test_data || {};
@@ -458,6 +499,17 @@ function getObservedConditionSummary(
 /**
  * Section 8: 5-Year Capital Expenditure (CapEx) Roadmap
  */
+/** Replace newlines with space and escape HTML for table cell content */
+function cellText(s: string): string {
+  return String(s)
+    .replace(/\n/g, " ")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .trim();
+}
+
 function buildCapExRoadmapSection(
   computed: ComputedFields,
   defaultText: any,
@@ -466,7 +518,7 @@ function buildCapExRoadmapSection(
 ): string {
   const md: string[] = [];
   
-  md.push("## 5-Year Capital Expenditure (CapEx) Roadmap");
+  md.push('<h2 class="page-title">Page 9 | 5-Year Capital Expenditure (CapEx) Roadmap</h2>');
   md.push("");
   
   // Filter findings that should appear in CapEx roadmap
@@ -480,68 +532,72 @@ function buildCapExRoadmapSection(
            priority === "PLAN";
   });
   
+  md.push("<table>");
+  md.push("<thead><tr>");
+  md.push('<th style="width:22%">Asset Item</th>');
+  md.push('<th style="width:30%">Current Condition</th>');
+  md.push('<th style="width:12%">Priority</th>');
+  md.push('<th style="width:16%">Suggested Timeline</th>');
+  md.push('<th style="width:20%">Budgetary Range</th>');
+  md.push("</tr></thead>");
+  md.push("<tbody>");
+  
   if (relevantFindings.length === 0) {
-    md.push("| Asset Item | Current Condition | Priority | Suggested Timeline | Budgetary Range |");
-    md.push("|------------|-------------------|----------|-------------------|-----------------|");
-    md.push("| - | No capital expenditure items identified | - | - | - |");
-    md.push("");
-    md.push("**Indicative market benchmarks provided for financial provisioning only. Not a quotation or scope of works.**");
-    md.push("");
-    return md.join("\n");
-  }
-  
-  // Build table header
-  md.push("| Asset Item | Current Condition | Priority | Suggested Timeline | Budgetary Range |");
-  md.push("|------------|-------------------|----------|-------------------|-----------------|");
-  
-  // Build table rows for each finding
-  for (const finding of relevantFindings) {
-    const profile = getFindingProfile(finding.id);
-    const response = responses.findings?.[finding.id];
-    
-    // Asset Item: asset_component from profile
-    const assetItem = profile.asset_component || 
-                      profile.messaging?.title || 
-                      finding.title || 
-                      finding.id.replace(/_/g, " ");
-    
-    // Current Condition: observed_condition summary
-    const currentCondition = getObservedConditionSummary(finding, response, profile);
-    
-    // Priority
-    const priority = getPriorityDisplayText(finding.priority || "PLAN");
-    
-    // Suggested Timeline: timeline from profile; fallback based on priority
-    const timeline = profile.timeline || getTimelineFromPriority(finding.priority || "PLAN");
-    
-    // Budgetary Range: budget_range from profile; if missing, show "Pending"
-    let budgetaryRange = "Pending";
-    if (profile.budget_range) {
-      budgetaryRange = String(profile.budget_range);
-    } else if (response?.budget_range_text) {
-      budgetaryRange = String(response.budget_range_text);
-    } else if (response?.budget_range_low !== undefined && response?.budget_range_high !== undefined) {
-      budgetaryRange = `AUD $${response.budget_range_low}–$${response.budget_range_high}`;
-    } else if (profile.budget_band) {
-      // Generate from budget_band if available
-      const band = profile.budget_band.toUpperCase();
-      const ranges: Record<string, string> = {
-        LOW: "AUD $100–$500",
-        MED: "AUD $500–$2,000",
-        HIGH: "AUD $2,000–$10,000",
-      };
-      budgetaryRange = ranges[band] || "Pending";
+    md.push("<tr>");
+    md.push("<td>-</td>");
+    md.push("<td>No capital expenditure items identified</td>");
+    md.push("<td>-</td>");
+    md.push("<td>-</td>");
+    md.push("<td>-</td>");
+    md.push("</tr>");
+  } else {
+    for (const finding of relevantFindings) {
+      const profile = getFindingProfile(finding.id);
+      const response = responses.findings?.[finding.id];
+      
+      const assetItem = profile.asset_component || 
+                        profile.messaging?.title || 
+                        finding.title || 
+                        finding.id.replace(/_/g, " ");
+      const currentCondition = getObservedConditionSummary(finding, response, profile);
+      const priority = getPriorityDisplayText(finding.priority || "PLAN");
+      const timeline = profile.timeline || getTimelineFromPriority(finding.priority || "PLAN");
+      
+      let budgetaryRange = "Pending";
+      if (profile.budget_range) {
+        budgetaryRange = String(profile.budget_range);
+      } else if (response?.budget_range_text) {
+        budgetaryRange = String(response.budget_range_text);
+      } else if (
+        response?.budget_range_low != null &&
+        response?.budget_range_high != null &&
+        !Number.isNaN(Number(response.budget_range_low)) &&
+        !Number.isNaN(Number(response.budget_range_high))
+      ) {
+        budgetaryRange = `AUD $${response.budget_range_low}–$${response.budget_range_high}`;
+      } else if (profile.budget_band) {
+        const band = profile.budget_band.toUpperCase();
+        const ranges: Record<string, string> = {
+          LOW: "AUD $100–$500",
+          MED: "AUD $500–$2,000",
+          HIGH: "AUD $2,000–$10,000",
+        };
+        budgetaryRange = ranges[band] || "Pending";
+      }
+      
+      md.push("<tr>");
+      md.push(`<td>${cellText(assetItem)}</td>`);
+      md.push(`<td>${cellText(currentCondition)}</td>`);
+      md.push(`<td>${cellText(priority)}</td>`);
+      md.push(`<td>${cellText(timeline)}</td>`);
+      md.push(`<td>${cellText(budgetaryRange)}</td>`);
+      md.push("</tr>");
     }
-    
-    // Escape pipe characters in table cells
-    const escapeCell = (text: string) => String(text).replace(/\|/g, "\\|").replace(/\n/g, " ");
-    
-    md.push(`| ${escapeCell(assetItem)} | ${escapeCell(currentCondition)} | ${escapeCell(priority)} | ${escapeCell(timeline)} | ${escapeCell(budgetaryRange)} |`);
   }
   
+  md.push("</tbody>");
+  md.push("</table>");
   md.push("");
-  
-  // Footer disclaimer
   md.push("**Indicative market benchmarks provided for financial provisioning only. Not a quotation or scope of works.**");
   md.push("");
   
@@ -554,7 +610,7 @@ function buildCapExRoadmapSection(
 function buildDecisionPathwaysSection(defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Decision Pathways");
+  md.push('<h2 class="page-title">Page 10 | Decision Pathways</h2>');
   md.push("");
   
   md.push(defaultText.DECISION_PATHWAYS_SECTION || defaultText.DECISION_PATHWAYS_TEXT ||
@@ -574,9 +630,8 @@ function buildDecisionPathwaysSection(defaultText: any): string {
 async function buildTermsSection(): Promise<string> {
   const md: string[] = [];
   
-  md.push("## Important Legal Limitations & Disclaimer");
+  md.push('<h2 class="page-title">Page 11 | Important Legal Limitations & Disclaimer (Terms & Conditions)</h2>');
   md.push("");
-  
   const terms = await loadTermsAndConditions();
   md.push(terms);
   md.push("");
@@ -590,7 +645,7 @@ async function buildTermsSection(): Promise<string> {
 function buildClosingSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Closing Statement");
+  md.push('<h2 class="page-title">Page 12 | Closing Statement</h2>');
   md.push("");
   
   const technicianName = canonical.prepared_by || defaultText.PREPARED_BY || "Licensed Electrician";
@@ -616,8 +671,7 @@ function buildClosingSection(canonical: CanonicalInspection, defaultText: any): 
   md.push(`Prepared by: ${technicianName}`);
   md.push(`Assessment Date: ${formattedDate}`);
   md.push("");
-  md.push(defaultText.CLOSING_STATEMENT ||
-    "For questions or clarifications regarding this report, please contact the inspection provider.");
+  md.push("This report provides clarity where uncertainty previously existed.");
   md.push("");
   
   return md.join("\n");
@@ -660,105 +714,126 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 function buildAppendixSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push("## Appendix – Test Data & Technical Notes");
+  md.push('<h2 class="page-title">Page 8 | Test Data & Technical Notes</h2>');
   md.push("");
   
   const testData = canonical.test_data || {};
+  
+  // Ensure required sub-objects exist (at least empty objects)
+  const rcdTests = (testData.rcd_tests || {}) as Record<string, unknown>;
+  const gpoTests = (testData.gpo_tests || {}) as Record<string, unknown>;
+  const earthing = (testData.earthing || {}) as Record<string, unknown>;
   
   // Collect test measurements for table
   const testMeasurements: Array<{ test: string; parameter: string; value: string; unit: string }> = [];
   
   // Extract RCD test data
-  const rcdTests = testData.rcd_tests as Record<string, unknown> | undefined;
-  if (rcdTests) {
-    const performed = extractValue(rcdTests.performed);
-    if (performed === true || performed === "true" || performed === "yes") {
-      const summary = rcdTests.summary as Record<string, unknown> | undefined;
-      if (summary) {
-        const totalTested = extractValue(summary.total_tested);
-        const totalPass = extractValue(summary.total_pass) || 0;
-        const totalFail = extractValue(summary.total_fail) || 0;
-        if (totalTested !== undefined && Number(totalTested) > 0) {
-          testMeasurements.push({
-            test: "RCD Testing",
-            parameter: "Devices Tested",
-            value: `${totalPass}/${Number(totalTested)} passed`,
-            unit: ""
-          });
-        }
-      }
-      
-      // Extract RCD exceptions with trip times
-      const exceptions = rcdTests.exceptions;
-      if (Array.isArray(exceptions)) {
-        exceptions.forEach((exc: any) => {
-          const location = extractValue(exc.location) || "Unknown";
-          const tripTime = extractValue(exc.trip_time);
-          const testCurrent = extractValue(exc.test_current);
-          const result = extractValue(exc.result);
-          
-          if (tripTime !== undefined) {
-            testMeasurements.push({
-              test: `RCD (${location})`,
-              parameter: "Trip Time",
-              value: String(tripTime),
-              unit: "ms"
-            });
-          }
-          if (testCurrent !== undefined) {
-            testMeasurements.push({
-              test: `RCD (${location})`,
-              parameter: "Test Current",
-              value: String(testCurrent),
-              unit: "mA"
-            });
-          }
+  const rcdPerformed = extractValue(rcdTests.performed);
+  if (rcdPerformed === true || rcdPerformed === "true" || rcdPerformed === "yes") {
+    const summary = rcdTests.summary as Record<string, unknown> | undefined;
+    if (summary) {
+      const totalTested = extractValue(summary.total_tested);
+      const totalPass = extractValue(summary.total_pass) || 0;
+      const totalFail = extractValue(summary.total_fail) || 0;
+      if (totalTested !== undefined && Number(totalTested) > 0) {
+        testMeasurements.push({
+          test: "RCD Testing",
+          parameter: "Devices Tested",
+          value: `${totalPass}/${Number(totalTested)} passed`,
+          unit: ""
         });
       }
     }
+    
+    // Extract RCD exceptions with trip times (exceptions may be array or { value: [...] })
+    const exceptionsRaw = rcdTests.exceptions;
+    const exceptions = Array.isArray(exceptionsRaw) ? exceptionsRaw : (typeof exceptionsRaw === "object" && exceptionsRaw !== null && Array.isArray((exceptionsRaw as any).value)) ? (exceptionsRaw as any).value : [];
+    if (exceptions.length > 0) {
+      exceptions.forEach((exc: any) => {
+        const location = extractValue(exc.location) || "Unknown";
+        const tripTime = extractValue(exc.trip_time) || extractValue(exc.trip_time_ms);
+        const testCurrent = extractValue(exc.test_current) || extractValue(exc.test_current_ma);
+        const result = extractValue(exc.result);
+        
+        if (tripTime !== undefined) {
+          testMeasurements.push({
+            test: `RCD (${location})`,
+            parameter: "Trip Time",
+            value: String(tripTime),
+            unit: "ms"
+          });
+        }
+        if (testCurrent !== undefined) {
+          testMeasurements.push({
+            test: `RCD (${location})`,
+            parameter: "Test Current",
+            value: String(testCurrent),
+            unit: "mA"
+          });
+        }
+      });
+    }
+  } else {
+    // RCD tests not performed - show "not captured"
+    testMeasurements.push({
+      test: "RCD Testing",
+      parameter: "Status",
+      value: "Not captured",
+      unit: ""
+    });
   }
   
   // Extract GPO test data
-  const gpoTests = testData.gpo_tests as Record<string, unknown> | undefined;
-  if (gpoTests) {
-    const performed = extractValue(gpoTests.performed);
-    if (performed === true || performed === "true" || performed === "yes") {
-      const summary = gpoTests.summary as Record<string, unknown> | undefined;
-      if (summary) {
-        const totalTested = extractValue(summary.total_tested) || extractValue(summary.total_outlets_tested);
-        const polarityPass = extractValue(summary.polarity_pass_count) || 0;
-        const earthPass = extractValue(summary.earth_present_pass_count) || 0;
-        
-        if (totalTested !== undefined && Number(totalTested) > 0) {
-          testMeasurements.push({
-            test: "GPO Testing",
-            parameter: "Polarity Check",
-            value: `${polarityPass}/${Number(totalTested)} passed`,
-            unit: ""
-          });
-          testMeasurements.push({
-            test: "GPO Testing",
-            parameter: "Earth Continuity",
-            value: `${earthPass}/${Number(totalTested)} passed`,
-            unit: ""
-          });
-        }
+  const gpoPerformed = extractValue(gpoTests.performed);
+  if (gpoPerformed === true || gpoPerformed === "true" || gpoPerformed === "yes") {
+    const summary = gpoTests.summary as Record<string, unknown> | undefined;
+    if (summary) {
+      const totalTested = extractValue(summary.total_tested) || extractValue(summary.total_outlets_tested) || extractValue(summary.total_gpo_tested);
+      const polarityPass = extractValue(summary.polarity_pass_count) || extractValue(summary.polarity_pass) || 0;
+      const earthPass = extractValue(summary.earth_present_pass_count) || extractValue(summary.earth_present_pass) || 0;
+      
+      if (totalTested !== undefined && Number(totalTested) > 0) {
+        testMeasurements.push({
+          test: "GPO Testing",
+          parameter: "Polarity Check",
+          value: `${polarityPass}/${Number(totalTested)} passed`,
+          unit: ""
+        });
+        testMeasurements.push({
+          test: "GPO Testing",
+          parameter: "Earth Continuity",
+          value: `${earthPass}/${Number(totalTested)} passed`,
+          unit: ""
+        });
       }
     }
+  } else {
+    // GPO tests not performed - show "not captured"
+    testMeasurements.push({
+      test: "GPO Testing",
+      parameter: "Status",
+      value: "Not captured",
+      unit: ""
+    });
   }
   
-  // Extract earthing data
-  const earthing = testData.earthing as Record<string, unknown> | undefined;
-  if (earthing) {
-    const earthResistance = extractValue(earthing.resistance) || extractValue(earthing.earth_resistance);
-    if (earthResistance !== undefined) {
-      testMeasurements.push({
-        test: "Earthing",
-        parameter: "Earth Resistance",
-        value: String(earthResistance),
-        unit: "Ω"
-      });
-    }
+  // Extract earthing data (support resistance, earth_resistance, earthing_resistance_measured)
+  const earthResistance = extractValue(earthing.resistance) || extractValue(earthing.earth_resistance) || extractValue(earthing.earthing_resistance_measured);
+  if (earthResistance !== undefined) {
+    testMeasurements.push({
+      test: "Earthing",
+      parameter: "Earth Resistance",
+      value: String(earthResistance),
+      unit: "Ω"
+    });
+  } else {
+    // Earthing data not captured - show "not captured"
+    testMeasurements.push({
+      test: "Earthing",
+      parameter: "Earth Resistance",
+      value: "Not captured",
+      unit: ""
+    });
   }
   
   // Extract insulation resistance (if available)
@@ -772,31 +847,25 @@ function buildAppendixSection(canonical: CanonicalInspection, defaultText: any):
     });
   }
   
-  // Render test data section
-  if (testMeasurements.length > 0) {
-    md.push("### Test Data");
-    md.push("");
-    md.push("| Test | Parameter | Value | Unit |");
-    md.push("|------|-----------|-------|------|");
-    testMeasurements.forEach(measurement => {
-      md.push(`| ${measurement.test} | ${measurement.parameter} | ${measurement.value} | ${measurement.unit} |`);
-    });
-    md.push("");
-  } else {
-    // No test data available - render default paragraph
-    md.push("### Test Data");
-    md.push("");
-    const defaultTestDataText = defaultText.TEST_DATA_DEFAULT || defaultText.TEST_SUMMARY ||
-      "This assessment is non-destructive and limited to accessible areas only. Testing performed included visual inspection and functional checks of accessible electrical components. Full certification testing, including comprehensive insulation resistance testing, earth continuity verification, and detailed RCD performance analysis, is outside the scope of this assessment. Detailed test results and measurements are available upon request from licensed electrical contractors.";
-    md.push(defaultTestDataText);
-    md.push("");
-  }
+  // Always render test data table (even if all show "not captured")
+  md.push("### Test Data");
+  md.push("");
+  md.push("| Test | Parameter | Value | Unit |");
+  md.push("|------|-----------|-------|------|");
+  testMeasurements.forEach(measurement => {
+    md.push(`| ${measurement.test} | ${measurement.parameter} | ${measurement.value} | ${measurement.unit} |`);
+  });
+  md.push("");
   
-  // Technical Notes
+  // Technical Notes (filter placeholder-like values such as "call to confirm")
   md.push("### Technical Notes");
   md.push("");
-  const technicalNotes = canonical.technician_notes || defaultText.TECHNICAL_NOTES ||
+  const rawTechnicalNotes = canonical.technician_notes || defaultText.TECHNICAL_NOTES ||
     "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.";
+  const isPlaceholderOnly = rawTechnicalNotes && /^(call to confirm|tbc|to be confirmed|pending|n\/a|\s*)$/i.test(String(rawTechnicalNotes).trim());
+  const technicalNotes = (rawTechnicalNotes?.trim() && !isPlaceholderOnly)
+    ? rawTechnicalNotes
+    : "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.";
   md.push(technicalNotes);
   md.push("");
   
@@ -804,9 +873,204 @@ function buildAppendixSection(canonical: CanonicalInspection, defaultText: any):
 }
 
 /**
- * Build report Markdown following strict REPORT_STRUCTURE.md order
+ * Slot-only Markdown skeleton per REPORT OUTPUT CONTRACT v1
  */
-export async function buildReportMarkdown(params: BuildReportMarkdownParams): Promise<string> {
+const REPORT_SKELETON = `{{COVER_SECTION}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Document Purpose & How to Read This Report
+
+{{ASSESSMENT_PURPOSE}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Executive Summary (One-Page Only)
+
+### Overall Electrical Risk Rating
+{{OVERALL_STATUS_BADGE}} {{OVERALL_STATUS}}
+
+### Key Decision Signals
+{{EXECUTIVE_DECISION_SIGNALS}}
+
+### Financial Planning Snapshot
+{{CAPEX_SNAPSHOT}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Priority Overview
+
+{{PRIORITY_TABLE_ROWS}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Assessment Scope & Limitations
+
+{{SCOPE_SECTION}}
+
+{{LIMITATIONS_SECTION}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Observed Conditions & Risk Interpretation
+
+{{FINDING_PAGES_HTML}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Thermal Imaging Analysis
+
+{{THERMAL_SECTION}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Test Data & Technical Notes
+
+{{TEST_DATA_SECTION}}
+
+{{TECHNICAL_NOTES}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## 5-Year Capital Expenditure (CapEx) Roadmap
+
+{{CAPEX_TABLE_ROWS}}
+
+{{CAPEX_DISCLAIMER_LINE}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Decision Pathways
+
+{{DECISION_PATHWAYS}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Important Legal Limitations & Disclaimer (Terms & Conditions)
+
+{{TERMS_AND_CONDITIONS}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## Closing Statement
+
+{{CLOSING_STATEMENT}}
+`;
+
+/**
+ * Render Markdown from StructuredReport using slot-only skeleton
+ */
+export function renderReportFromSlots(report: StructuredReport): string {
+  let out = REPORT_SKELETON;
+  for (const [key, val] of Object.entries(report)) {
+    const slot = `{{${key}}}`;
+    out = out.split(slot).join(String(val ?? ""));
+  }
+  return out;
+}
+
+export type BuildStructuredReportParams = BuildReportMarkdownParams & {
+  coverData: Record<string, string>;
+  reportData: Record<string, unknown>;
+  baseUrl?: string;
+  signingSecret?: string;
+};
+
+/**
+ * Assemble StructuredReport (single source of truth) from inspection, canonical, computed, coverData, reportData.
+ * Does not write prose directly; only assembles field values.
+ */
+export async function buildStructuredReport(
+  params: BuildStructuredReportParams
+): Promise<StructuredReport> {
+  const { inspection, canonical, findings, responses, computed, event, coverData, reportData, baseUrl, signingSecret } =
+    params;
+  const defaultText = await loadDefaultText(event);
+
+  const observedConditions = await buildObservedConditionsSection(
+    inspection,
+    canonical,
+    findings,
+    event,
+    baseUrl,
+    signingSecret
+  );
+  const termsContent = await loadTermsAndConditions();
+
+  const scopeOnly =
+    defaultText.SCOPE_SECTION ||
+    defaultText.SCOPE_TEXT ||
+    "This assessment is based on a visual inspection and limited electrical testing of accessible areas only.";
+  const limitationsList = inspection.limitations?.length
+    ? inspection.limitations.map((l) => `- ${l}`).join("\n")
+    : defaultText.LIMITATIONS || "Areas that are concealed, locked, or otherwise inaccessible were not inspected.";
+  const limitationsOnly = limitationsList + "\n\nThis assessment does not eliminate risk, but provides a structured framework for managing it.";
+
+  const purposeText =
+    defaultText.PURPOSE_PARAGRAPH ||
+    "This report provides a comprehensive assessment of the electrical condition of the property.";
+  const howToRead =
+    defaultText.HOW_TO_READ_PARAGRAPH ||
+    defaultText.HOW_TO_READ_TEXT ||
+    "This report is a decision-support document designed to assist property owners, investors, and asset managers.";
+  const assessmentPurpose = `${purposeText} ${howToRead}`;
+
+  const priorityOverview = buildPriorityOverviewSection(findings);
+  const thermalSection = buildThermalImagingSection(canonical, defaultText);
+  const appendixSection = buildAppendixSection(canonical, defaultText);
+  const appendixParts = appendixSection.split("### Technical Notes");
+  const testDataSection = (appendixParts[0] || "").replace(/<h2[^>]*>.*?<\/h2>\s*/s, "").trim() || "Test data not captured.";
+  const technicalNotesPart = (appendixParts[1] || "").trim() || defaultText.TECHNICAL_NOTES || "This assessment is based on a visual inspection and limited electrical testing of accessible areas only.";
+  const capexSection = buildCapExRoadmapSection(computed, defaultText, findings, responses);
+  const capexTableRows = capexSection.split(/\*\*Indicative market/)[0]?.trim() || capexSection;
+  const capexDisclaimer = "Provided for financial provisioning only. Not a quotation or scope of works.";
+  const decisionPathways =
+    defaultText.DECISION_PATHWAYS_SECTION ||
+    defaultText.DECISION_PATHWAYS_TEXT ||
+    "This report provides a framework for managing risk, not removing it.";
+  const closingSection = buildClosingSection(canonical, defaultText);
+  const coverSection = buildCoverSection(canonical, defaultText);
+
+  return {
+    COVER_SECTION: coverSection,
+    INSPECTION_ID: coverData.INSPECTION_ID || canonical.inspection_id || "-",
+    ASSESSMENT_DATE: coverData.ASSESSMENT_DATE || canonical.assessment_date || "-",
+    PREPARED_FOR: coverData.PREPARED_FOR || canonical.prepared_for || "-",
+    PREPARED_BY: coverData.PREPARED_BY || canonical.prepared_by || "-",
+    PROPERTY_ADDRESS: coverData.PROPERTY_ADDRESS || canonical.property_address || "-",
+    PROPERTY_TYPE: coverData.PROPERTY_TYPE || canonical.property_type || "Not specified",
+    ASSESSMENT_PURPOSE: coverData.ASSESSMENT_PURPOSE || assessmentPurpose,
+    OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
+    OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? computed.RISK_RATING ?? "🟡 Moderate"),
+    EXECUTIVE_DECISION_SIGNALS: String(reportData.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_SUMMARY ?? defaultText.EXECUTIVE_SUMMARY ?? "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles."),
+    CAPEX_SNAPSHOT: String(reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "AUD $0 – $0 (indicative, planning only)"),
+    PRIORITY_TABLE_ROWS: String(reportData.PRIORITY_TABLE_ROWS ?? priorityOverview),
+    PRIORITY_COUNTS: {
+      immediate: findings.filter((f) => f.priority === "IMMEDIATE" || f.priority === "URGENT").length,
+      recommended: findings.filter((f) => f.priority === "RECOMMENDED_0_3_MONTHS" || f.priority === "RECOMMENDED").length,
+      plan: findings.filter((f) => f.priority === "PLAN_MONITOR" || f.priority === "PLAN").length,
+    },
+    SCOPE_SECTION: scopeOnly || defaultText.SCOPE_SECTION || "This assessment is non-invasive and limited to accessible areas only.",
+    LIMITATIONS_SECTION: limitationsOnly,
+    FINDING_PAGES_HTML: observedConditions,
+    THERMAL_SECTION: thermalSection,
+    CAPEX_TABLE_ROWS: capexTableRows,
+    CAPEX_DISCLAIMER_LINE: String(reportData.CAPEX_DISCLAIMER_LINE ?? capexDisclaimer),
+    DECISION_PATHWAYS: decisionPathways,
+    TERMS_AND_CONDITIONS: String(reportData.TERMS_AND_CONDITIONS ?? termsContent),
+    TEST_DATA_SECTION: testDataSection,
+    TECHNICAL_NOTES: technicalNotesPart,
+    CLOSING_STATEMENT: closingSection,
+  } as StructuredReport;
+}
+
+/**
+ * Build report HTML following strict REPORT_STRUCTURE.md order
+ *
+ * Uses StructuredReport + slot-only skeleton when available.
+ * Falls back to legacy section concatenation for backward compatibility.
+ */
+export async function buildReportHtml(params: BuildReportMarkdownParams): Promise<string> {
   const { inspection, canonical, findings, computed, event } = params;
   
   // Load default text
@@ -835,6 +1099,7 @@ export async function buildReportMarkdown(params: BuildReportMarkdownParams): Pr
   sections.push(PAGE_BREAK);
   
   // 6. Observed Conditions & Risk Interpretation (Dynamic Pages)
+  // This section already contains HTML from generateFindingPages
   const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event);
   sections.push(observedConditions);
   sections.push(PAGE_BREAK);
@@ -843,25 +1108,38 @@ export async function buildReportMarkdown(params: BuildReportMarkdownParams): Pr
   sections.push(buildThermalImagingSection(canonical, defaultText));
   sections.push(PAGE_BREAK);
   
-  // 8. 5-Year Capital Expenditure (CapEx) Roadmap
+  // 8. Test Data & Technical Notes
+  sections.push(buildAppendixSection(canonical, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 9. 5-Year Capital Expenditure (CapEx) Roadmap
   sections.push(buildCapExRoadmapSection(computed, defaultText, findings, params.responses));
   sections.push(PAGE_BREAK);
   
-  // 9. Decision Pathways (was Investor Options & Next Steps)
+  // 10. Decision Pathways (was Investor Options & Next Steps)
   sections.push(buildDecisionPathwaysSection(defaultText));
   sections.push(PAGE_BREAK);
   
-  // 10. Important Legal Limitations & Disclaimer (Terms & Conditions)
+  // 11. Important Legal Limitations & Disclaimer (Terms & Conditions)
   const terms = await buildTermsSection();
   sections.push(terms);
   sections.push(PAGE_BREAK);
   
-  // 11. Closing Statement
+  // 12. Closing Statement (last section, no PAGE_BREAK after)
   sections.push(buildClosingSection(canonical, defaultText));
-  sections.push(PAGE_BREAK);
   
-  // 12. Appendix (Optional)
-  sections.push(buildAppendixSection(canonical, defaultText));
+  // Combine all sections (mix of Markdown and HTML)
+  const mixedContent = sections.join("");
   
-  return sections.join("");
+  // Convert Markdown parts to HTML (HTML parts pass through unchanged due to html: true)
+  const html = markdownToHtml(mixedContent);
+  
+  return html;
+}
+
+/**
+ * @deprecated Use buildReportHtml instead. This function is kept for backward compatibility.
+ */
+export async function buildReportMarkdown(params: BuildReportMarkdownParams): Promise<string> {
+  return buildReportHtml(params);
 }

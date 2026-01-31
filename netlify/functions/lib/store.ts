@@ -106,6 +106,88 @@ export async function getNextInspectionNumber(event?: HandlerEvent): Promise<num
   }
 }
 
+// --- Photo store (inspection-photos) ---
+export type PhotoMetadata = {
+  photo_id: string;
+  inspection_id: string;
+  finding_id: string;
+  caption: string;
+  created_at: string;
+  blob_key?: string;
+};
+
+function getPhotoStore(event?: HandlerEvent, strongRead = false) {
+  if (event) {
+    connectLambda(event);
+  }
+  return getStore({
+    name: "inspection-photos",
+    consistency: strongRead ? "strong" : "eventual",
+  });
+}
+
+export async function savePhoto(
+  inspectionId: string,
+  photoId: string,
+  imageBuffer: Buffer,
+  metadata: PhotoMetadata,
+  event?: HandlerEvent,
+  ext: string = "jpg"
+): Promise<void> {
+  const store = getPhotoStore(event);
+  const imageKey = `photos/${inspectionId}/${photoId}.${ext}`;
+  const metaKey = `photos/${inspectionId}/${photoId}.json`;
+  const contentType = ext === "png" ? "image/png" : "image/jpeg";
+  await store.set(imageKey, imageBuffer, {
+    metadata: { content_type: contentType, created_at: metadata.created_at },
+  });
+  await store.set(metaKey, JSON.stringify(metadata), {
+    metadata: { content_type: "application/json", created_at: metadata.created_at },
+  });
+  console.log(`Saved photo ${photoId} for inspection ${inspectionId}`);
+}
+
+export async function getPhotoMetadata(
+  inspectionId: string,
+  photoId: string,
+  event?: HandlerEvent
+): Promise<PhotoMetadata | undefined> {
+  const store = getPhotoStore(event, true);
+  const metaKey = `photos/${inspectionId}/${photoId}.json`;
+  const data = await store.get(metaKey, { type: "text" });
+  if (data) {
+    try {
+      return JSON.parse(data) as PhotoMetadata;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+export type PhotoImageResult = { buffer: Buffer; contentType: "image/jpeg" | "image/png" };
+
+export async function getPhotoImage(
+  inspectionId: string,
+  photoId: string,
+  event?: HandlerEvent
+): Promise<PhotoImageResult | undefined> {
+  const meta = await getPhotoMetadata(inspectionId, photoId, event);
+  const store = getPhotoStore(event, true);
+  const keysToTry = meta?.blob_key
+    ? [meta.blob_key]
+    : [`photos/${inspectionId}/${photoId}.jpg`, `photos/${inspectionId}/${photoId}.png`];
+  for (const key of keysToTry) {
+    const data = await store.get(key, { type: "blob" });
+    if (data) {
+      const buf = Buffer.from(await data.arrayBuffer());
+      const ext = key.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+      return { buffer: buf, contentType: ext };
+    }
+  }
+  return undefined;
+}
+
 // Get Netlify Blobs store for Word documents
 function getWordStore(event?: HandlerEvent) {
   if (event) {

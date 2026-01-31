@@ -5,11 +5,16 @@
  * Handles emoji replacement, smart quotes, control characters, and more.
  */
 
+export type SanitizeTextOptions = {
+  /** When true, keep 🟢🟡🔴 emoji instead of replacing with [LOW]/[MODERATE]/[ELEVATED]. Default false. */
+  preserveEmoji?: boolean;
+};
+
 /**
  * Sanitize text for safe rendering
  * 
  * Rules:
- * - Replace emoji risk markers (🟢 🟡 🔴) with text equivalents: [LOW] [MODERATE] [ELEVATED]
+ * - Replace emoji risk markers (🟢 🟡 🔴) with text equivalents: [LOW] [MODERATE] [ELEVATED] (unless preserveEmoji)
  * - Replace '⸻' with '---'
  * - Normalize smart quotes to normal quotes
  * - Remove non-printable control characters (preserve \n and \t)
@@ -17,9 +22,12 @@
  * - Normalize line endings: \r\n and \r -> \n
  * 
  * @param input - Input to sanitize (string, number, boolean, array, object, null, undefined)
+ * @param options - Optional { preserveEmoji: true } to keep emoji in output (e.g. for docx)
  * @returns Sanitized string
  */
-export function sanitizeText(input: unknown): string {
+export function sanitizeText(input: unknown, options?: SanitizeTextOptions): string {
+  const preserveEmoji = options?.preserveEmoji ?? false;
+
   // Handle null/undefined
   if (input == null) {
     return "";
@@ -27,7 +35,7 @@ export function sanitizeText(input: unknown): string {
   
   // Handle arrays
   if (Array.isArray(input)) {
-    return input.map(item => sanitizeText(item)).join("\n");
+    return input.map(item => sanitizeText(item, options)).join("\n");
   }
   
   // Handle number/boolean
@@ -44,10 +52,12 @@ export function sanitizeText(input: unknown): string {
   if (typeof input === "string") {
     let sanitized = input;
     
-    // 1. Replace emoji risk markers with text equivalents
-    sanitized = sanitized.replace(/🟢/g, "[LOW]");
-    sanitized = sanitized.replace(/🟡/g, "[MODERATE]");
-    sanitized = sanitized.replace(/🔴/g, "[ELEVATED]");
+    // 1. Replace emoji risk markers with text equivalents (skip if preserveEmoji)
+    if (!preserveEmoji) {
+      sanitized = sanitized.replace(/🟢/g, "[LOW]");
+      sanitized = sanitized.replace(/🟡/g, "[MODERATE]");
+      sanitized = sanitized.replace(/🔴/g, "[ELEVATED]");
+    }
     
     // 2. Replace '⸻' with '---'
     sanitized = sanitized.replace(/⸻/g, "---");

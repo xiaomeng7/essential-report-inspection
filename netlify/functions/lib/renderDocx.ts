@@ -36,7 +36,7 @@ export async function renderDocxWithHtmlMerge(
     delimiters: { start: "{{", end: "}}" },
   });
 
-  // 准备封面数据（只包含6个字段）
+  // 准备封面数据（6 封面 + ASSESSMENT_PURPOSE + REPORT_BODY_HTML/TERMS 等置空，方案 A 下正文由 asBlob 单独生成并合并）
   const coverData: Record<string, string> = {
     INSPECTION_ID: data.INSPECTION_ID || "",
     ASSESSMENT_DATE: data.ASSESSMENT_DATE || "",
@@ -44,6 +44,9 @@ export async function renderDocxWithHtmlMerge(
     PREPARED_BY: data.PREPARED_BY || "",
     PROPERTY_ADDRESS: data.PROPERTY_ADDRESS || "",
     PROPERTY_TYPE: data.PROPERTY_TYPE || "",
+    ASSESSMENT_PURPOSE: data.ASSESSMENT_PURPOSE || "",
+    REPORT_BODY_HTML: "",
+    TERMS_AND_CONDITIONS: "",
   };
 
   doc.setData(coverData);
@@ -69,9 +72,6 @@ export async function renderDocxWithHtmlMerge(
   if (!htmlContent) {
     throw new Error("REPORT_BODY_HTML 不能为空");
   }
-
-  // Sanitize HTML again before rendering to DOCX (defensive)
-  htmlContent = sanitizeText(htmlContent);
 
   const htmlDocxBlob = await asBlob(htmlContent, {
     pageSize: {
@@ -125,8 +125,8 @@ export function renderDocxWithHtmlAsText(
 
   // 将 HTML 转换为格式化的纯文本
   let htmlContent = data.REPORT_BODY_HTML || "";
-  // Sanitize HTML before converting to text (defensive)
-  htmlContent = sanitizeText(htmlContent);
+  // Sanitize HTML before converting to text (defensive; preserve emoji for consistency with markdownToHtml)
+  htmlContent = sanitizeText(htmlContent, { preserveEmoji: true });
   const textContent = htmlToFormattedText(htmlContent);
 
   // 准备所有数据

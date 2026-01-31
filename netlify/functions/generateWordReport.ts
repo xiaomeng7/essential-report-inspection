@@ -9,8 +9,9 @@ import { saveWordDoc, get, type StoredInspection } from "./lib/store";
 import { fixWordTemplate, hasSplitPlaceholders, fixWordTemplateFromErrors } from "../../scripts/fix-placeholders";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { loadExecutiveSummaryTemplates } from "./lib/executiveSummaryLoader";
-import { buildReportMarkdown } from "./lib/buildReportMarkdown";
+import { buildReportHtml, buildStructuredReport, renderReportFromSlots } from "./lib/buildReportMarkdown";
 import { markdownToHtml } from "./lib/markdownToHtml";
+import { assertReportReady } from "./lib/reportContract";
 import { renderDocx } from "./lib/renderDocx";
 import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection";
 import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader";
@@ -47,6 +48,19 @@ const docOptions = {
 
 // Cache for responses.yml
 let responsesCache: any = null;
+
+/** Derive baseUrl from event headers (proto + host), fallback to env. Do NOT hardcode netlify.app */
+function getBaseUrl(event?: HandlerEvent): string {
+  if (event?.headers) {
+    const proto = event.headers["x-forwarded-proto"] || event.headers["x-forwarded-protocol"] || "https";
+    const host = event.headers["host"] || event.headers["x-forwarded-host"];
+    if (host) {
+      const url = `${String(proto).replace(/,.*$/, "").trim() || "https"}://${String(host).replace(/,.*$/, "").trim()}`;
+      return url.replace(/\/$/, "");
+    }
+  }
+  return (process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspetionreport.netlify.app").replace(/\/$/, "");
+}
 
 /**
  * Required placeholder keys from PLACEHOLDER_MAP.md
@@ -213,6 +227,69 @@ function sanitizeText(input: unknown): string {
   
   // Fallback: convert to string
   return String(input);
+}
+
+/**
+ * Assert no undefined values in template data and replace with safe defaults
+ */
+function assertNoUndefined(data: Record<string, any>): Record<string, any> {
+  const safe: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    // Handle undefined or string "undefined"
+    if (value === undefined || value === "undefined" || value === null) {
+      // Special handling for key fields
+      if (key === "ASSESSMENT_PURPOSE") {
+        safe[key] = "Decision-support risk & capital planning";
+      } else if (key === "CAPEX_SNAPSHOT") {
+        safe[key] = "TBC (indicative, planning only)";
+      } else if (key === "CAPEX_RANGE_LOW" || key === "CAPEX_RANGE_HIGH") {
+        // These will be handled together below
+        safe[key] = "TBC";
+      } else if (typeof value === "number" || key.toLowerCase().includes("count") || key.toLowerCase().includes("number")) {
+        safe[key] = 0;
+      } else {
+        safe[key] = "-";
+      }
+    } else if (Array.isArray(value)) {
+      safe[key] = value.map(item => 
+        item === undefined || item === "undefined" ? "-" : item
+      );
+    } else if (typeof value === "object" && value !== null) {
+      safe[key] = assertNoUndefined(value);
+    } else {
+      safe[key] = value;
+    }
+  }
+  
+  // Special handling for CAPEX fields: ensure both LOW and HIGH are set, or generate unified range
+  if (safe.CAPEX_RANGE_LOW === "TBC" || safe.CAPEX_RANGE_HIGH === "TBC" || 
+      safe.CAPEX_RANGE_LOW === undefined || safe.CAPEX_RANGE_HIGH === undefined ||
+      safe.CAPEX_RANGE_LOW === "-" || safe.CAPEX_RANGE_HIGH === "-") {
+    // If either is missing, set both to TBC format
+    if (!safe.CAPEX_SNAPSHOT || safe.CAPEX_SNAPSHOT === "-" || safe.CAPEX_SNAPSHOT === "undefined") {
+      safe.CAPEX_SNAPSHOT = "AUD $TBC – $TBC";
+    }
+    // Ensure CAPEX_RANGE_LOW and CAPEX_RANGE_HIGH are set
+    if (safe.CAPEX_RANGE_LOW === "TBC" || safe.CAPEX_RANGE_LOW === undefined || safe.CAPEX_RANGE_LOW === "-") {
+      safe.CAPEX_RANGE_LOW = "TBC";
+    }
+    if (safe.CAPEX_RANGE_HIGH === "TBC" || safe.CAPEX_RANGE_HIGH === undefined || safe.CAPEX_RANGE_HIGH === "-") {
+      safe.CAPEX_RANGE_HIGH = "TBC";
+    }
+  }
+  
+  // Ensure ASSESSMENT_PURPOSE is set
+  if (!safe.ASSESSMENT_PURPOSE || safe.ASSESSMENT_PURPOSE === "-" || safe.ASSESSMENT_PURPOSE === "undefined") {
+    safe.ASSESSMENT_PURPOSE = "Decision-support risk & capital planning";
+  }
+  
+  // Ensure CAPEX_SNAPSHOT is set
+  if (!safe.CAPEX_SNAPSHOT || safe.CAPEX_SNAPSHOT === "-" || safe.CAPEX_SNAPSHOT === "undefined") {
+    safe.CAPEX_SNAPSHOT = "TBC (indicative, planning only)";
+  }
+  
+  return safe;
 }
 
 /**
@@ -1187,26 +1264,27 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   const OVERALL_STATUS = overallScore.badge || "🟡 Moderate";
   const OVERALL_STATUS_BADGE = overallScore.badge || "🟡 Moderate";
   
-  // Use CapEx from scoring model (or fallback to calculateCapExSummary)
-  const capexSummary = overallScore.capex_low > 0 || overallScore.capex_high > 0
-    ? {
-        low_total: overallScore.capex_low,
-        high_total: overallScore.capex_high,
-        currency: "AUD", // Default, could be extracted from responses.yml
-        note: `Indicative ranges based on ${findingsForScoring.length} finding(s).`,
-      }
-    : calculateCapExSummary(inspection.findings || [], findingsMap);
-  
-  // Format CAPEX_SNAPSHOT
-  const CAPEX_SNAPSHOT = (capexSummary.low_total > 0 || capexSummary.high_total > 0)
-    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total || 0} – $${capexSummary.high_total || 0}`
-    : "AUD $0 – $0";
+  // Use CapEx from scoring model (CAPEX_SNAPSHOT is stable string from scoring; never empty)
+  const CAPEX_SNAPSHOT = overallScore.CAPEX_SNAPSHOT;
+  const capexSummary =
+    overallScore.CAPEX_LOW != null || overallScore.CAPEX_HIGH != null
+      ? {
+          low_total: overallScore.CAPEX_LOW ?? overallScore.capex_low,
+          high_total: overallScore.CAPEX_HIGH ?? overallScore.capex_high,
+          currency: "AUD",
+          note: `Indicative ranges based on ${findingsForScoring.length} finding(s).`,
+        }
+      : calculateCapExSummary(inspection.findings || [], findingsMap);
   
   // Load Terms and Conditions
   const TERMS_AND_CONDITIONS = await loadTermsAndConditions();
   
-  // Generate Dynamic Finding Pages
-  const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspection, event);
+  const photoBaseUrl = getBaseUrl(event);
+  const photoSigningSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
+  if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
+    console.log("[report] photo baseUrl:", photoBaseUrl);
+  }
+  const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspection, event, photoBaseUrl, photoSigningSecret);
   
   // Load default text for additional fields
   const defaultText = await loadDefaultText(event);
@@ -1260,9 +1338,9 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     findingsMap
   );
   
-  // Format CAPEX_RANGE
+  // Format CAPEX_RANGE (guard against null/undefined to avoid "AUD $undefined – $undefined")
   const CAPEX_RANGE = (capexSummary.low_total > 0 || capexSummary.high_total > 0)
-    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total || 0} – $${capexSummary.high_total || 0}`
+    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total ?? 0} – $${capexSummary.high_total ?? 0}`
     : "To be confirmed";
   
   // Build executive summary
@@ -1396,29 +1474,71 @@ async function buildCoverData(
 ): Promise<Record<string, string>> {
   const defaultText = await loadDefaultText(event);
   
-  // Use canonical layer instead of directly reading raw
-  const { canonical } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
+  const raw = inspection.raw || {};
+  const { canonical } = normalizeInspection(raw, inspection.inspection_id);
   
-  const inspectionId = canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID;
+  const inspectionId =
+    canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID || "-";
   
-  // Format assessment_date
-  let assessmentDate = canonical.assessment_date || defaultText.ASSESSMENT_DATE;
+  // Format assessment_date; fallback: canonical → raw paths → defaultText → "-"
+  let assessmentDate =
+    canonical.assessment_date ||
+    getFieldValue(raw, "created_at") ||
+    getFieldValue(raw, "assessment_date") ||
+    getFieldValue(raw, "date") ||
+    defaultText.ASSESSMENT_DATE ||
+    "";
   if (assessmentDate && !assessmentDate.includes("-")) {
-    // Try to format if it's not already formatted
     try {
       const date = new Date(assessmentDate);
       if (!isNaN(date.getTime())) {
-        assessmentDate = date.toISOString().split('T')[0];
+        assessmentDate = date.toISOString().split("T")[0];
       }
     } catch (e) {
       // Keep original value
     }
   }
+  if (!assessmentDate) assessmentDate = "-";
   
-  const propertyAddress = canonical.property_address || defaultText.PROPERTY_ADDRESS;
-  const propertyType = canonical.property_type || defaultText.PROPERTY_TYPE;
-  const preparedFor = canonical.prepared_for || defaultText.PREPARED_FOR;
-  const preparedBy = canonical.prepared_by || defaultText.PREPARED_BY;
+  const preparedFor =
+    canonical.prepared_for ||
+    getFieldValue(raw, "job.prepared_for") ||
+    getFieldValue(raw, "client.name") ||
+    defaultText.PREPARED_FOR ||
+    "-";
+  
+  const propertyAddress =
+    canonical.property_address ||
+    getFieldValue(raw, "job.address") ||
+    getFieldValue(raw, "address") ||
+    defaultText.PROPERTY_ADDRESS ||
+    "-";
+  
+  // PROPERTY_TYPE: canonical then raw then "Not specified"
+  const propertyType =
+    canonical.property_type ||
+    getFieldValue(raw, "job.property_type") ||
+    getFieldValue(raw, "property_type") ||
+    getFieldValue(raw, "property.type") ||
+    defaultText.PROPERTY_TYPE ||
+    "Not specified";
+  
+  const preparedBy =
+    canonical.prepared_by ||
+    getFieldValue(raw, "signoff.technician_name") ||
+    getFieldValue(raw, "prepared_by") ||
+    defaultText.PREPARED_BY ||
+    "-";
+  
+  // ASSESSMENT_PURPOSE: from raw first, then fixed default (filter "undefined" string)
+  let assessmentPurpose =
+    getFieldValue(raw, "assessment_purpose") ||
+    getFieldValue(raw, "job.assessment_purpose") ||
+    getFieldValue(raw, "purpose") ||
+    "";
+  if (!assessmentPurpose || assessmentPurpose === "undefined" || assessmentPurpose.trim() === "") {
+    assessmentPurpose = "Decision-support electrical risk & CapEx planning assessment";
+  }
   
   const coverData = {
     INSPECTION_ID: inspectionId,
@@ -1427,6 +1547,7 @@ async function buildCoverData(
     PREPARED_BY: preparedBy,
     PROPERTY_ADDRESS: propertyAddress,
     PROPERTY_TYPE: propertyType,
+    ASSESSMENT_PURPOSE: assessmentPurpose,
   };
   
   // Sanitize all values before returning
@@ -1833,6 +1954,31 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const riskRating = reportData.RISK_RATING;
     const overallStatus = reportData.OVERALL_STATUS;
     
+    // Calculate overallScore to get CAPEX low/high values
+    const findingsMap = responses.findings || {};
+    const profiles = loadFindingProfiles();
+    const findingsForScoring: FindingForScoring[] = inspection.findings.map(f => ({
+      id: f.id,
+      priority: f.priority || "PLAN_MONITOR",
+    }));
+    const profilesForScoring: Record<string, any> = {};
+    for (const finding of inspection.findings) {
+      const profile = getFindingProfile(finding.id);
+      const response = findingsMap[finding.id];
+      const scoringProfile = convertProfileForScoring(profile);
+      if (response && response.budgetary_range && typeof response.budgetary_range === "object") {
+        const range = response.budgetary_range;
+        if (range.low !== undefined || range.high !== undefined) {
+          scoringProfile.budget = {
+            low: typeof range.low === "number" ? range.low : 0,
+            high: typeof range.high === "number" ? range.high : 0,
+          };
+        }
+      }
+      profilesForScoring[finding.id] = scoringProfile;
+    }
+    const overallScore = computeOverall(findingsForScoring, profilesForScoring);
+    
     // Load executive summary templates
     const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
     let executiveSummary: string;
@@ -1868,6 +2014,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       RISK_RATING: riskRating,
       EXECUTIVE_SUMMARY: executiveSummary,
       CAPEX_RANGE: capexRange,
+      CAPEX_SNAPSHOT: reportData.CAPEX_SNAPSHOT || capexRange,
+      EXECUTIVE_DECISION_SIGNALS: reportData.EXECUTIVE_DECISION_SIGNALS || executiveSummary,
     };
     
     console.log("Computed fields:", computed);
@@ -1883,40 +2031,93 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const coverData = await buildCoverData(inspection, event);
     console.log("Cover data built:", Object.keys(coverData));
     
-    // Generate Markdown report (using canonical instead of raw)
-    console.log("Generating Markdown report...");
-    const markdown = buildReportMarkdown({
-      inspection,
-      canonical,
-      findings: inspection.findings,
-      responses,
-      computed,
-    });
-    console.log("Markdown generated, length:", markdown.length);
+    // Generate HTML report: StructuredReport → preflight → slot-only markdown → HTML
+    console.log("Generating HTML report...");
+    let reportHtml: string;
+    try {
+      const baseUrl = getBaseUrl(event);
+      const signingSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
+      const structuredReport = await buildStructuredReport({
+        inspection,
+        canonical,
+        findings: inspection.findings,
+        responses,
+        computed,
+        event,
+        coverData,
+        reportData: reportData as Record<string, unknown>,
+        baseUrl,
+        signingSecret,
+      });
+      assertReportReady(structuredReport);
+      reportHtml = markdownToHtml(renderReportFromSlots(structuredReport));
+    } catch (preflightError: unknown) {
+      const msg = preflightError instanceof Error ? preflightError.message : String(preflightError);
+      if (msg.includes("Report preflight failed")) {
+        console.error("Report preflight failed:", msg);
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Report preflight failed", message: msg }),
+        };
+      }
+      throw preflightError;
+    }
+    console.log("HTML report generated, length:", reportHtml.length);
     
-    // Convert Markdown to HTML
-    console.log("Converting Markdown to HTML...");
-    const html = markdownToHtml(markdown);
-    console.log("HTML generated, length:", html.length);
-    
-    // Prepare data for renderDocx
+    // Prepare data for renderDocx (cover fields + body + explicit template keys)
     const rawTemplateData = {
       ...coverData,
-      REPORT_BODY_HTML: html,
+      // Explicit cover/template fields (template may reference these)
+      ASSESSMENT_PURPOSE: coverData.ASSESSMENT_PURPOSE,
+      PROPERTY_TYPE: coverData.PROPERTY_TYPE,
+      REPORT_VERSION: reportData.REPORT_VERSION ?? "1.0",
+      REPORT_BODY_HTML: reportHtml,
       TERMS_AND_CONDITIONS: reportData.TERMS_AND_CONDITIONS,
       DYNAMIC_FINDING_PAGES: reportData.DYNAMIC_FINDING_PAGES,
-      // Add other fields from reportData that might be used in template
       OVERALL_STATUS_BADGE: reportData.OVERALL_STATUS_BADGE,
       EXECUTIVE_DECISION_SIGNALS: reportData.EXECUTIVE_DECISION_SIGNALS,
       CAPEX_SNAPSHOT: reportData.CAPEX_SNAPSHOT,
       RISK_RATING: reportData.RISK_RATING,
       OVERALL_STATUS: reportData.OVERALL_STATUS,
+      CAPEX_RANGE_LOW: overallScore.CAPEX_LOW ?? 0,
+      CAPEX_RANGE_HIGH: overallScore.CAPEX_HIGH ?? 0,
     };
     
+    // Assert no undefined values before sanitization
+    const safeTemplateData = assertNoUndefined(rawTemplateData);
+    
     // Sanitize and apply placeholder fallback strategy
-    const sanitized = sanitizeObject(rawTemplateData);
+    const sanitized = sanitizeObject(safeTemplateData);
     const templateData = applyPlaceholderFallback(sanitized);
     
+    // [DEV] Log template keys and key field values to ensure no undefined
+    const templateKeys = Object.keys(templateData);
+    const keyFields = [
+      "INSPECTION_ID",
+      "ASSESSMENT_DATE",
+      "PREPARED_FOR",
+      "PROPERTY_ADDRESS",
+      "PROPERTY_TYPE",
+      "ASSESSMENT_PURPOSE",
+      "REPORT_VERSION",
+      "REPORT_BODY_HTML",
+      "CAPEX_SNAPSHOT",
+      "TERMS_AND_CONDITIONS",
+    ] as const;
+    const sampleValues: Record<string, unknown> = {};
+    for (const k of keyFields) {
+      const v = templateData[k];
+      sampleValues[k] = v === undefined ? "[undefined]" : (typeof v === "string" && v.length > 80 ? v.slice(0, 80) + "…" : v);
+    }
+    console.log("[DEV] templateData keys:", templateKeys.length, templateKeys.sort().join(", "));
+    console.log("[DEV] templateData sample (no undefined):", JSON.stringify(sampleValues, null, 0));
+    const hasUndefined = Object.entries(templateData).some(([, v]) => v === undefined);
+    if (hasUndefined) {
+      const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+      console.warn("[report] templateData has undefined:", undefinedKeys);
+    }
+
     // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
     let templateBuffer: Buffer;
     const mdTemplatePath = path.join(__dirname, "report-template-md.docx");
@@ -1980,6 +2181,37 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Rendering Word document with renderDocx...");
     const outBuffer = await renderDocx(templateBuffer, templateData);
     console.log("Word document generated, size:", outBuffer.length, "bytes");
+
+    // Dev-only: verify DOCX contains hyperlinks when input had <a href>
+    if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
+      const hadAnchor = (reportHtml || "").includes("<a ") && (reportHtml || "").includes("href=");
+      if (hadAnchor) {
+        const zip = new PizZip(outBuffer);
+        let found = false;
+        let diag = "";
+        for (const [name, file] of Object.entries(zip.files)) {
+          if (name.endsWith(".xml") || name.endsWith(".mht")) {
+            const text = (file as { asText?: () => string }).asText?.() || "";
+            if (/w:hyperlink/i.test(text)) {
+              found = true;
+              diag = `w:hyperlink in ${name}`;
+              break;
+            }
+            if (/href\s*=\s*["']?https?:/i.test(text)) {
+              found = true;
+              diag = `href= in ${name}`;
+              break;
+            }
+          }
+        }
+        if (!found) {
+          console.error("[report] ⚠️ HYPERLINK VERIFY FAILED: input had <a href> but DOCX contains no w:hyperlink or href= in xml/mht parts");
+          console.error("[report] Files:", Object.keys(zip.files).join(", "));
+        } else {
+          console.log("[report] ✅ Hyperlink verify OK:", diag);
+        }
+      }
+    }
     
     // Log debug info (only in dev environment)
     if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
@@ -1993,8 +2225,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         plan: planCount,
         limitations: inspection.limitations.length,
       });
-      console.log("Markdown preview (first 1200 chars):", markdown.substring(0, 1200));
-      console.log("HTML preview (first 1200 chars):", html.substring(0, 1200));
+      console.log("HTML preview (first 1200 chars):", reportHtml.substring(0, 1200));
     }
     
     // Save to Netlify Blob

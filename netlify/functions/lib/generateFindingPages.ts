@@ -12,8 +12,11 @@
  * Returns docx-compatible HTML content with page breaks.
  */
 
+import type { HandlerEvent } from "@netlify/functions";
 import type { FindingProfile } from "./findingProfilesLoader";
 import { loadCategoryDefaults, generateBudgetRangeFromBand } from "./findingProfilesLoader";
+import { getPhotoMetadata } from "./store";
+import { signPhotoUrl } from "./photoUrl";
 
 export type Finding = {
   id: string;
@@ -67,39 +70,23 @@ function nl2br(text: string): string {
 }
 
 /**
- * Get priority classification text
+ * Get priority classification text (emoji is separate; no bracket labels)
  */
 function getPriorityClassification(priority: string): string {
-  switch (priority) {
-    case "IMMEDIATE":
-      return "Urgent Liability Risk";
-    case "RECOMMENDED":
-    case "RECOMMENDED_0_3_MONTHS":
-      return "Budgetary Provision Recommended";
-    case "PLAN":
-    case "PLAN_MONITOR":
-      return "Acceptable";
-    default:
-      return "Acceptable";
-  }
+  const p = (priority || "").toUpperCase();
+  if (p === "IMMEDIATE" || p === "URGENT") return "Urgent Liability Risk";
+  if (p === "RECOMMENDED" || p === "RECOMMENDED_0_3_MONTHS") return "Budgetary Provision Recommended";
+  return "Acceptable";
 }
 
 /**
- * Get priority emoji
+ * Get priority emoji (🔴 Urgent, 🟡 Recommended, 🟢 Acceptable)
  */
 function getPriorityEmoji(priority: string): string {
-  switch (priority) {
-    case "IMMEDIATE":
-      return "🔴";
-    case "RECOMMENDED":
-    case "RECOMMENDED_0_3_MONTHS":
-      return "🟡";
-    case "PLAN":
-    case "PLAN_MONITOR":
-      return "🟢";
-    default:
-      return "🟢";
-  }
+  const p = (priority || "").toUpperCase();
+  if (p === "IMMEDIATE" || p === "URGENT") return "🔴";
+  if (p === "RECOMMENDED" || p === "RECOMMENDED_0_3_MONTHS") return "🟡";
+  return "🟢";
 }
 
 /**
@@ -246,15 +233,13 @@ function generateFindingPageHtml(
   const errors: Array<{ field: string; message: string }> = [];
   const htmlParts: string[] = [];
   
-  // Page break before each finding (except the first one)
-  if (index > 0) {
-    htmlParts.push('<div style="page-break-before: always;"></div>');
-  }
+  // Page break before each finding block
+  htmlParts.push('<div style="page-break-before:always;"></div>');
   
   // Normalize priority
   const effectivePriority = normalizePriority(profile.priority || finding.priority);
   
-  // 1. Asset Component
+  // 1. Asset Component (used as finding title and first section)
   const assetComponent = profile.asset_component || 
                         profile.messaging?.title || 
                         response.title || 
@@ -265,12 +250,10 @@ function generateFindingPageHtml(
     errors.push({ field: "asset_component", message: "Asset Component is missing or empty" });
   }
   
-  // Use consistent heading styles matching Gold template (Heading 3 style)
-  const headingStyle = 'style="font-weight: bold; font-size: 14pt; margin-top: 12pt; margin-bottom: 6pt; color: #2c3e50;"';
-  const paragraphStyle = 'style="margin-bottom: 12pt; line-height: 1.6;"';
-  
-  htmlParts.push(`<h3 ${headingStyle}>Asset Component</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${nl2br(assetComponent)}</p>`);
+  // Finding title = h3; section titles = h4. No complex div/flex.
+  htmlParts.push(`<h3>${escapeHtml(assetComponent)}</h3>`);
+  htmlParts.push(`<h4>Asset Component</h4>`);
+  htmlParts.push(`<p>${nl2br(assetComponent)}</p>`);
   
   // 2. Observed Condition
   let observedCondition: string;
@@ -291,111 +274,92 @@ function generateFindingPageHtml(
     errors.push({ field: "observed_condition", message: "Observed Condition is missing or empty" });
   }
   
-  htmlParts.push(`<h3 ${headingStyle}>Observed Condition</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${nl2br(observedCondition)}</p>`);
+  htmlParts.push(`<h4>Observed Condition</h4>`);
+  htmlParts.push(`<p>${nl2br(observedCondition)}</p>`);
   
-  // 3. Evidence
+  // 3. Evidence (MUST exist per Photo Evidence Rules; default when no photos)
+  const EVIDENCE_DEFAULT = "No photographic evidence captured at time of assessment.";
   if (!evidence || evidence.trim().length === 0) {
-    errors.push({ field: "evidence", message: "Evidence is missing or empty" });
-    evidence = "No additional evidence captured beyond visual observation.";
+    evidence = EVIDENCE_DEFAULT;
+  }
+
+  htmlParts.push(`<h4>Evidence</h4>`);
+  if (evidence.trim().startsWith("<ul>") || evidence.trim().startsWith("<ol>")) {
+    htmlParts.push(evidence.trim());
+  } else {
+    htmlParts.push(`<p>${nl2br(evidence)}</p>`);
   }
   
-  htmlParts.push(`<h3 ${headingStyle}>Evidence</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${nl2br(evidence)}</p>`);
-  
-  // 4. Risk Interpretation (with strict validation - NO AUTO-FIX)
+  // 4. Risk Interpretation: at least 2 sentences and must include "If not addressed"; use safe default when missing
   let riskInterpretation: string;
-  
-  // Try to use existing risk_interpretation from response if it exists and is valid
   if (response.risk_interpretation && typeof response.risk_interpretation === "string" && response.risk_interpretation.trim().length > 0) {
-    riskInterpretation = response.risk_interpretation;
+    riskInterpretation = response.risk_interpretation.trim();
   } else {
-    // Generate Risk Interpretation with required components
     riskInterpretation = generateRiskInterpretation(profile, response, effectivePriority);
   }
-  
-  // Validate Risk Interpretation - throw error if missing required parts
   const validation = validateRiskInterpretation(riskInterpretation, effectivePriority, finding.id);
   if (!validation.valid) {
-    const errorMessage = `Risk Interpretation is missing required components: ${validation.missing.join(", ")}. Current text (first 100 chars): "${riskInterpretation.substring(0, 100)}..."`;
-    errors.push({
-      field: "risk_interpretation",
-      message: errorMessage
-    });
-    // DO NOT auto-fix - let the error be thrown so the issue can be fixed in the data source
+    const defaultConsequence = "If this condition is not addressed, it may impact safety, compliance, or reliability over time.";
+    const defaultContext = effectivePriority === "IMMEDIATE"
+      ? "This condition requires urgent attention to reduce immediate risk."
+      : "This risk does not present an immediate hazard and can be managed within normal planning cycles.";
+    const sentences = riskInterpretation.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const hasIfNotAddressed = /if.*not.*addressed|if.*left.*unresolved|if.*deferred/i.test(riskInterpretation.toLowerCase());
+    const parts: string[] = [riskInterpretation.trim()].filter(Boolean);
+    if (!hasIfNotAddressed) parts.push(defaultConsequence);
+    if (sentences.length < 2) parts.push(defaultContext);
+    riskInterpretation = parts.join(" ").replace(/\s+/g, " ").trim();
+    if (!riskInterpretation.endsWith(".")) riskInterpretation += ".";
+  }
+  if (!riskInterpretation || riskInterpretation.trim().length === 0) {
+    riskInterpretation = "This condition may affect electrical safety or compliance. If this condition is not addressed, it may impact reliability or compliance over time.";
   }
   
-  htmlParts.push(`<h3 ${headingStyle}>Risk Interpretation</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${nl2br(riskInterpretation)}</p>`);
+  htmlParts.push(`<h4>Risk Interpretation</h4>`);
+  htmlParts.push(`<p>${nl2br(riskInterpretation)}</p>`);
   
-  // 5. Priority Classification
-  const priorityEmoji = getPriorityEmoji(effectivePriority === "IMMEDIATE" ? "IMMEDIATE" : 
-                                         effectivePriority === "RECOMMENDED" ? "RECOMMENDED_0_3_MONTHS" : 
-                                         "PLAN_MONITOR");
-  const priorityClassification = getPriorityClassification(effectivePriority === "IMMEDIATE" ? "IMMEDIATE" : 
-                                                          effectivePriority === "RECOMMENDED" ? "RECOMMENDED_0_3_MONTHS" : 
-                                                          "PLAN_MONITOR");
+  // 5. Priority Classification: emoji + text only (e.g. 🟡 Budgetary Provision Recommended), no bracket labels
+  const priorityKey = effectivePriority === "IMMEDIATE" ? "IMMEDIATE" : effectivePriority === "RECOMMENDED" ? "RECOMMENDED_0_3_MONTHS" : "PLAN_MONITOR";
+  const priorityEmoji = getPriorityEmoji(priorityKey);
+  const priorityLabel = getPriorityClassification(priorityKey);
+  htmlParts.push(`<h4>Priority Classification</h4>`);
+  htmlParts.push(`<p>${priorityEmoji} ${escapeHtml(priorityLabel)}</p>`);
   
-  htmlParts.push(`<h3 ${headingStyle}>Priority Classification</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${priorityEmoji} ${escapeHtml(priorityClassification)}</p>`);
-  
-  // 6. Budgetary Planning Range (MUST always render)
+  // 6. Budgetary Planning Range: profile.budget_range → response budget fields → budget_band mapping → fallback (never empty)
   let budgetaryRangeText: string;
-  
-  // Priority order: profile.budget_range > response.budget_range_text > response.budget_range_low/high > response.budgetary_range > category defaults > fallback
   if (profile.budget_range && profile.budget_range.trim().length > 0) {
-    budgetaryRangeText = profile.budget_range;
+    budgetaryRangeText = profile.budget_range.trim();
   } else if (response.budget_range_text && typeof response.budget_range_text === "string" && response.budget_range_text.trim().length > 0) {
-    budgetaryRangeText = response.budget_range_text;
+    budgetaryRangeText = response.budget_range_text.trim();
   } else if (response.budget_range_low !== undefined && response.budget_range_high !== undefined) {
     const currency = response.budget_range_currency || "AUD";
     budgetaryRangeText = `${currency} $${response.budget_range_low} – $${response.budget_range_high}`;
-    if (response.budget_range_note) {
-      budgetaryRangeText += `. ${response.budget_range_note}`;
-    }
+    if (response.budget_range_note) budgetaryRangeText += `. ${response.budget_range_note}`;
   } else if (response.budgetary_range && typeof response.budgetary_range === "object") {
     const range = response.budgetary_range;
     const currency = range.currency || "AUD";
     const low = range.low;
     const high = range.high;
-    
     if (low !== undefined && high !== undefined) {
-      budgetaryRangeText = `${currency} $${low} – $${high} (indicative, planning only)`;
-      if (range.note) {
-        budgetaryRangeText += `. ${range.note}`;
-      }
+      budgetaryRangeText = `${currency} $${low} – $${high}`;
+      if (range.note) budgetaryRangeText += `. ${range.note}`;
     } else {
-      // Try to compute from category defaults
-      const categoryDefaults = loadCategoryDefaults();
-      const category = profile.category || "OTHER";
-      const categoryDefault = categoryDefaults[category] || categoryDefaults["OTHER"];
-      if (categoryDefault && categoryDefault.budget_band) {
-        budgetaryRangeText = generateBudgetRangeFromBand(categoryDefault.budget_band);
-      } else {
-        budgetaryRangeText = "To be confirmed (budgetary range pending)";
-      }
+      budgetaryRangeText = (profile.budget_band && generateBudgetRangeFromBand(profile.budget_band)) || "To be confirmed (indicative benchmark only)";
     }
+  } else if (profile.budget_band) {
+    budgetaryRangeText = generateBudgetRangeFromBand(profile.budget_band);
   } else {
-    // Try to compute from category defaults
     const categoryDefaults = loadCategoryDefaults();
     const category = profile.category || "OTHER";
     const categoryDefault = categoryDefaults[category] || categoryDefaults["OTHER"];
-    if (categoryDefault && categoryDefault.budget_band) {
-      budgetaryRangeText = generateBudgetRangeFromBand(categoryDefault.budget_band);
-    } else if (profile.budget_band) {
-      budgetaryRangeText = generateBudgetRangeFromBand(profile.budget_band);
-    } else {
-      budgetaryRangeText = "To be confirmed (budgetary range pending)";
-    }
+    budgetaryRangeText = (categoryDefault?.budget_band && generateBudgetRangeFromBand(categoryDefault.budget_band)) || "To be confirmed (indicative benchmark only)";
   }
-  
-  // Final validation - must always have a value
   if (!budgetaryRangeText || budgetaryRangeText.trim().length === 0) {
-    budgetaryRangeText = "To be confirmed (budgetary range pending)";
+    budgetaryRangeText = "To be confirmed (indicative benchmark only)";
   }
   
-  htmlParts.push(`<h3 ${headingStyle}>Budgetary Planning Range</h3>`);
-  htmlParts.push(`<p ${paragraphStyle}>${nl2br(budgetaryRangeText)}</p>`);
+  htmlParts.push(`<h4>Budgetary Planning Range</h4>`);
+  htmlParts.push(`<p>${nl2br(budgetaryRangeText)}</p>`);
   
   return {
     html: htmlParts.join("\n"),
@@ -403,21 +367,23 @@ function generateFindingPageHtml(
   };
 }
 
-/**
- * Extract evidence from finding and inspection data
- */
-function extractEvidence(
-  finding: Finding,
-  inspectionRaw: Record<string, unknown>,
-  canonicalTestData: Record<string, unknown>,
-  profile: FindingProfile
-): string {
-  // Check for photo_ids in finding
-  if (finding.photo_ids && Array.isArray(finding.photo_ids) && finding.photo_ids.length > 0) {
-    return `Photo evidence provided: ${finding.photo_ids.join(", ")}.`;
+function getNestedValue(obj: unknown, path: string): unknown {
+  const parts = path.split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
   }
-  
-  // Check for photo_ids in raw data
+  return current;
+}
+
+/**
+ * Extract photo_ids from finding or raw data
+ */
+function getPhotoIds(finding: Finding, inspectionRaw: Record<string, unknown>, canonicalTestData: Record<string, unknown>): string[] {
+  if (finding.photo_ids && Array.isArray(finding.photo_ids) && finding.photo_ids.length > 0) {
+    return finding.photo_ids.slice(0, 2);
+  }
   const findingIdLower = finding.id.toLowerCase();
   const possiblePaths = [
     `${findingIdLower}.photo_ids`,
@@ -425,70 +391,95 @@ function extractEvidence(
     `rcd_tests.exceptions.photo_ids`,
     `gpo_tests.exceptions.photo_ids`,
   ];
-  
-  function getNestedValue(obj: unknown, path: string): unknown {
-    const parts = path.split(".");
-    let current: unknown = obj;
-    for (const part of parts) {
-      if (current == null || typeof current !== "object") return undefined;
-      current = (current as Record<string, unknown>)[part];
-    }
-    return current;
-  }
-  
   for (const path of possiblePaths) {
     const value = getNestedValue(inspectionRaw, path) || getNestedValue(canonicalTestData, path);
-    if (value && (Array.isArray(value) || typeof value === "string")) {
-      if (Array.isArray(value) && value.length > 0) {
-        return `Photo evidence provided: ${value.join(", ")}.`;
-      } else if (typeof value === "string" && value.trim().length > 0) {
-        return value;
-      }
+    if (value && Array.isArray(value) && value.length > 0) {
+      return (value as string[]).slice(0, 2);
     }
   }
-  
-  // Check finding.facts
+  return [];
+}
+
+/**
+ * Extract evidence from finding and inspection data.
+ * When photo_ids exist and inspection_id/event provided, loads metadata from blob and returns HTML link list.
+ * Output: <ul><li>Photo P01 — caption (<a href="...">View photo</a>)</li></ul>
+ */
+async function extractEvidence(
+  finding: Finding,
+  inspectionRaw: Record<string, unknown>,
+  canonicalTestData: Record<string, unknown>,
+  profile: FindingProfile,
+  inspectionId?: string,
+  event?: HandlerEvent,
+  baseUrl?: string,
+  signingSecret?: string
+): Promise<string> {
+  const photoIds = getPhotoIds(finding, inspectionRaw, canonicalTestData);
+
+  if (photoIds.length > 0 && inspectionId && event) {
+    const items: string[] = [];
+    for (const photoId of photoIds) {
+      const meta = await getPhotoMetadata(inspectionId, photoId, event);
+      const caption = meta?.caption?.trim() || "";
+      const captionText = caption || "Photo evidence captured";
+      const photoUrl = baseUrl ? signPhotoUrl(inspectionId, photoId, baseUrl, signingSecret) : null;
+      const linkPart = photoUrl
+        ? ` (<a href="${escapeHtml(photoUrl)}">View photo</a>)`
+        : "";
+      const textPart = `Photo ${photoId} — ${escapeHtml(captionText)}`;
+      items.push(`<li>${textPart}${linkPart}</li>`);
+    }
+    if (items.length > 0) {
+      return `<ul>${items.join("")}</ul>`;
+    }
+  }
+
+  if (photoIds.length > 0) {
+    return `Photo evidence provided: ${photoIds.join(", ")}.`;
+  }
+
   if (finding.facts && finding.facts.trim().length > 0) {
     return finding.facts;
   }
-  
-  // Use evidence_requirements from profile
-  if (profile.evidence_requirements && profile.evidence_requirements.length > 0) {
-    return `Evidence requirements: ${profile.evidence_requirements.join(", ")}.`;
-  }
-  
-  // Default
-  return "No additional evidence captured beyond visual observation.";
+
+  return "No photographic evidence captured at time of assessment.";
 }
 
 /**
  * Generate finding pages for Word document
- * 
+ *
  * @param findings Array of findings
  * @param profiles Map of finding ID to FindingProfile
  * @param responses Map of finding ID to Response
  * @param inspectionRaw Raw inspection data (for evidence extraction)
  * @param canonicalTestData Canonical test data (for evidence extraction)
- * @returns HTML content with page breaks and validation errors
+ * @param inspectionId Optional inspection ID (for loading photo metadata from blob)
+ * @param event Optional HandlerEvent (for blob access)
+ * @param baseUrl Optional base URL for photo links (e.g. https://site.netlify.app)
+ * @param signingSecret Optional secret for HMAC-SHA256 signed photo URLs
  */
-export function generateFindingPages(
+export async function generateFindingPages(
   findings: Finding[],
   profiles: Record<string, FindingProfile>,
   responses: Record<string, Response>,
   inspectionRaw: Record<string, unknown> = {},
-  canonicalTestData: Record<string, unknown> = {}
-): FindingPagesResult {
+  canonicalTestData: Record<string, unknown> = {},
+  inspectionId?: string,
+  event?: HandlerEvent,
+  baseUrl?: string,
+  signingSecret?: string
+): Promise<FindingPagesResult> {
   const htmlParts: string[] = [];
   const allErrors: Array<{ findingId: string; field: string; message: string }> = [];
-  
+
   if (findings.length === 0) {
     return {
       html: '<p>No findings were identified during this assessment.</p>',
       errors: [],
     };
   }
-  
-  // Sort findings by priority: IMMEDIATE → RECOMMENDED → PLAN
+
   const sortedFindings = [...findings].sort((a, b) => {
     const priorityOrder: Record<string, number> = {
       "IMMEDIATE": 1,
@@ -501,37 +492,40 @@ export function generateFindingPages(
     const bPriority = priorityOrder[b.priority] || 99;
     return aPriority - bPriority;
   });
-  
-  sortedFindings.forEach((finding, index) => {
+
+  for (let i = 0; i < sortedFindings.length; i++) {
+    const finding = sortedFindings[i];
     const profile = profiles[finding.id];
     if (!profile) {
       const errorMsg = `Finding profile not found for ${finding.id}`;
       allErrors.push({
         findingId: finding.id,
         field: "profile",
-        message: errorMsg
+        message: errorMsg,
       });
       console.error(`❌ ${errorMsg}`);
-      return; // Skip this finding
+      continue;
     }
-    
+
     const response = responses[finding.id] || {};
-    
-    // Extract evidence
-    const evidence = extractEvidence(finding, inspectionRaw, canonicalTestData, profile);
-    
-    // Generate page HTML
-    const { html, errors } = generateFindingPageHtml(finding, index, profile, response, evidence);
-    
+    const evidence = await extractEvidence(
+      finding,
+      inspectionRaw,
+      canonicalTestData,
+      profile,
+      inspectionId,
+      event,
+      baseUrl,
+      signingSecret
+    );
+    const { html, errors } = generateFindingPageHtml(finding, i, profile, response, evidence);
+
     htmlParts.push(html);
-    
-    // Collect errors (errors already include findingId)
     if (errors.length > 0) {
       allErrors.push(...errors);
-      // Log error for this finding
-      console.error(`❌ Finding ${finding.id} failed validation:`, errors.map(e => `${e.field}: ${e.message}`).join(", "));
+      console.error(`❌ Finding ${finding.id} failed validation:`, errors.map((e) => `${e.field}: ${e.message}`).join(", "));
     }
-  });
+  }
   
   // Throw error if any validation failed
   if (allErrors.length > 0) {

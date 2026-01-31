@@ -40,7 +40,7 @@ const mockResponses: Record<string, Response> = {
 // Test 1: Verify structure order
 console.log("Test 1: Verify page structure order");
 try {
-  const result = generateFindingPages(
+  const result = await generateFindingPages(
     mockFindings,
     mockProfiles,
     mockResponses,
@@ -115,7 +115,7 @@ try {
   };
   
   try {
-    const result = generateFindingPages(
+    const result = await generateFindingPages(
       invalidFinding,
       invalidProfiles,
       invalidResponses,
@@ -157,7 +157,7 @@ try {
     TEST_NO_BUDGET: {},
   };
   
-  const result = generateFindingPages(
+  const result = await generateFindingPages(
     findingWithoutBudget,
     profiles,
     responses,

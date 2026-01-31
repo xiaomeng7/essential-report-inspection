@@ -1,0 +1,160 @@
+# REPORT OUTPUT CONTRACT (v1)
+> Goal: make every generated report **deterministic, investor-grade, and format-stable**.  
+> This contract defines **required fields**, **forbidden values**, and **hard gates** that must pass before generating DOCX.
+
+## 1) Pipeline (authoritative)
+Canonical data → Decision model (Risk × Priority × Budget) → **Structured Report JSON** → Markdown (layout only) → HTML → DOCX
+
+**Rule:** Markdown must be *layout-only* and must not invent content.
+
+---
+
+## 2) Required fields (must exist, non-empty)
+### Cover
+- INSPECTION_ID
+- ASSESSMENT_DATE (human formatted OK)
+- PREPARED_FOR
+- PREPARED_BY
+- PROPERTY_ADDRESS
+- PROPERTY_TYPE
+
+### Purpose / Positioning
+- ASSESSMENT_PURPOSE (1 paragraph, investor framing)
+
+### Executive Summary
+- OVERALL_STATUS (LOW / MODERATE / ELEVATED)
+- OVERALL_STATUS_BADGE (emoji allowed 🟢🟡🔴 or badge text)
+- EXECUTIVE_DECISION_SIGNALS (exact rules in §4)
+- CAPEX_SNAPSHOT (e.g., "AUD $2,400 – $3,200")
+
+### Priority Overview
+- PRIORITY_TABLE_ROWS (render-ready rows)
+- PRIORITY_COUNTS (immediate / recommended / plan)
+
+### Scope & Limitations
+- SCOPE_SECTION (bullet list)
+- LIMITATIONS_SECTION (bullet list + the “framework statement” line)
+
+### Findings (dynamic pages)
+- FINDING_PAGES_HTML (or FINDING_PAGES_MD) — already structured per finding
+
+### Thermal Imaging
+- THERMAL_SECTION (method + findings + value statement, even if “not captured”)
+
+### CapEx Roadmap
+- CAPEX_TABLE_ROWS (each row must include: item, condition, priority, timeline, range)
+- CAPEX_DISCLAIMER_LINE (provisioning-only legal line)
+
+### Decision Pathways
+- DECISION_PATHWAYS (4 options: Accept / Plan / Execute / Delegate)
+
+### Terms
+- TERMS_AND_CONDITIONS (full text, loaded from DEFAULT_TERMS.md)
+
+### Appendix
+- TEST_DATA_SECTION (table or default paragraph)
+- TECHNICAL_NOTES (paragraph)
+
+---
+
+## 3) Forbidden values (hard fail if present)
+Any of the following appearing in *any* required field:
+- "undefined"
+- "null"
+- "NaN"
+- "Pending"
+- "To be confirmed"
+- "TBC"
+- "{{" or "}}"
+
+---
+
+## 4) Hard-gate rules (must pass)
+### 4.1 EXECUTIVE_DECISION_SIGNALS rules
+Must contain **3 bullet points** and each must satisfy:
+1) at least 1 bullet includes “if not addressed” (or equivalent)
+2) at least 1 bullet explains “why not Immediate”
+3) at least 1 bullet states “manageable risk, not emergency” (or equivalent)
+
+### 4.2 Findings page rules (per finding)
+Each finding page must contain these headings (exact order):
+1) Asset Component
+2) Observed Condition
+3) Evidence
+4) Risk Interpretation (**>= 2 sentences, must include “if not addressed”**)
+5) Priority Classification
+6) Budgetary Planning Range (must be a range)
+
+### 4.3 CapEx rows rules
+Each relevant finding must map to:
+- timeline (never blank)
+- budgetary range (never blank; if unknown, use a *banded range* rule, not “Pending”)
+
+---
+
+## Photo Evidence Rules
+
+- 照片 **只允许** 出现在：**Observed Conditions & Risk Interpretation → Evidence**
+- 每个 Finding 最多 **2 张照片**
+- **允许 0 张照片**（无照片不报错）
+- Evidence 小节即使无照片也 **必须存在**
+- 每张照片必须有 **caption**
+- caption 为「观察性描述」，不是技术解释
+- 若无照片，Evidence 显示默认文案：**No photographic evidence captured at time of assessment.**
+
+---
+
+## 5) Minimal preflight checklist (before DOCX render)
+- Required fields present + not forbidden values
+- EXECUTIVE_DECISION_SIGNALS passes rules
+- No placeholder tokens remain
+- CSS loaded from reportStyles.css (not fallback) OR fallback matches checksum
+
+---
+
+## 6) Output “slot-only” Markdown skeleton (reference)
+The report markdown must be a skeleton that only places fields:
+
+## Document Purpose & How to Read This Report
+{{ASSESSMENT_PURPOSE}}
+
+## Executive Summary
+### Overall Electrical Risk Rating
+{{OVERALL_STATUS_BADGE}} {{OVERALL_STATUS}}
+
+### Key Decision Signals
+{{EXECUTIVE_DECISION_SIGNALS}}
+
+### Financial Planning Snapshot (0–5 Years)
+{{CAPEX_SNAPSHOT}}
+{{CAPEX_DISCLAIMER_LINE}}
+
+## Priority Overview
+{{PRIORITY_OVERVIEW_TABLE}}
+
+## Assessment Scope & Limitations
+{{SCOPE_SECTION}}
+{{LIMITATIONS_SECTION}}
+
+## Observed Conditions & Risk Interpretation
+{{FINDING_PAGES_MD_OR_HTML}}
+
+## Thermal Imaging Analysis
+{{THERMAL_SECTION}}
+
+## 5-Year Capital Expenditure (CapEx) Roadmap
+{{CAPEX_TABLE}}
+{{CAPEX_DISCLAIMER_LINE}}
+
+## Decision Pathways
+{{DECISION_PATHWAYS}}
+
+## Important Legal Limitations & Disclaimer
+{{TERMS_AND_CONDITIONS}}
+
+## Closing Statement
+{{CLOSING_STATEMENT}}
+
+## Appendix – Test Data & Technical Notes
+{{TEST_DATA_SECTION}}
+{{TECHNICAL_NOTES}}

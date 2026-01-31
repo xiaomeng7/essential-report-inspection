@@ -2,18 +2,19 @@
  * Test script for Deterministic Scoring Model
  */
 
-import { 
-  priorityWeight, 
+import {
+  priorityWeight,
   budgetWeight,
   riskScore,
-  findingScore, 
+  findingScore,
   computeOverall,
   convertProfileForScoring,
+  formatCapexRange,
   SCORING_THRESHOLDS,
   PRIORITY_WEIGHTS,
   BUDGET_WEIGHTS,
   type FindingForScoring,
-  type FindingProfileForScoring
+  type FindingProfileForScoring,
 } from "../netlify/functions/lib/scoring.js";
 
 // Test priorityWeight
@@ -244,6 +245,83 @@ const dominantProfiles: Record<string, FindingProfileForScoring> = {
 const dominantResult = computeOverall(dominantTest, dominantProfiles);
 console.log("  dominant_risk:", dominantResult.dominant_risk);
 console.log("  (Should contain top 1-2 categories or IDs)");
+console.log("");
+
+// --- formatCapexRange & CAPEX_SNAPSHOT ---
+console.log("=== Testing formatCapexRange ===");
+console.log("both:", formatCapexRange(500, 2000));
+console.log("low only:", formatCapexRange(500, undefined));
+console.log("high only:", formatCapexRange(undefined, 2000));
+console.log("neither:", formatCapexRange(undefined, undefined));
+console.log("");
+
+// --- Case 1: 0 findings ---
+console.log("=== Case 1: 0 findings ===");
+const zeroFindings: FindingForScoring[] = [];
+const zeroProfiles: Record<string, FindingProfileForScoring> = {};
+const zeroResult = computeOverall(zeroFindings, zeroProfiles);
+console.log("  CAPEX_LOW:", zeroResult.CAPEX_LOW, "(expected: null)");
+console.log("  CAPEX_HIGH:", zeroResult.CAPEX_HIGH, "(expected: null)");
+console.log("  CAPEX_SNAPSHOT:", zeroResult.CAPEX_SNAPSHOT);
+console.log("  (expected: To be confirmed (indicative, planning only))");
+if (zeroResult.CAPEX_SNAPSHOT !== "To be confirmed (indicative, planning only)") {
+  throw new Error("Case 1: CAPEX_SNAPSHOT should be 'To be confirmed (indicative, planning only)'");
+}
+console.log("");
+
+// --- Case 2: findings exist but profile has no budget ---
+console.log("=== Case 2: findings exist but profile has no budget ===");
+const noBudgetFindings: FindingForScoring[] = [
+  { id: "NO_BUDGET_1", priority: "RECOMMENDED" },
+  { id: "NO_BUDGET_2", priority: "PLAN" },
+];
+const noBudgetProfiles: Record<string, FindingProfileForScoring> = {
+  NO_BUDGET_1: { severity: 3, likelihood: 2, budget_band: "LOW" /* no budget */ },
+  NO_BUDGET_2: { severity: 2, likelihood: 2 /* no budget_band, no budget */ },
+};
+const noBudgetResult = computeOverall(noBudgetFindings, noBudgetProfiles);
+console.log("  capex_incomplete:", noBudgetResult.capex_incomplete, "(expected: true)");
+console.log("  CAPEX_LOW:", noBudgetResult.CAPEX_LOW, "(expected: null)");
+console.log("  CAPEX_HIGH:", noBudgetResult.CAPEX_HIGH, "(expected: null)");
+console.log("  CAPEX_SNAPSHOT:", noBudgetResult.CAPEX_SNAPSHOT);
+if (noBudgetResult.CAPEX_SNAPSHOT !== "To be confirmed (indicative, planning only)") {
+  throw new Error("Case 2: CAPEX_SNAPSHOT should be 'To be confirmed (indicative, planning only)'");
+}
+console.log("");
+
+// --- Case 3: findings exist and profile has budget_band/range ---
+console.log("=== Case 3: findings exist and profile has budget_band/range ===");
+const withBudgetFindings: FindingForScoring[] = [
+  { id: "WITH_BUDGET_1", priority: "RECOMMENDED" },
+  { id: "WITH_BUDGET_2", priority: "PLAN" },
+];
+const withBudgetProfiles: Record<string, FindingProfileForScoring> = {
+  WITH_BUDGET_1: {
+    severity: 3,
+    likelihood: 2,
+    budget_band: "MED",
+    budget: { low: 500, high: 2000 },
+    category: "COMPLIANCE",
+  },
+  WITH_BUDGET_2: {
+    severity: 2,
+    likelihood: 2,
+    budget_band: "LOW",
+    budget: { low: 100, high: 500 },
+    category: "RELIABILITY",
+  },
+};
+const withBudgetResult = computeOverall(withBudgetFindings, withBudgetProfiles);
+console.log("  CAPEX_LOW:", withBudgetResult.CAPEX_LOW, "(expected: 600)");
+console.log("  CAPEX_HIGH:", withBudgetResult.CAPEX_HIGH, "(expected: 2500)");
+console.log("  CAPEX_SNAPSHOT:", withBudgetResult.CAPEX_SNAPSHOT);
+const expectedSnapshot = "AUD $600 – $2500 (indicative, planning only)";
+if (withBudgetResult.CAPEX_SNAPSHOT !== expectedSnapshot) {
+  throw new Error(`Case 3: CAPEX_SNAPSHOT expected "${expectedSnapshot}", got "${withBudgetResult.CAPEX_SNAPSHOT}"`);
+}
+if (withBudgetResult.CAPEX_LOW !== 600 || withBudgetResult.CAPEX_HIGH !== 2500) {
+  throw new Error("Case 3: CAPEX_LOW/CAPEX_HIGH should be 600 and 2500");
+}
 console.log("");
 
 console.log("✅ All tests completed!");

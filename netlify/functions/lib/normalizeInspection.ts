@@ -159,17 +159,32 @@ export function normalizeInspection(
     
     // Set canonical value (use empty string or null instead of undefined)
     if (value === undefined) {
-      // For test_data, preserve as empty object if not found
+      // For test_data: build from raw.rcd_tests/gpo_tests/earthing when test_data key not found (inspection.raw has them at root)
       if (canonicalField === "test_data") {
-        (canonical as any)[canonicalField] = {};
+        const rcdFromRaw = (raw as Record<string, unknown>).rcd_tests;
+        const gpoFromRaw = (raw as Record<string, unknown>).gpo_tests;
+        const earthingFromRaw = (raw as Record<string, unknown>).earthing;
+        (canonical as any)[canonicalField] = {
+          rcd_tests: (typeof rcdFromRaw === "object" && rcdFromRaw !== null) ? rcdFromRaw as Record<string, unknown> : {},
+          gpo_tests: (typeof gpoFromRaw === "object" && gpoFromRaw !== null) ? gpoFromRaw as Record<string, unknown> : {},
+          earthing: (typeof earthingFromRaw === "object" && earthingFromRaw !== null) ? earthingFromRaw as Record<string, unknown> : {},
+        };
       } else {
         (canonical as any)[canonicalField] = "";
         missingFields.push(canonicalField);
       }
     } else {
-      // For test_data, preserve as object
+      // For test_data, preserve as object and ensure required sub-objects exist
       if (canonicalField === "test_data" && typeof value === "object" && value !== null) {
-        (canonical as any)[canonicalField] = value;
+        const testDataObj = value as Record<string, unknown>;
+        // Ensure required sub-objects exist (at least empty objects)
+        (canonical as any)[canonicalField] = {
+          rcd_tests: testDataObj.rcd_tests || {},
+          gpo_tests: testDataObj.gpo_tests || {},
+          earthing: testDataObj.earthing || {},
+          // Preserve other test data fields
+          ...testDataObj,
+        };
       } else {
         (canonical as any)[canonicalField] = String(value);
       }
@@ -190,8 +205,23 @@ export function normalizeInspection(
     property_address: canonical.property_address || "",
     property_type: canonical.property_type || "",
     technician_notes: canonical.technician_notes || "",
-    test_data: canonical.test_data || {},
+    test_data: canonical.test_data || {
+      rcd_tests: {},
+      gpo_tests: {},
+      earthing: {},
+    },
   };
+  
+  // Ensure test_data has required sub-objects (even if empty)
+  if (!result.test_data.rcd_tests) {
+    result.test_data.rcd_tests = {};
+  }
+  if (!result.test_data.gpo_tests) {
+    result.test_data.gpo_tests = {};
+  }
+  if (!result.test_data.earthing) {
+    result.test_data.earthing = {};
+  }
   
   return { canonical: result, missingFields };
 }

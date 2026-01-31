@@ -714,10 +714,79 @@ function generateFallbackCapExProvisioning(
 }
 
 /**
- * Legacy function for backward compatibility
- * @deprecated Use validateAndFixExecutiveSignals instead
+ * Validate Executive Decision Signals text and ensure it contains required semantic points
+ * 
+ * Checks if text contains three semantic requirements:
+ * 1. "if not addressed" / "if deferred" / "if left unresolved"
+ * 2. "not immediate" / "no urgent" / "does not require immediate action"
+ * 3. "manageable risk" / "can be planned" / "within normal planning cycles"
+ * 
+ * If not satisfied, returns fixed fallback template with 3 bullets (one for each rule).
+ * 
+ * @param text - Executive Decision Signals text (may be bullet list or paragraph)
+ * @returns Validated signals text (never empty)
  */
-export function validateExecutiveSignals(bullets: string[]): string[] {
+export function validateExecutiveSignals(text: string): string {
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    // Return fallback template if empty
+    return generateFallbackTemplate();
+  }
+  
+  const lowerText = text.toLowerCase();
+  
+  // Check for three semantic requirements using keywords/regex
+  const hasIfNotAddressed = /if\s+(not\s+)?(addressed|deferred|left\s+unresolved|resolved|maintained)/i.test(lowerText) ||
+                            /(are|is)\s+not\s+(addressed|maintained|resolved)/i.test(lowerText) ||
+                            /may\s+escalate/i.test(lowerText) ||
+                            /could\s+escalate/i.test(lowerText) ||
+                            /may\s+impact/i.test(lowerText) ||
+                            /could\s+impact/i.test(lowerText);
+  
+  const hasNotImmediate = /not\s+immediate/i.test(lowerText) ||
+                          /no\s+immediate\s+(hazard|emergency|risk|urgent)/i.test(lowerText) ||
+                          /does\s+not\s+require\s+immediate/i.test(lowerText) ||
+                          /does\s+not\s+present\s+an\s+immediate/i.test(lowerText) ||
+                          /presents\s+no\s+immediate/i.test(lowerText) ||
+                          /not\s+an\s+immediate/i.test(lowerText) ||
+                          /not\s+represent\s+an\s+immediate/i.test(lowerText) ||
+                          /would\s+not\s+prevent/i.test(lowerText);
+  
+  const hasManageableRisk = /manageable\s+risk/i.test(lowerText) ||
+                            /can\s+be\s+planned/i.test(lowerText) ||
+                            /within\s+normal\s+planning\s+cycles/i.test(lowerText) ||
+                            /asset\s+planning/i.test(lowerText) ||
+                            /strategic\s+budgeting/i.test(lowerText) ||
+                            /planned\s+maintenance/i.test(lowerText) ||
+                            /can\s+be\s+managed/i.test(lowerText) ||
+                            /managed\s+within/i.test(lowerText);
+  
+  // If all three requirements are met, return original text
+  if (hasIfNotAddressed && hasNotImmediate && hasManageableRisk) {
+    return text;
+  }
+  
+  // Otherwise, return fallback template
+  console.warn("⚠️ EXECUTIVE_DECISION_SIGNALS validation failed. Missing requirements:", {
+    hasIfNotAddressed,
+    hasNotImmediate,
+    hasManageableRisk
+  });
+  
+  return generateFallbackTemplate();
+}
+
+/**
+ * Generate fallback template with 3 bullets (one for each semantic requirement)
+ */
+function generateFallbackTemplate(): string {
+  return `• ${DEFAULT_IF_NOT_ADDRESSED}\n• ${DEFAULT_WHY_NOT_IMMEDIATE}\n• ${DEFAULT_MANAGEABLE_RISK}`;
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use validateExecutiveSignals(string) or validateAndFixExecutiveSignals instead
+ */
+export function validateExecutiveSignalsArray(bullets: string[]): string[] {
   // Filter out any bullets that sound like inspection summary
   let validated = bullets.filter(bullet => !soundsLikeInspectionSummary(bullet));
   

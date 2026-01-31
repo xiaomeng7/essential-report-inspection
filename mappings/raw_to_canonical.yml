@@ -55,8 +55,11 @@ canonical_fields:
   
   test_data:
     candidates:
-      - rcd_tests
-      - gpo_tests
       - test_data
       - tests
+      - section_3
+      - section_3.tests
+      - test_results
+      - electrical_tests
     # Note: test_data can be a raw object, preserved as-is
+    # If found, it should contain rcd_tests, gpo_tests, earthing, etc.
