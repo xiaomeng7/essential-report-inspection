@@ -12,6 +12,7 @@ import { loadResponses } from "./generateWordReport";
 import { markdownToHtml } from "./lib/markdownToHtml";
 import { renderDocx } from "./lib/renderDocx";
 import { sha1 } from "./lib/fingerprint";
+import PizZip from "pizzip";
 import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { normalizeInspection } from "./lib/normalizeInspection";
@@ -130,7 +131,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
     const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
-    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos);
+    const photosByFinding: Record<string, number> = {};
+    for (const f of inspection.findings || []) {
+      photosByFinding[f.id] = Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
+    }
+    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos + " photos_by_finding=" + JSON.stringify(photosByFinding));
 
     // 2. 规范化检查数据（canonical layer）
     const { canonical } = normalizeInspection(inspection.raw, inspection.inspection_id);
@@ -158,6 +163,16 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // 6. 加载 Word 模板
     console.log("📄 Loading Word template...");
     const templateBuffer = loadWordTemplate();
+
+    // P0: 验证模板包含 REPORT_BODY_HTML 占位符
+    const zip = new PizZip(templateBuffer);
+    const documentXml = zip.files["word/document.xml"]?.asText() || "";
+    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || documentXml.includes("report_body_html") || documentXml.includes("Report_Body_Html");
+    if (!hasPlaceholder) {
+      const sampleXml = documentXml.substring(0, 2000);
+      throw new Error(`Template missing required placeholder: REPORT_BODY_HTML. buffer.length=${templateBuffer.length} document.xml[0:2000]=${JSON.stringify(sampleXml)}`);
+    }
+    console.log("[report-fp] placeholder: required ok (REPORT_BODY_HTML present)");
 
     // 7. 准备模板数据（封面页数据，使用 canonical）
     const defaultText = await loadDefaultText(event);

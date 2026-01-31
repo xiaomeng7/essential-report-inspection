@@ -11,13 +11,13 @@ export type StoredInspection = {
 
 // Get Netlify Blobs store instance
 // Note: connectLambda must be called in the handler before using getStore
-function getInspectionStore(event?: HandlerEvent) {
+function getInspectionStore(event?: HandlerEvent, strong = false) {
   if (event) {
     connectLambda(event);
   }
   return getStore({
     name: "inspections",
-    consistency: "eventual", // Eventual consistency is sufficient for inspection reports
+    consistency: strong ? "strong" : "eventual",
   });
 }
 
@@ -44,27 +44,30 @@ export async function save(id: string, data: StoredInspection, event?: HandlerEv
   }
 }
 
-export async function get(id: string, event?: HandlerEvent): Promise<StoredInspection | undefined> {
-  // Check cache first
-  if (cache.has(id)) {
+export async function get(id: string, event?: HandlerEvent, strongRead = false): Promise<StoredInspection | undefined> {
+  if (!strongRead && cache.has(id)) {
     console.log(`Retrieved inspection ${id} from cache`);
     return cache.get(id);
   }
-  
+
   try {
-    const store = getInspectionStore(event);
+    const store = getInspectionStore(event, strongRead);
     const data = await store.get(id, { type: "text" });
-    
+
     if (data) {
       const parsed = JSON.parse(data) as StoredInspection;
-      cache.set(id, parsed); // Cache for next time
-      console.log(`Retrieved inspection ${id} from Netlify Blobs`);
+      if (!strongRead) cache.set(id, parsed);
+      if (strongRead) {
+        console.log(`[report-fp] inspection re-read (strong) id=${id} photo_ids verified`);
+      } else {
+        console.log(`Retrieved inspection ${id} from Netlify Blobs`);
+      }
       return parsed;
     }
   } catch (e) {
     console.error(`Failed to read inspection ${id} from Blobs:`, e);
   }
-  
+
   return undefined;
 }
 

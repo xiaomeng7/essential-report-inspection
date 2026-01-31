@@ -108,11 +108,18 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
 
   try {
     await save(inspection_id, inspection, event);
-    console.log("[report-fp] upload saved inspection_id=" + inspection_id + " finding_id=" + finding_id + " new_photo_id=" + photoId + " photo_ids_count=" + newPhotoIds.length);
+    console.log("[report-fp] upload saved inspection_id=" + inspection_id + " finding_id=" + finding_id + " new_photo_id=" + photoId + " photo_ids=" + JSON.stringify(newPhotoIds));
   } catch (saveErr) {
     console.error("[report-fp] upload save FAILED:", saveErr);
     throw saveErr;
   }
+
+  // Re-read with strong consistency to verify write
+  const reRead = await get(inspection_id, event, true);
+  const reFinding = reRead?.findings?.find((f) => f.id === finding_id);
+  const reIds = Array.isArray((reFinding as any)?.photo_ids) ? (reFinding as any).photo_ids : [];
+  const verified = JSON.stringify(reIds) === JSON.stringify(newPhotoIds);
+  console.log("[report-fp] upload verify inspection_id=" + inspection_id + " finding_id=" + finding_id + " re_read_photo_ids=" + JSON.stringify(reIds) + " verified=" + verified);
 
   return {
     statusCode: 200,

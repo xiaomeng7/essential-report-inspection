@@ -174,6 +174,7 @@ export const REQUIRED_PLACEHOLDERS: Array<keyof ReportData> = [
   "TERMS_AND_CONDITIONS",
   "DYNAMIC_FINDING_PAGES",
   "CLOSING_STATEMENT",
+  "REPORT_BODY_HTML",
 ] as const;
 
 /**
@@ -183,7 +184,6 @@ export const REQUIRED_PLACEHOLDERS: Array<keyof ReportData> = [
 export const OPTIONAL_PLACEHOLDERS: Array<keyof ReportData> = [
   "PRIORITY_TABLE_ROWS",
   "CAPEX_TABLE_ROWS",
-  "REPORT_BODY_HTML",
   "DYNAMIC_FINDING_PAGES_HTML",
 ] as const;
 

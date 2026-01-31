@@ -1962,7 +1962,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
-    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos);
+    const photosByFinding: Record<string, number> = {};
+    for (const f of inspection.findings || []) {
+      photosByFinding[f.id] = Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
+    }
+    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos + " photos_by_finding=" + JSON.stringify(photosByFinding));
     console.log("[report][RUN_ID]", RUN_ID, "after load inspection", {
       inspection_id: inspection.inspection_id,
       findings_count: inspection.findings.length,
@@ -2199,27 +2203,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const zip = new PizZip(templateBuffer);
     const documentXml = zip.files["word/document.xml"]?.asText() || "";
     
-    // Check for REPORT_BODY_HTML in various forms
-    // 1. Direct match (most common)
-    // 2. Case-insensitive match
-    // 3. Check if it might be split across XML nodes (look for parts)
-    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || 
-                          documentXml.includes("report_body_html") ||
-                          documentXml.includes("Report_Body_Html");
-    
+    // P0: REPORT_BODY_HTML is REQUIRED - template must contain continuous placeholder
+    const templatePathForError = foundMdTemplate ? templatePathHit : possibleMdPaths[0];
+    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") ||
+      documentXml.includes("report_body_html") ||
+      documentXml.includes("Report_Body_Html");
+
     if (!hasPlaceholder) {
-      // Try to extract a sample of the document to help debug
       const sampleXml = documentXml.substring(0, 2000);
-      const templateSize = templateBuffer.length;
-      console.error("❌ 模板中未找到 {{REPORT_BODY_HTML}} 占位符");
-      console.error("模板文件大小:", templateSize, "bytes");
-      console.error("文档 XML 长度:", documentXml.length);
-      console.error("文档 XML 前 2000 字符:", sampleXml);
-      console.error("请确保模板文件 report-template-md.docx 中包含 {{REPORT_BODY_HTML}} 占位符");
-      console.error("提示：如果模板大小约为 19078 bytes，说明是正确的模板；如果约为 111440 bytes，说明使用了旧的模板");
-      throw new Error(`模板中未找到 {{REPORT_BODY_HTML}} 占位符。模板文件大小: ${templateSize} bytes。请确保使用 report-template-md.docx（约 19078 bytes）而不是 report-template.docx（约 111440 bytes）。`);
+      const templateSize = templateBuffer!.length;
+      const splitHint = " If Word split the placeholder across runs, re-enter {{REPORT_BODY_HTML}} without line breaks.";
+      const errMsg = `Template missing required placeholder: REPORT_BODY_HTML. path=${templatePathForError} buffer.length=${templateSize} document.xml[0:2000]=${JSON.stringify(sampleXml)}${splitHint}`;
+      console.error("[report-fp] ❌", errMsg);
+      throw new Error(errMsg);
     }
-    console.log("✅ Template contains {{REPORT_BODY_HTML}} placeholder");
+
+    console.log("[report-fp] placeholder: required ok (REPORT_BODY_HTML present)");
     
     // Hard assertions before renderDocx
     const undefKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
