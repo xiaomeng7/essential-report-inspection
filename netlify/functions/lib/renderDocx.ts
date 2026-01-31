@@ -1,3 +1,42 @@
+/** Minimal word/styles.xml required by docx-merger (html-docx output lacks it) */
+const MINIMAL_STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults><w:rPrDefault><w:rPr></w:rPr></w:rPrDefault></w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+</w:styles>`;
+
+/** Inject word/styles.xml if missing (docx-merger fails on null) */
+function ensureStylesXml(docxBuffer: Buffer): Buffer {
+  const zip = new PizZip(docxBuffer);
+  if (zip.files["word/styles.xml"]) return docxBuffer;
+
+  zip.file("word/styles.xml", MINIMAL_STYLES_XML);
+
+  const ct = zip.files["[Content_Types].xml"];
+  if (ct) {
+    let ctStr = ct.asText();
+    if (!ctStr.includes("word/styles.xml")) {
+      const insertBefore = "</Types>";
+      ctStr = ctStr.replace(insertBefore,
+        '  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' + insertBefore);
+      zip.file("[Content_Types].xml", ctStr);
+    }
+  }
+
+  const rels = zip.files["word/_rels/document.xml.rels"];
+  if (rels) {
+    let relsStr = rels.asText();
+    if (!relsStr.includes("styles.xml")) {
+      const insertBefore = "</Relationships>";
+      relsStr = relsStr.replace(insertBefore,
+        '  <Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml" Id="rIdStyles"/>' + insertBefore);
+      zip.file("word/_rels/document.xml.rels", relsStr);
+    }
+  }
+
+  return zip.generate({ type: "nodebuffer" }) as Buffer;
+}
+
 /**
  * 免费替代方案：使用 html-docx-js-typescript + docx-merger 将 HTML 转换为 DOCX
  * 
@@ -84,9 +123,12 @@ export async function renderDocxWithHtmlMerge(
   });
 
   // 4. 转为 Buffer（Node 返回 Buffer，浏览器返回 Blob）
-  const htmlDocxBuffer = Buffer.isBuffer(htmlDocxResult)
+  let htmlDocxBuffer = Buffer.isBuffer(htmlDocxResult)
     ? htmlDocxResult
     : Buffer.from(await (htmlDocxResult as Blob).arrayBuffer());
+
+  // 4.5. html-docx 输出缺少 word/styles.xml，docx-merger 会抛错；注入 minimal styles
+  htmlDocxBuffer = ensureStylesXml(htmlDocxBuffer);
 
   // 5. 使用 docx-merger 合并两个 DOCX（封面 + 正文）
   return new Promise((resolve, reject) => {
