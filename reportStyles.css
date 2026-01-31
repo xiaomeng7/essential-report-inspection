@@ -92,9 +92,9 @@ body {
   }
   
   /* Simple “pill” simulation without border-radius (docx converters can be flaky) */
-  .badge-low { }
-  .badge-mod { }
-  .badge-high { }
+  .badge-low { display: inline; }
+  .badge-mod { display: inline; }
+  .badge-high { display: inline; }
   
   /* Page break */
   .page-break {

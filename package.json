@@ -23,10 +23,11 @@
     "markdown-to-word": "node scripts/markdown-to-word.ts",
     "markdown-to-word-pandoc": "node scripts/markdown-to-word-pandoc.ts",
     "preview": "vite preview",
-    "netlify:dev": "netlify dev"
+    "netlify:dev": "npx netlify-cli dev"
   },
   "dependencies": {
     "@netlify/blobs": "^10.0.7",
+    "dotenv": "^16.4.0",
     "docx-merger": "^1.2.2",
     "docxtemplater": "^3.67.6",
     "html-docx-js-typescript": "^0.1.5",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@netlify/functions": "^2.0.0",
+    "netlify-cli": "^17.0.0",
     "@types/html2canvas": "^1.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",

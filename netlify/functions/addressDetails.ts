@@ -1,42 +1,72 @@
 /**
  * GET /api/addressDetails?place_id=xxx
- * Calls Google Place Details API.
+ * Calls Google Places API (New) - places/{placeId}
  * Returns formatted_address, components, geo.
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
+import path from "path";
+import { config as loadDotenv } from "dotenv";
 
-type AddressComponent = {
-  long_name: string;
-  short_name: string;
-  types: string[];
-};
+const VERSION = "2026-01-31-v2";
 
-type PlaceDetailsResult = {
-  formatted_address?: string;
-  address_components?: AddressComponent[];
-  geometry?: { location?: { lat: number; lng: number } };
-};
+/** Load .env from project root when running under netlify dev. */
+function ensureLocalEnv(): void {
+  if (process.env.GOOGLE_MAPS_API_KEY || process.env.NETLIFY_DEV !== "true") return;
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "..", ".env"),
+    path.resolve(process.cwd(), "..", "..", ".env"),
+  ];
+  for (const p of candidates) {
+    loadDotenv({ path: p });
+    if (process.env.GOOGLE_MAPS_API_KEY) return;
+  }
+}
 
+/** Google Places API (New) place details response */
 type PlaceDetailsResponse = {
-  result?: PlaceDetailsResult;
-  status?: string;
-  error_message?: string;
+  formattedAddress?: string;
+  addressComponents?: Array<{
+    longText?: string;
+    shortText?: string;
+    types?: string[];
+  }>;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
 };
 
-function getComponent(components: AddressComponent[] | undefined, ...types: string[]): string {
+function getComponent(
+  components: PlaceDetailsResponse["addressComponents"],
+  ...types: string[]
+): string {
   if (!Array.isArray(components)) return "";
   for (const type of types) {
-    const c = components.find((x) => x.types.includes(type));
-    if (c) return c.long_name;
+    const c = components.find((x) => x.types?.includes(type));
+    if (c) return c.longText ?? c.shortText ?? "";
   }
   return "";
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
+  console.log("[addr] addressDetails VERSION=" + VERSION + " USING=places/{placeId}");
+
   if (event.httpMethod !== "GET") {
-    return { statusCode: 405, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "Method Not Allowed" }) };
+    return {
+      statusCode: 405,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Method Not Allowed" }),
+    };
   }
+
+  ensureLocalEnv();
 
   const placeId = event.queryStringParameters?.place_id?.trim();
   if (!placeId) {
@@ -58,25 +88,39 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   try {
-    const params = new URLSearchParams({
-      place_id: placeId,
-      key: apiKey,
-      fields: "formatted_address,address_components,geometry",
-    });
-    const url = `https://maps.googleapis.com/maps/api/place/details/json?${params.toString()}`;
-    const res = await fetch(url);
-    const data = (await res.json()) as PlaceDetailsResponse;
+    const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`;
 
-    const result = data.result;
-    if (!result) {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "formattedAddress,addressComponents,location",
+      },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.log("[addr] Google API status:", res.status, "message:", errorText);
       return {
         statusCode: 404,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
         body: JSON.stringify({ error: "Place not found", place_id: placeId }),
       };
     }
 
-    const components = result.address_components ?? [];
+    const data = (await res.json()) as PlaceDetailsResponse;
+
+    // Check for API error in response body
+    if (data.error) {
+      console.log("[addr] Google API status:", data.error.status || data.error.code, "message:", data.error.message || "unknown");
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: "Place not found", place_id: placeId }),
+      };
+    }
+
+    const components = data.addressComponents ?? [];
     const suburb = getComponent(components, "locality", "sublocality", "sublocality_level_1");
     const state = getComponent(components, "administrative_area_level_1");
     const postcode = getComponent(components, "postal_code");
@@ -84,7 +128,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("[addr] details place_id=", placeId, "suburb=", suburb, "state=", state, "postcode=", postcode);
 
     const output = {
-      formatted_address: result.formatted_address ?? "",
+      formatted_address: data.formattedAddress ?? "",
       components: {
         street_number: getComponent(components, "street_number"),
         route: getComponent(components, "route"),
@@ -93,8 +137,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         postcode: postcode,
         country: getComponent(components, "country"),
       },
-      geo: result.geometry?.location
-        ? { lat: result.geometry.location.lat, lng: result.geometry.location.lng }
+      geo: data.location
+        ? { lat: data.location.latitude, lng: data.location.longitude }
         : undefined,
     };
 
@@ -107,7 +151,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.error("[addr] details error:", err);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ error: "Address lookup failed", message: err instanceof Error ? err.message : String(err) }),
     };
   }

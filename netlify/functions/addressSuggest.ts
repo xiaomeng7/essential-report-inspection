@@ -1,35 +1,79 @@
 /**
  * GET /api/addressSuggest?q=xxx
- * Calls Google Places Autocomplete API, Australia only.
- * Returns { suggestions: [{ description, place_id }] }
+ * Calls Google Places API (New) - places:autocomplete, Australia only.
+ * Returns { suggestions: [{ placeId, text }] }
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
+import path from "path";
+import { config as loadDotenv } from "dotenv";
 
-type AutocompletePrediction = {
-  description: string;
-  place_id: string;
+const VERSION = "2026-01-31-v2";
+
+/** Load .env from project root when running under netlify dev (so Functions see GOOGLE_MAPS_API_KEY). */
+function ensureLocalEnv(): void {
+  if (process.env.GOOGLE_MAPS_API_KEY) {
+    return;
+  }
+  if (process.env.NETLIFY_DEV !== "true") {
+    return;
+  }
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "..", ".env"),
+    path.resolve(process.cwd(), "..", "..", ".env"),
+  ];
+  for (const p of candidates) {
+    loadDotenv({ path: p });
+    if (process.env.GOOGLE_MAPS_API_KEY) {
+      return;
+    }
+  }
+}
+
+/** Suggestion returned to frontend */
+type Suggestion = {
+  placeId: string;
+  text: string;
 };
 
-type AutocompleteResponse = {
-  predictions?: AutocompletePrediction[];
-  status?: string;
-  error_message?: string;
+/** Google Places API (New) autocomplete response structure */
+type PlacesAutocompleteResponse = {
+  suggestions?: Array<{
+    placePrediction?: {
+      placeId?: string;
+      text?: {
+        text?: string;
+      };
+    };
+  }>;
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
 };
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
+  console.log("[addr] addressSuggest VERSION=" + VERSION + " USING=places:autocomplete");
+
   if (event.httpMethod !== "GET") {
-    return { statusCode: 405, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "Method Not Allowed" }) };
+    return {
+      statusCode: 405,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Method Not Allowed" }),
+    };
   }
+
+  ensureLocalEnv();
 
   const q = (event.queryStringParameters?.q ?? "").trim();
   if (q.length < 2) {
-    const suggestions: Array<{ description: string; place_id: string }> = [];
     console.log("[addr] suggest q=", q, "count=0 (min 2 chars)");
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ suggestions }),
+      body: JSON.stringify({ suggestions: [] }),
     };
   }
 
@@ -38,41 +82,77 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.error("[addr] suggest missing GOOGLE_MAPS_API_KEY");
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ error: "Address suggestions not configured" }),
     };
   }
 
   try {
-    const params = new URLSearchParams({
+    const url = "https://places.googleapis.com/v1/places:autocomplete";
+    const requestBody = {
       input: q,
-      key: apiKey,
-      components: "country:au",
-      types: "address",
+      includedRegionCodes: ["AU"],
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text",
+      },
+      body: JSON.stringify(requestBody),
     });
-    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
-    const res = await fetch(url);
-    const data = (await res.json()) as AutocompleteResponse;
 
-    const predictions = data.predictions ?? [];
-    const suggestions = predictions.slice(0, 8).map((p) => ({
-      description: p.description,
-      place_id: p.place_id,
-    }));
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.log("[addr] Google API status:", res.status, "message:", errorText);
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ suggestions: [] }),
+      };
+    }
 
-    console.log("[addr] suggest q=", q, "count=", suggestions.length);
+    const data = (await res.json()) as PlacesAutocompleteResponse;
+
+    // Check for API error in response body
+    if (data.error) {
+      console.log("[addr] Google API status:", data.error.status || data.error.code, "message:", data.error.message || "unknown");
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ suggestions: [] }),
+      };
+    }
+
+    // Parse suggestions from new API format
+    const suggestions: Suggestion[] = [];
+    for (const s of data.suggestions ?? []) {
+      const placeId = s.placePrediction?.placeId;
+      const text = s.placePrediction?.text?.text;
+      if (placeId && text) {
+        suggestions.push({ placeId, text });
+      }
+    }
+
+    // Limit to 8 suggestions
+    const limited = suggestions.slice(0, 8);
+
+    console.log("[addr] suggest q=", q, "count=", limited.length);
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ suggestions }),
+      body: JSON.stringify({ suggestions: limited }),
     };
   } catch (err) {
     console.error("[addr] suggest error:", err);
+    // Return empty suggestions instead of error to avoid frontend crash
     return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Address lookup failed", message: err instanceof Error ? err.message : String(err) }),
+      statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ suggestions: [] }),
     };
   }
 };

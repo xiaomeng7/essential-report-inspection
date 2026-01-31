@@ -84,7 +84,7 @@ async function loadResponses(event?: HandlerEvent): Promise<any> {
   if (event) {
     try {
       const { connectLambda, getStore } = await import("@netlify/blobs");
-      connectLambda(event);
+      connectLambda(event as any);
       const store = getStore({ name: "config", consistency: "eventual" });
       const blobContent = await store.get("responses.yml", { type: "text" });
       if (blobContent) {

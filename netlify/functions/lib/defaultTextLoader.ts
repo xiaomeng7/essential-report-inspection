@@ -302,7 +302,7 @@ export async function loadDefaultText(event?: HandlerEvent): Promise<DefaultText
   if (event) {
     try {
       const { connectLambda, getStore } = await import("@netlify/blobs");
-      connectLambda(event);
+      connectLambda(event as any);
       const store = getStore({ name: "config", consistency: "eventual" });
       const blobContent = await store.get("DEFAULT_REPORT_TEXT.md", { type: "text" });
       if (blobContent) {

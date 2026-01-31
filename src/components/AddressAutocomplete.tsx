@@ -25,7 +25,7 @@ export type StructuredAddress = {
   address_geo?: AddressGeo;
 };
 
-type Suggestion = { description: string; place_id: string };
+type Suggestion = { text: string; placeId: string };
 
 type Props = {
   value: StructuredAddress | null;
@@ -53,6 +53,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedInput = useDebounce(inputText, DEBOUNCE_MS);
@@ -69,16 +70,41 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
     if (!focused || !debouncedInput.trim() || debouncedInput.length < 2) {
       setSuggestions([]);
       setLoading(false);
+      setApiError(null);
       return;
     }
     setLoading(true);
+    setApiError(null);
     fetch(`/api/addressSuggest?q=${encodeURIComponent(debouncedInput.trim())}`)
-      .then((r) => r.json())
-      .then((data: { suggestions?: Suggestion[] }) => {
-        const list = data.suggestions ?? [];
-        setSuggestions(list.slice(0, MAX_SUGGESTIONS));
+      .then((r) => {
+        return r.json().then((data: { suggestions?: Suggestion[]; error?: string; message?: string }) => {
+          if (!r.ok) {
+            const raw = data.error || data.message || "Address suggestions unavailable.";
+            const msg =
+              raw === "Address suggestions not configured"
+                ? "地址建议未配置：请设置 GOOGLE_MAPS_API_KEY（Netlify 或 .env）。"
+                : raw;
+            setApiError(msg);
+            setSuggestions([]);
+            return;
+          }
+          if (data.error) {
+            setApiError(
+              data.error === "Address suggestions not configured"
+                ? "地址建议未配置：请设置 GOOGLE_MAPS_API_KEY（Netlify 或 .env）。"
+                : data.error
+            );
+            setSuggestions([]);
+            return;
+          }
+          const list = data.suggestions ?? [];
+          setSuggestions(list.slice(0, MAX_SUGGESTIONS));
+        });
       })
-      .catch(() => setSuggestions([]))
+      .catch(() => {
+        setApiError("无法连接地址服务。请用 netlify dev 启动本地，并配置 GOOGLE_MAPS_API_KEY。");
+        setSuggestions([]);
+      })
       .finally(() => setLoading(false));
   }, [debouncedInput, focused]);
 
@@ -101,13 +127,13 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
       setOpen(false);
       setSuggestions([]);
       setLoading(true);
-      fetchDetails(s.place_id)
+      fetchDetails(s.placeId)
         .then((data: { formatted_address?: string; components?: AddressComponents; geo?: { lat: number; lng: number } }) => {
-          const formatted = data.formatted_address ?? s.description;
+          const formatted = data.formatted_address ?? s.text;
           const components = data.components ?? {};
           onChange({
             property_address: formatted,
-            address_place_id: s.place_id,
+            address_place_id: s.placeId,
             address_components: components,
             address_geo: data.geo,
           });
@@ -210,7 +236,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
         >
           {suggestions.map((s, i) => (
             <li
-              key={s.place_id}
+              key={s.placeId}
               onClick={() => selectSuggestion(s)}
               onMouseDown={(e) => e.preventDefault()}
               style={{
@@ -225,7 +251,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
                 e.currentTarget.style.background = "#fff";
               }}
             >
-              {s.description}
+              {s.text}
             </li>
           ))}
         </ul>
@@ -241,12 +267,17 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
           Suburb / State / Postcode: {preview}
         </div>
       )}
+      {apiError && (
+        <p style={{ color: "#c62828", fontSize: 12, marginTop: 4 }}>
+          {apiError}
+        </p>
+      )}
       {error && (
         <p className="validation-msg" style={{ color: "#c62828", fontSize: 12, marginTop: 4 }}>
           {error}
         </p>
       )}
-      {required && !value?.address_place_id && inputText && (
+      {required && !value?.address_place_id && inputText && !apiError && (
         <p style={{ color: "#f57c00", fontSize: 12, marginTop: 4 }}>
           Please select a valid address from suggestions.
         </p>

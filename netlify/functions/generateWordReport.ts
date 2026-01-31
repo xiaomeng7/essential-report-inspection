@@ -494,8 +494,8 @@ function buildTestDataAndNotes(
     if (performed === true || performed === "true" || performed === "yes") {
       const summary = gpoTests.summary as Record<string, unknown> | undefined;
       if (summary) {
-        const totalTested = summary.total_tested || summary.total_outlets_tested || 0;
-        if (totalTested !== undefined && totalTested > 0) {
+        const totalTested = Number(summary.total_tested ?? summary.total_outlets_tested ?? 0);
+        if (totalTested > 0) {
           const polarityPass = summary.polarity_pass_count || 0;
           const earthPass = summary.earth_present_pass_count || 0;
           testSummaryParts.push(`GPO Testing: ${totalTested} outlet(s) tested. Polarity: ${polarityPass} passed, Earth: ${earthPass} passed.`);
@@ -657,7 +657,7 @@ export async function loadResponses(event?: HandlerEvent): Promise<any> {
   if (event) {
     try {
       const { connectLambda, getStore } = await import("@netlify/blobs");
-      connectLambda(event);
+      connectLambda(event as any);
       const store = getStore({ name: "config", consistency: "eventual" });
       const blobContent = await store.get("responses.yml", { type: "text" });
       if (blobContent) {
@@ -768,7 +768,7 @@ function loadWordTemplate(): Buffer {
         if (hasSplitPlaceholders(content)) {
           console.log("⚠️  Found split placeholders, applying fix...");
           const beforeFixSize = content.length;
-          content = fixWordTemplate(content);
+          content = fixWordTemplate(content) as any;
           console.log(`✅ Fixed template: ${beforeFixSize} -> ${content.length} bytes`);
           
           // Verify fix
@@ -787,29 +787,30 @@ function loadWordTemplate(): Buffer {
         try {
           const doc = new Docxtemplater(fixedZip, docOptions);
           
-          // Use docxtemplater's getTags() method to get all recognized tags
+          // Use docxtemplater's getTags() method to get all recognized tags (if available)
           try {
-            const tags = doc.getTags();
+            const tags = (doc as { getTags?: () => unknown }).getTags?.();
             console.log("📋 Found placeholders via doc.getTags():", JSON.stringify(tags, null, 2));
             
             // Extract tag names from the tags structure
             const tagNames: string[] = [];
-            if (tags && typeof tags === 'object') {
+            const tagsObj = tags as { document?: { tags?: Record<string, unknown> }; headers?: Array<{ tags?: Record<string, unknown> }>; footers?: Array<{ tags?: Record<string, unknown> }> } | null;
+            if (tagsObj && typeof tagsObj === 'object') {
               // Check document tags
-              if (tags.document && tags.document.tags) {
-                Object.keys(tags.document.tags).forEach(tag => tagNames.push(tag));
+              if (tagsObj.document && tagsObj.document.tags) {
+                Object.keys(tagsObj.document.tags).forEach(tag => tagNames.push(tag));
               }
               // Check header tags
-              if (tags.headers && Array.isArray(tags.headers)) {
-                tags.headers.forEach((header: any) => {
+              if (tagsObj.headers && Array.isArray(tagsObj.headers)) {
+                tagsObj.headers.forEach((header: any) => {
                   if (header.tags) {
                     Object.keys(header.tags).forEach(tag => tagNames.push(tag));
                   }
                 });
               }
               // Check footer tags
-              if (tags.footers && Array.isArray(tags.footers)) {
-                tags.footers.forEach((footer: any) => {
+              if (tagsObj.footers && Array.isArray(tagsObj.footers)) {
+                tagsObj.footers.forEach((footer: any) => {
                   if (footer.tags) {
                     Object.keys(footer.tags).forEach(tag => tagNames.push(tag));
                   }
@@ -2208,7 +2209,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     // Load Word template (use report-template-md.docx if available, otherwise fallback to report-template.docx)
-    let templateBuffer: Buffer;
+    let templateBuffer!: Buffer;
     const mdTemplatePath = path.join(__dirname, "report-template-md.docx");
     
     // Try multiple possible paths for report-template-md.docx
