@@ -1,8 +1,9 @@
 {
-  "version": "1.0",
-  "description": "Mapping rules from checklist fields to finding codes",
+  "version": "2.0",
+  "description": "Mapping rules from checklist fields to finding codes. Updated to cover all on_issue_capture fields from FIELD_DICTIONARY.json",
   "mappings": [
     {
+      "_comment": "========== SWITCHBOARD - Section S2 ==========",
       "finding": "ASBESTOS_RISK",
       "condition": {
         "field": "switchboard.asbestos_suspected",
@@ -35,22 +36,39 @@
       }
     },
     {
-      "finding": "MEN_NOT_VERIFIED",
+      "finding": "SWITCHBOARD_CONTAMINATION",
       "condition": {
-        "field": "earthing.men_link_confirmed",
+        "field": "switchboard.dust_insect_contamination",
         "operator": "eq",
-        "value": "no"
+        "value": "yes"
       }
     },
     {
-      "finding": "EARTH_DEGRADED",
+      "finding": "SWITCHBOARD_GREASE_OIL",
       "condition": {
-        "field": "earthing.main_earth_conductor_intact",
+        "field": "switchboard.grease_oil_contamination",
         "operator": "eq",
-        "value": "no"
+        "value": "yes"
       }
     },
     {
+      "finding": "SWITCHBOARD_LOOSE_CONNECTIONS_SUSPECTED",
+      "condition": {
+        "field": "switchboard.loose_components_visible",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "SWITCHBOARD_ENCLOSURE_DAMAGED",
+      "condition": {
+        "field": "switchboard.enclosure_condition",
+        "operator": "in",
+        "value": ["cracked", "broken_missing_cover"]
+      }
+    },
+    {
+      "_comment": "========== SWITCHBOARD - Capacity & Labelling Section S3 ==========",
       "finding": "BOARD_AT_CAPACITY",
       "condition": {
         "field": "switchboard.board_at_capacity",
@@ -83,6 +101,97 @@
       }
     },
     {
+      "_comment": "========== CABLES & LEGACY - Section S4 ==========",
+      "finding": "WIRING_INSULATION_DEGRADED",
+      "condition": {
+        "field": "switchboard.cracked_brittle_insulation",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "CABLE_ENTRY_UNPROTECTED",
+      "condition": {
+        "field": "switchboard.unprotected_cable_entries",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "EXPOSED_CONDUCTORS",
+      "condition": {
+        "field": "switchboard.exposed_single_insulated",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "COLOUR_IDENTIFICATION_INCORRECT",
+      "condition": {
+        "field": "switchboard.incorrect_colour_identification",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "finding": "SWITCHBOARD_CERAMIC_FUSES_PRESENT",
+      "condition": {
+        "field": "switchboard.ceramic_fuse_holders_present",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "SWITCHBOARD_REWIREABLE_FUSES_PRESENT",
+      "condition": {
+        "field": "switchboard.rewireable_fuses_present",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "MIXED_OLD_NEW_DEVICES",
+      "condition": {
+        "field": "switchboard.mixed_old_new_devices",
+        "operator": "eq",
+        "value": "yes"
+      }
+    },
+    {
+      "_comment": "========== EARTHING & MEN - Section S4 ==========",
+      "finding": "MEN_NOT_VERIFIED",
+      "condition": {
+        "field": "earthing.men_link_confirmed",
+        "operator": "eq",
+        "value": "no"
+      }
+    },
+    {
+      "finding": "EARTH_DEGRADED",
+      "condition": {
+        "field": "earthing.main_earth_conductor_intact",
+        "operator": "eq",
+        "value": "no"
+      }
+    },
+    {
+      "finding": "BARE_EARTH_CONDUCTOR",
+      "condition": {
+        "field": "earthing.bare_earth_in_use",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "EARTH_NEUTRAL_MIXED",
+      "condition": {
+        "field": "earthing.earth_neutral_mixed_downstream",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== RCD TESTS - Section S5/S6 ==========",
       "finding": "NO_RCD_PROTECTION",
       "condition": {
         "field": "rcd_tests.performed",
@@ -91,7 +200,7 @@
       }
     },
     {
-      "finding": "GPO_EARTH_FAULT",
+      "finding": "RCD_TEST_FAIL_OR_UNSTABLE",
       "conditions": {
         "all": [
           {
@@ -109,6 +218,7 @@
       }
     },
     {
+      "_comment": "========== GPO & LIGHTING - Section S7/S8 ==========",
       "finding": "GPO_MECHANICAL_LOOSE",
       "condition": {
         "field": "gpo_tests.any_warm_loose_damaged",
@@ -133,11 +243,258 @@
       }
     },
     {
+      "_comment": "========== INTERNAL - POWER POINTS Section S3A ==========",
+      "finding": "GPO_LOOSE_MOUNTING",
+      "condition": {
+        "field": "internal.power_point_moves_count",
+        "operator": "gt",
+        "value": 0,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "DAMAGED_OUTLET_OR_SWITCH",
+      "condition": {
+        "field": "internal.cracks_visible_count",
+        "operator": "gt",
+        "value": 0,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "GPO_BURN_MARKS",
+      "condition": {
+        "field": "internal.burn_marks_count",
+        "operator": "gt",
+        "value": 0,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "GPO_SOCKET_WORN",
+      "condition": {
+        "field": "internal.plug_disengages_count",
+        "operator": "gt",
+        "value": 0,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "GPO_OVERHEATING",
+      "condition": {
+        "field": "internal.surface_warm_to_touch",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - LIGHTING & SWITCHES Section S3B ==========",
+      "finding": "SWITCH_PLATE_DAMAGED",
+      "condition": {
+        "field": "internal.switch_plate_cracked",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "SWITCH_LOOSE_MOUNTING",
+      "condition": {
+        "field": "internal.switch_body_moves",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "AUDIBLE_ARCING",
+      "condition": {
+        "field": "internal.unusual_audible_sound",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "LIGHT_FITTING_LOOSE",
+      "condition": {
+        "field": "internal.light_fitting_moves",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "BARE_WIRE_EXPOSED",
+      "condition": {
+        "field": "internal.bare_wire_visible",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - KITCHEN Section S3C ==========",
+      "finding": "GREASE_FIRE_RISK",
+      "condition": {
+        "field": "internal.kitchen.grease_residue",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - BATHROOM Section S3D ==========",
+      "finding": "MOISTURE_DAMAGE",
+      "condition": {
+        "field": "internal.bathroom.moisture_staining",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - ROOF SPACE Section S3F ==========",
+      "finding": "INSULATION_CONTACT",
+      "condition": {
+        "field": "internal.roof.insulation_contact",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "OLD_RUBBER_VIR_WIRING_SUSPECTED",
+      "condition": {
+        "field": "internal.roof.non_modern_cable",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "TAPED_CONNECTION_VISIBLE",
+      "condition": {
+        "field": "internal.roof.taped_connection",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "TRANSFORMER_ON_INSULATION",
+      "condition": {
+        "field": "internal.roof.transformer_on_insulation",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - EXTERIOR & GARAGE Section S3G ==========",
+      "finding": "OUTDOOR_COVER_MISSING",
+      "condition": {
+        "field": "internal.exterior.cover_broken_missing",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "FLEXIBLE_LEAD_FIXED",
+      "condition": {
+        "field": "internal.exterior.flexible_lead_fixed",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== INTERNAL - GENERAL Section S3I ==========",
+      "finding": "SWITCHBOARD_CERAMIC_FUSES_PRESENT",
+      "condition": {
+        "field": "internal.general.ceramic_fuse_holder_visible",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "BAKELITE_CERAMIC_ACCESSORY",
+      "condition": {
+        "field": "internal.general.bakelite_ceramic_visible",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "NON_STANDARD_WIRING",
+      "condition": {
+        "field": "internal.general.non_standard_wiring",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "CABLE_DAMAGE_VISIBLE",
+      "condition": {
+        "field": "internal.general.cable_damage_visible",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "_comment": "========== SMOKE ALARMS Section S3H ==========",
+      "finding": "SMOKE_ALARMS_MISSING",
+      "condition": {
+        "field": "internal.smoke_alarm.present",
+        "operator": "eq",
+        "value": false
+      }
+    },
+    {
+      "finding": "SMOKE_ALARMS_NOT_INTERCONNECTED",
+      "condition": {
+        "field": "internal.smoke_alarm.interconnected_tested",
+        "operator": "eq",
+        "value": false
+      }
+    },
+    {
+      "finding": "SMOKE_ALARM_TEST_FAIL",
+      "condition": {
+        "field": "internal.smoke_alarm.alarm_sounded",
+        "operator": "eq",
+        "value": false
+      }
+    },
+    {
+      "_comment": "========== SOLAR / BATTERY / EV Section S9 ==========",
+      "finding": "PV_INVERTER_ALARM",
+      "conditions": {
+        "all": [
+          {
+            "field": "assets.has_solar_pv",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "assets.solar.inverter_alarm",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
       "finding": "BATTERY_THERMAL",
       "conditions": {
         "all": [
           {
             "field": "assets.has_battery",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "assets.battery.heat_swelling_odour",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "finding": "PV_ISOLATION_UNVERIFIED",
+      "conditions": {
+        "all": [
+          {
+            "field": "assets.has_solar_pv",
             "operator": "eq",
             "value": true
           },
@@ -167,20 +524,86 @@
       }
     },
     {
-      "finding": "PV_ISOLATION_UNVERIFIED",
+      "_comment": "========== MEASURED DATA Section S5A ==========",
+      "finding": "EARTHING_RESISTANCE_HIGH",
+      "condition": {
+        "field": "measured.earth_resistance_ohm",
+        "operator": "gt",
+        "value": 10,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "THERMAL_HOTSPOT_DETECTED_MAJOR",
+      "condition": {
+        "field": "measured.thermal_delta_t",
+        "operator": "gt",
+        "value": 30,
+        "coerce": "number"
+      }
+    },
+    {
+      "finding": "THERMAL_HOTSPOT_DETECTED_MINOR",
       "conditions": {
         "all": [
           {
-            "field": "assets.has_solar_pv",
-            "operator": "eq",
-            "value": true
+            "field": "measured.thermal_delta_t",
+            "operator": "gt",
+            "value": 10,
+            "coerce": "number"
           },
           {
-            "field": "assets.any_issues_observed",
-            "operator": "eq",
-            "value": true
+            "field": "measured.thermal_delta_t",
+            "operator": "lte",
+            "value": 30,
+            "coerce": "number"
           }
         ]
+      }
+    },
+    {
+      "finding": "INSULATION_RESISTANCE_LOW_BORDERLINE",
+      "conditions": {
+        "all": [
+          {
+            "field": "measured.insulation_resistance_mohm",
+            "operator": "gte",
+            "value": 1,
+            "coerce": "number"
+          },
+          {
+            "field": "measured.insulation_resistance_mohm",
+            "operator": "lt",
+            "value": 10,
+            "coerce": "number"
+          }
+        ]
+      }
+    },
+    {
+      "finding": "INSULATION_RESISTANCE_FAIL",
+      "condition": {
+        "field": "measured.insulation_resistance_mohm",
+        "operator": "lt",
+        "value": 1,
+        "coerce": "number"
+      }
+    },
+    {
+      "_comment": "========== ACCESS LIMITATIONS Section S1 ==========",
+      "finding": "ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED",
+      "condition": {
+        "field": "access.roof_accessible",
+        "operator": "eq",
+        "value": false
+      }
+    },
+    {
+      "finding": "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED",
+      "condition": {
+        "field": "access.underfloor_accessible",
+        "operator": "eq",
+        "value": false
       }
     }
   ]

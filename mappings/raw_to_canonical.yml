@@ -64,4 +64,6 @@ canonical_fields:
       - test_results
       - electrical_tests
     # Note: test_data can be a raw object, preserved as-is
-    # If found, it should contain rcd_tests, gpo_tests, earthing, etc.
+    # If found, it should contain rcd_tests, gpo_tests, earthing, measured, access, etc.
+    # The normalizeInspection function will also pull from raw.rcd_tests, raw.gpo_tests, 
+    # raw.earthing, raw.measured, raw.access if test_data is not found

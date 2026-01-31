@@ -186,15 +186,19 @@ export function normalizeInspection(
     
     // Set canonical value (use empty string or null instead of undefined)
     if (value === undefined) {
-      // For test_data: build from raw.rcd_tests/gpo_tests/earthing when test_data key not found (inspection.raw has them at root)
+      // For test_data: build from raw.rcd_tests/gpo_tests/earthing/measured/access when test_data key not found (inspection.raw has them at root)
       if (canonicalField === "test_data") {
         const rcdFromRaw = (raw as Record<string, unknown>).rcd_tests;
         const gpoFromRaw = (raw as Record<string, unknown>).gpo_tests;
         const earthingFromRaw = (raw as Record<string, unknown>).earthing;
+        const measuredFromRaw = (raw as Record<string, unknown>).measured;
+        const accessFromRaw = (raw as Record<string, unknown>).access;
         (canonical as any)[canonicalField] = {
           rcd_tests: (typeof rcdFromRaw === "object" && rcdFromRaw !== null) ? rcdFromRaw as Record<string, unknown> : {},
           gpo_tests: (typeof gpoFromRaw === "object" && gpoFromRaw !== null) ? gpoFromRaw as Record<string, unknown> : {},
           earthing: (typeof earthingFromRaw === "object" && earthingFromRaw !== null) ? earthingFromRaw as Record<string, unknown> : {},
+          measured: (typeof measuredFromRaw === "object" && measuredFromRaw !== null) ? measuredFromRaw as Record<string, unknown> : {},
+          access: (typeof accessFromRaw === "object" && accessFromRaw !== null) ? accessFromRaw as Record<string, unknown> : {},
         };
       } else {
         (canonical as any)[canonicalField] = "";
@@ -204,11 +208,16 @@ export function normalizeInspection(
       // For test_data, preserve as object and ensure required sub-objects exist
       if (canonicalField === "test_data" && typeof value === "object" && value !== null) {
         const testDataObj = value as Record<string, unknown>;
+        // Also check raw for measured/access if not in testDataObj
+        const measuredFromRaw = (raw as Record<string, unknown>).measured;
+        const accessFromRaw = (raw as Record<string, unknown>).access;
         // Ensure required sub-objects exist (at least empty objects)
         (canonical as any)[canonicalField] = {
           rcd_tests: testDataObj.rcd_tests || {},
           gpo_tests: testDataObj.gpo_tests || {},
           earthing: testDataObj.earthing || {},
+          measured: testDataObj.measured || ((typeof measuredFromRaw === "object" && measuredFromRaw !== null) ? measuredFromRaw as Record<string, unknown> : {}),
+          access: testDataObj.access || ((typeof accessFromRaw === "object" && accessFromRaw !== null) ? accessFromRaw as Record<string, unknown> : {}),
           // Preserve other test data fields
           ...testDataObj,
         };

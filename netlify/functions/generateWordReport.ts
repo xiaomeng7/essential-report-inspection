@@ -509,9 +509,74 @@ function buildTestDataAndNotes(
   // Extract earthing data
   const earthing = testData.earthing as Record<string, unknown> | undefined;
   if (earthing) {
-    const earthResistance = earthing.resistance || earthing.earth_resistance;
+    const earthResistance = earthing.resistance || earthing.earth_resistance || earthing.earth_resistance_ohm;
     if (earthResistance !== undefined) {
       testSummaryParts.push(`Earthing: Resistance measured at ${earthResistance} Ω.`);
+    }
+  }
+  
+  // Extract measured data (FIELD_DICTIONARY v1.1 Section S5A)
+  const measured = testData.measured as Record<string, unknown> | undefined;
+  if (measured) {
+    // Supply voltage measurements
+    const voltageL1NoLoad = measured.supply_voltage_l1_noload as number | undefined;
+    const voltageL1Load = measured.supply_voltage_l1_load as number | undefined;
+    if (voltageL1NoLoad !== undefined || voltageL1Load !== undefined) {
+      const voltageStr = voltageL1NoLoad !== undefined && voltageL1Load !== undefined
+        ? `L1: ${voltageL1NoLoad}V (no-load) / ${voltageL1Load}V (load)`
+        : voltageL1NoLoad !== undefined
+          ? `L1: ${voltageL1NoLoad}V (no-load)`
+          : `L1: ${voltageL1Load}V (load)`;
+      testSummaryParts.push(`Supply Voltage: ${voltageStr}.`);
+    }
+    
+    // Load current measurements
+    const loadCurrentL1 = measured.load_current_l1 as number | undefined;
+    const loadCurrentNeutral = measured.load_current_neutral as number | undefined;
+    if (loadCurrentL1 !== undefined) {
+      let currentStr = `L1: ${loadCurrentL1}A`;
+      if (loadCurrentNeutral !== undefined) {
+        currentStr += `, N: ${loadCurrentNeutral}A`;
+      }
+      testSummaryParts.push(`Load Current: ${currentStr}.`);
+    }
+    
+    // Earth resistance from measured (if not already captured from earthing)
+    const measuredEarthResistance = measured.earth_resistance_ohm as number | undefined;
+    if (measuredEarthResistance !== undefined && !earthing?.earth_resistance_ohm) {
+      const method = measured.earth_test_method as string | undefined;
+      const methodStr = method ? ` (${method} method)` : "";
+      testSummaryParts.push(`Earth Resistance: ${measuredEarthResistance} Ω${methodStr}.`);
+    }
+    
+    // MEN continuity
+    const menContinuity = measured.men_continuity as string | undefined;
+    if (menContinuity) {
+      testSummaryParts.push(`MEN Continuity: ${menContinuity === "pass" ? "Pass" : menContinuity === "fail" ? "Fail" : menContinuity}.`);
+    }
+    
+    // Thermal imaging
+    const thermalAmbient = measured.thermal_ambient_temp as number | undefined;
+    const thermalMaxSwitch = measured.thermal_max_main_switch_temp as number | undefined;
+    const thermalDeltaT = measured.thermal_delta_t as number | undefined;
+    if (thermalAmbient !== undefined || thermalMaxSwitch !== undefined || thermalDeltaT !== undefined) {
+      const thermalParts: string[] = [];
+      if (thermalAmbient !== undefined) thermalParts.push(`Ambient: ${thermalAmbient}°C`);
+      if (thermalMaxSwitch !== undefined) thermalParts.push(`Max Switch: ${thermalMaxSwitch}°C`);
+      if (thermalDeltaT !== undefined) thermalParts.push(`ΔT: ${thermalDeltaT}°C`);
+      testSummaryParts.push(`Thermal Imaging: ${thermalParts.join(", ")}.`);
+    }
+    
+    // Insulation resistance
+    const insulationResistance = measured.insulation_resistance_mohm as number | undefined;
+    if (insulationResistance !== undefined) {
+      testSummaryParts.push(`Insulation Resistance: ${insulationResistance} MΩ.`);
+    }
+    
+    // Main earthing conductor size
+    const mecSize = measured.main_earthing_conductor_size_mm2 as number | undefined;
+    if (mecSize !== undefined) {
+      testSummaryParts.push(`Main Earthing Conductor: ${mecSize} mm².`);
     }
   }
   

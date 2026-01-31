@@ -647,3 +647,453 @@ finding_profiles:
     compliance: LOW
     category: OTHER
     notes: "Fallback profile for unmapped IDs. Ensure new IDs are added to profiles."
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - SWITCHBOARD CONTAMINATION
+  # ======================================
+
+  SWITCHBOARD_CONTAMINATION:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: RELIABILITY
+    notes: "Dust, insect, or spider contamination in switchboard can affect device operation and increase fire risk."
+    asset_component: "Main Switchboard - Enclosure Cleanliness"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $150–$400"
+    timeline: "6–12 months"
+
+  SWITCHBOARD_GREASE_OIL:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Grease or oil contamination increases fire risk and can affect device operation."
+    asset_component: "Main Switchboard - Contamination"
+    risk_severity: 4
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $200–$500"
+    timeline: "3–6 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - CABLES & CONDUCTORS
+  # ======================================
+
+  CABLE_ENTRY_UNPROTECTED:
+    default_risk: 4
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Unprotected cable entries (no grommet) can damage cable insulation over time."
+    asset_component: "Switchboard - Cable Entries"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $100–$300"
+    timeline: "6–12 months"
+
+  EXPOSED_CONDUCTORS:
+    default_risk: 7
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Exposed single insulated conductors increase shock and fire risk."
+    asset_component: "Wiring - Conductor Protection"
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: MED
+    budget_range: "AUD $300–$800"
+    timeline: "0–3 months"
+
+  COLOUR_IDENTIFICATION_INCORRECT:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Incorrect conductor colour identification can lead to wiring errors during maintenance."
+    asset_component: "Wiring - Conductor Identification"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $200–$600"
+    timeline: "6–12 months"
+
+  MIXED_OLD_NEW_DEVICES:
+    default_risk: 4
+    default_budget: 2
+    compliance: LOW
+    category: LEGACY
+    notes: "Mix of old and new devices may indicate piecemeal upgrades; consider unified upgrade."
+    asset_component: "Switchboard - Protection Devices"
+    risk_severity: 3
+    likelihood: 2
+    priority: PLAN
+    budget_band: MED
+    budget_range: "AUD $1,500–$4,000"
+    timeline: "Next renovation"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - EARTHING
+  # ======================================
+
+  BARE_EARTH_CONDUCTOR:
+    default_risk: 5
+    default_budget: 2
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Bare earth conductor in use may not meet current standards."
+    asset_component: "Earthing System - Conductor"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $200–$500"
+    timeline: "6–12 months"
+
+  EARTH_NEUTRAL_MIXED:
+    default_risk: 8
+    default_budget: 3
+    compliance: HIGH
+    category: SHOCK
+    notes: "Earth and neutral mixed downstream creates serious shock hazard and must be corrected."
+    asset_component: "Wiring - E/N Separation"
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: MED
+    budget_range: "AUD $500–$1,500"
+    timeline: "0–3 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - GPO / OUTLETS
+  # ======================================
+
+  GPO_LOOSE_MOUNTING:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Loose power point mounting can cause arcing and overheating."
+    asset_component: "GPO Outlets - Mounting"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $80–$200 per outlet"
+    timeline: "6–12 months"
+
+  GPO_BURN_MARKS:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Burn marks on outlets indicate previous overheating or arcing events."
+    asset_component: "GPO Outlets"
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $100–$300 per outlet"
+    timeline: "0–3 months"
+
+  GPO_SOCKET_WORN:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Worn socket contacts can cause poor connections and overheating."
+    asset_component: "GPO Outlets - Socket Contacts"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $80–$200 per outlet"
+    timeline: "6–12 months"
+
+  GPO_OVERHEATING:
+    default_risk: 8
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Outlet surface abnormally warm to touch indicates active thermal stress."
+    asset_component: "GPO Outlets"
+    risk_severity: 5
+    likelihood: 4
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $150–$400"
+    timeline: "0–1 month"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - SWITCHES & FITTINGS
+  # ======================================
+
+  SWITCH_PLATE_DAMAGED:
+    default_risk: 4
+    default_budget: 1
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Cracked or damaged switch plate can expose live parts."
+    asset_component: "Light Switches"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $50–$150 per switch"
+    timeline: "6–12 months"
+
+  SWITCH_LOOSE_MOUNTING:
+    default_risk: 4
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Loose switch body can cause connection issues and arcing."
+    asset_component: "Light Switches"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $80–$200 per switch"
+    timeline: "6–12 months"
+
+  AUDIBLE_ARCING:
+    default_risk: 8
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Audible buzzing or crackling indicates active arcing and requires immediate attention."
+    asset_component: "Electrical Accessories"
+    risk_severity: 5
+    likelihood: 4
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $150–$400"
+    timeline: "0–1 month"
+
+  LIGHT_FITTING_LOOSE:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Loose light fitting can cause connection issues and may fall."
+    asset_component: "Light Fittings"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $100–$300"
+    timeline: "3–6 months"
+
+  BARE_WIRE_EXPOSED:
+    default_risk: 9
+    default_budget: 2
+    compliance: HIGH
+    category: SHOCK
+    notes: "Bare metal wire core visible creates immediate shock hazard."
+    asset_component: "Wiring"
+    risk_severity: 5
+    likelihood: 4
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $200–$500"
+    timeline: "0–1 month"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - KITCHEN / BATHROOM
+  # ======================================
+
+  GREASE_FIRE_RISK:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Grease residue on rangehood filter increases fire risk."
+    asset_component: "Kitchen - Rangehood"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $50–$200 (cleaning)"
+    timeline: "3–6 months"
+
+  MOISTURE_DAMAGE:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Moisture staining near electrical fittings indicates water ingress risk."
+    asset_component: "Bathroom - Electrical Fittings"
+    risk_severity: 4
+    likelihood: 3
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $200–$600"
+    timeline: "3–6 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - ROOF SPACE
+  # ======================================
+
+  INSULATION_CONTACT:
+    default_risk: 6
+    default_budget: 2
+    compliance: MEDIUM
+    category: FIRE
+    notes: "Cables in contact with insulation can cause heat buildup."
+    asset_component: "Roof Space - Wiring"
+    risk_severity: 4
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $300–$800"
+    timeline: "6–12 months"
+
+  TAPED_CONNECTION_VISIBLE:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Taped connections (not in junction box) are non-compliant and fire risk."
+    asset_component: "Wiring - Connections"
+    risk_severity: 4
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $150–$400 per connection"
+    timeline: "0–3 months"
+
+  TRANSFORMER_ON_INSULATION:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Transformer resting on insulation can cause overheating and fire."
+    asset_component: "Roof Space - Transformer"
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $200–$500"
+    timeline: "0–3 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - EXTERIOR
+  # ======================================
+
+  OUTDOOR_COVER_MISSING:
+    default_risk: 6
+    default_budget: 1
+    compliance: MEDIUM
+    category: SHOCK
+    notes: "Missing or broken weatherproof cover exposes outlet to moisture."
+    asset_component: "Outdoor - GPO Outlets"
+    risk_severity: 4
+    likelihood: 3
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $100–$300"
+    timeline: "3–6 months"
+
+  FLEXIBLE_LEAD_FIXED:
+    default_risk: 5
+    default_budget: 1
+    compliance: MEDIUM
+    category: COMPLIANCE
+    notes: "Flexible lead fixed with clips/screws is non-compliant installation."
+    asset_component: "Wiring - Installation Method"
+    risk_severity: 3
+    likelihood: 2
+    priority: RECOMMENDED
+    budget_band: LOW
+    budget_range: "AUD $150–$400"
+    timeline: "6–12 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - LEGACY / AGEING
+  # ======================================
+
+  BAKELITE_CERAMIC_ACCESSORY:
+    default_risk: 4
+    default_budget: 2
+    compliance: LOW
+    category: LEGACY
+    notes: "Bakelite or ceramic accessories indicate aged installation requiring planned upgrade."
+    asset_component: "Electrical Accessories"
+    risk_severity: 3
+    likelihood: 2
+    priority: PLAN
+    budget_band: MED
+    budget_range: "AUD $500–$2,000"
+    timeline: "Next renovation"
+
+  NON_STANDARD_WIRING:
+    default_risk: 6
+    default_budget: 3
+    compliance: HIGH
+    category: COMPLIANCE
+    notes: "Non-standard wiring or added components may indicate DIY or unlicensed work."
+    asset_component: "Wiring - Installation Quality"
+    risk_severity: 4
+    likelihood: 3
+    priority: RECOMMENDED
+    budget_band: MED
+    budget_range: "AUD $500–$2,000"
+    timeline: "3–6 months"
+
+  CABLE_DAMAGE_VISIBLE:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: FIRE
+    notes: "Visible cable damage creates shock and fire risk."
+    asset_component: "Wiring"
+    risk_severity: 5
+    likelihood: 3
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $200–$600"
+    timeline: "0–3 months"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - SMOKE ALARMS
+  # ======================================
+
+  SMOKE_ALARM_TEST_FAIL:
+    default_risk: 7
+    default_budget: 2
+    compliance: HIGH
+    category: LIFE_SAFETY
+    notes: "Smoke alarm failed to sound during test; may be defective."
+    asset_component: "Smoke Alarms"
+    risk_severity: 5
+    likelihood: 2
+    priority: IMMEDIATE
+    budget_band: LOW
+    budget_range: "AUD $150–$400"
+    timeline: "0–1 month"
+
+  # ======================================
+  # NEW FINDINGS (v2.0) - SOLAR / BATTERY
+  # ======================================
+
+  PV_INVERTER_ALARM:
+    default_risk: 6
+    default_budget: 3
+    compliance: MEDIUM
+    category: RELIABILITY
+    notes: "Inverter displaying alarm may indicate system fault requiring investigation."
+    asset_component: "Solar PV - Inverter"
+    risk_severity: 4
+    likelihood: 3
+    priority: RECOMMENDED
+    budget_band: MED
+    budget_range: "AUD $300–$1,500"
+    timeline: "0–3 months"
