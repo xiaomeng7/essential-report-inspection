@@ -41,6 +41,7 @@ export type FindingProfile = {
     why_it_matters: string;
     if_not_addressed: string;
     planning_guidance: string;
+    asset_perspective?: string; // NEW - Gold Sample requirement
   };
   disclaimer_line: string;
   // New fields (v2.0+)

@@ -143,12 +143,13 @@ function validateRiskInterpretation(
 }
 
 /**
- * Generate Risk Interpretation with required components
+ * Generate Risk Interpretation with required components (Gold Sample format)
  * 
  * Must include:
  * 1. What it means now (current state)
- * 2. What happens if not addressed (REQUIRED clause)
- * 3. Why this priority level (why not Immediate, if not IMMEDIATE)
+ * 2. What happens if not addressed (REQUIRED - escalation path)
+ * 3. Asset/investor perspective (REQUIRED - risk from asset management view)
+ * 4. Why this priority level (why not Immediate, if not IMMEDIATE)
  */
 function generateRiskInterpretation(
   profile: FindingProfile,
@@ -163,7 +164,7 @@ function generateRiskInterpretation(
                       "This condition may affect electrical safety, reliability, or compliance depending on severity and location.";
   parts.push(currentState.trim());
   
-  // 2. What happens if not addressed (REQUIRED - must include "if not addressed")
+  // 2. What happens if not addressed (REQUIRED - must include escalation path)
   let ifNotAddressed = profile.messaging?.if_not_addressed;
   if (!ifNotAddressed && response.risk_interpretation) {
     // Try to extract "if not addressed" clause from risk_interpretation
@@ -173,11 +174,13 @@ function generateRiskInterpretation(
     }
   }
   if (!ifNotAddressed) {
-    // Generate default based on priority
+    // Generate default based on priority with escalation path
     if (priority === "IMMEDIATE") {
       ifNotAddressed = "If this condition is not addressed, it may lead to immediate safety hazards, compliance violations, or liability escalation.";
+    } else if (priority === "RECOMMENDED") {
+      ifNotAddressed = "If not addressed, this condition could escalate from a maintenance issue to an active safety concern, increasing the cost and urgency of rectification.";
     } else {
-      ifNotAddressed = "If this condition is not addressed, it may impact long-term reliability, compliance confidence, or operational efficiency over time.";
+      ifNotAddressed = "If this condition is not addressed proactively, it may lead to reduced system reliability or increased reactive maintenance costs over time.";
     }
   }
   // Ensure it contains "if not addressed" phrase
@@ -186,28 +189,46 @@ function generateRiskInterpretation(
   }
   parts.push(ifNotAddressed.trim());
   
-  // 3. Why this priority level (why not Immediate, REQUIRED if not IMMEDIATE)
+  // 3. Asset/investor perspective (NEW - Gold Sample requirement)
+  let assetPerspective = profile.messaging?.asset_perspective;
+  if (!assetPerspective) {
+    // Generate default based on priority
+    if (priority === "IMMEDIATE") {
+      assetPerspective = "From an asset risk perspective, immediate action is necessary to prevent further liability exposure and protect asset value.";
+    } else if (priority === "RECOMMENDED") {
+      assetPerspective = "From an asset risk perspective, modernisation is best scheduled proactively to avoid reactive call-outs and to improve safety margins. This is a planned capital expenditure opportunity rather than an emergency.";
+    } else {
+      assetPerspective = "From an asset management perspective, this item can be deferred to the next planned electrical upgrade cycle without significant additional risk.";
+    }
+  }
+  parts.push(assetPerspective.trim());
+  
+  // 4. Why this priority level (why not Immediate, REQUIRED if not IMMEDIATE)
   if (priority !== "IMMEDIATE") {
     let whyNotImmediate = profile.messaging?.planning_guidance;
     if (!whyNotImmediate && response.risk_interpretation) {
       // Try to extract "why not immediate" explanation
-      const match = response.risk_interpretation.match(/(not immediate|manageable|can be planned|allows for planning)[^.]*\./i);
+      const match = response.risk_interpretation.match(/(not immediate|manageable|can be planned|allows for planning|not classified as urgent)[^.]*\./i);
       if (match) {
         whyNotImmediate = match[0];
       }
     }
     if (!whyNotImmediate) {
-      // Generate default explanation
-      whyNotImmediate = "This risk does not present an immediate hazard and can be managed within normal asset planning cycles, allowing for proper budgeting and contractor engagement without immediate urgency.";
+      // Generate default explanation with "because" reasoning
+      if (priority === "RECOMMENDED") {
+        whyNotImmediate = "Not classified as urgent because no active fault condition was detected at the time of assessment, though upgrade is recommended to reduce future failure likelihood.";
+      } else {
+        whyNotImmediate = "This condition is classified as acceptable for monitoring because it does not present an immediate hazard and can be addressed during routine maintenance or renovation cycles.";
+      }
     }
-    // Ensure it explains why it's not immediate
-    if (!/(not immediate|no immediate|not urgent|manageable|can be planned|allows for planning)/i.test(whyNotImmediate.toLowerCase())) {
-      whyNotImmediate = "This condition does not present an immediate hazard. " + whyNotImmediate;
+    // Ensure it explains why it's not immediate with "because" or similar
+    if (!/(not immediate|no immediate|not urgent|not classified|because|since)/i.test(whyNotImmediate.toLowerCase())) {
+      whyNotImmediate = "Not classified as urgent because " + whyNotImmediate.toLowerCase().replace(/^(not|this)\s+/i, "");
     }
     parts.push(whyNotImmediate.trim());
   } else {
-    // For IMMEDIATE, explain why it IS immediate
-    const whyImmediate = "This condition presents an immediate safety or compliance risk that requires urgent attention to prevent potential harm or liability escalation.";
+    // For IMMEDIATE, explain why it IS immediate with specific reasoning
+    const whyImmediate = "Classified as urgent because this condition presents an immediate safety or compliance risk that requires prompt attention to prevent potential harm or liability escalation.";
     parts.push(whyImmediate.trim());
   }
   

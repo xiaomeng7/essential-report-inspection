@@ -4,19 +4,19 @@
   "updated_at": "2026-01-31T00:00:00.000Z",
   "findings": [
     {
-      "id": "SWITCHBOARD_AGED",
+      "id": "SWITCHBOARD_AGED_ORIGINAL",
       "priority": "RECOMMENDED",
-      "title": "Aged Switchboard"
+      "title": "Aged Original Switchboard"
     },
     {
-      "id": "SMOKE_ALARM_AGED",
+      "id": "SMOKE_ALARMS_EXPIRED",
       "priority": "RECOMMENDED",
-      "title": "Smoke Alarm Service Life"
+      "title": "Smoke Alarms Expired"
     },
     {
-      "id": "GPO_LOOSE_MOUNTING",
+      "id": "LIGHTING_CIRCUITS_NO_RCD",
       "priority": "PLAN",
-      "title": "Loose Power Point"
+      "title": "Lighting Circuits Without RCD Protection"
     }
   ],
   "raw": {
