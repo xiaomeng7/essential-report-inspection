@@ -29,6 +29,15 @@ export const FIELD_TO_FINDING: Record<string, string> = {
   // GPO issues
   "gpo_tests.any_warm_loose_damaged": "GPO_MECHANICAL_LOOSE",
 
+  // Internal installation - count fields (number > 0 = issue)
+  "internal.power_point_moves_count": "GPO_MECHANICAL_LOOSE",
+  "internal.cracks_visible_count": "MATERIAL_DEGRADATION",
+  "internal.burn_marks_count": "THERMAL_STRESS_ACTIVE",
+  "internal.plug_disengages_count": "GPO_MECHANICAL_LOOSE",
+
+  // RCD fail count
+  "rcd_tests.summary.total_fail": "GPO_EARTH_FAULT",
+
   // Internal installation - power points & switches
   "internal.surface_warm_to_touch": "FITTING_OVERHEAT",
   "internal.switch_plate_cracked": "SWITCH_ARCING",

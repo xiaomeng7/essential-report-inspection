@@ -6,10 +6,12 @@
     "Section-based wizard; gate logic for skip; each field supports status=answered|skipped."
   ],
   "on_issue_capture": {
-    "description": "When a field has on_issue_capture=true and the answer indicates an issue (boolean=true OR enum=yes), the UI expands a sub-form to capture: location, photo(s), and optional notes. The captured data is stored as {field_key}_detail object.",
+    "description": "When a field has on_issue_capture=true and the answer indicates an issue (boolean=true OR enum=yes OR integer/number>0), the UI expands a sub-form to capture: location, photo(s), and optional notes. The captured data is stored as {field_key}_detail object.",
     "triggers": {
       "boolean": "value === true",
-      "yes_no_unsure": "value === 'yes'"
+      "yes_no_unsure": "value === 'yes'",
+      "integer": "value > 0",
+      "number": "value > 0"
     },
     "detail_fields": {
       "location": { "type": "string", "label": "Location / Room", "required": true, "placeholder": "e.g. Kitchen, Bedroom 2, Garage, Main switchboard" },
@@ -1027,7 +1029,8 @@
           "max": 99,
           "required_when": "rcd_tests.performed==true",
           "skippable": true,
-          "ui": "number"
+          "ui": "number",
+          "on_issue_capture": true
         },
         {
           "key": "rcd_tests.borderline_or_nuisance",
@@ -1313,7 +1316,8 @@
           "max": 999,
           "required": false,
           "skippable": true,
-          "ui": "number"
+          "ui": "number",
+          "on_issue_capture": true
         },
         {
           "key": "internal.cracks_visible_count",
@@ -1323,7 +1327,8 @@
           "max": 999,
           "required": false,
           "skippable": true,
-          "ui": "number"
+          "ui": "number",
+          "on_issue_capture": true
         },
         {
           "key": "internal.burn_marks_count",
@@ -1333,7 +1338,8 @@
           "max": 999,
           "required": false,
           "skippable": true,
-          "ui": "number"
+          "ui": "number",
+          "on_issue_capture": true
         },
         {
           "key": "internal.plug_disengages_count",
@@ -1343,7 +1349,8 @@
           "max": 999,
           "required": false,
           "skippable": true,
-          "ui": "number"
+          "ui": "number",
+          "on_issue_capture": true
         },
         {
           "key": "internal.surface_warm_to_touch",

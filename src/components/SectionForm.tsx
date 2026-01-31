@@ -20,11 +20,15 @@ type Props = {
   setIssueDetail?: (fieldKey: string, detail: IssueDetail) => void;
 };
 
-/** Check if a field value indicates an issue (true for boolean, "yes" for yes_no_unsure) */
+/** Check if a field value indicates an issue (true for boolean, "yes" for yes_no_unsure, >0 for number/integer) */
 function isIssueTriggered(field: FieldDef, value: unknown): boolean {
   if (!field.on_issue_capture) return false;
   if (field.type === "boolean") return value === true;
   if (field.enum === "yes_no_unsure") return value === "yes";
+  if (field.type === "integer" || field.type === "number") {
+    const num = typeof value === "number" ? value : (typeof value === "string" ? parseFloat(value) : NaN);
+    return !isNaN(num) && num > 0;
+  }
   return false;
 }
 
