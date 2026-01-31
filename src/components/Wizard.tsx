@@ -83,6 +83,8 @@ export function Wizard({ onSubmitted }: Props) {
       console.log("Current state:", JSON.stringify(state, null, 2));
       console.log("Current section:", current.id);
       setSectionErrors((prev) => ({ ...prev, [current.id]: errors }));
+      // Scroll to top to show validation errors
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setSectionErrors((prev) => {
@@ -95,10 +97,14 @@ export function Wizard({ onSubmitted }: Props) {
       return;
     }
     setStep((s) => Math.min(s + 1, visibleSections.length - 1));
+    // Scroll to top when navigating to next section
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goBack = () => {
     setStep((s) => Math.max(0, s - 1));
+    // Scroll to top when navigating to previous section
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const submitInspection = async () => {
