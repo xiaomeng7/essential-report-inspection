@@ -35,7 +35,9 @@ canonical_fields:
   
   property_address:
     candidates:
+      - job.address_components
       - job.address
+      - property_address
       - address
       - property.address
       - location.address

@@ -166,6 +166,24 @@ export function validateSection(
     }
 
     if (isReq) {
+      // Address autocomplete: require address_place_id (user must select from suggestions)
+      if (f.key === "job.address" && f.ui === "address_autocomplete") {
+        const placeId = getValue(flat, "job.address_place_id");
+        const hasPlaceId = placeId !== undefined && placeId !== null && String(placeId).trim() !== "";
+        if (!hasPlaceId) {
+          errors[f.key] = "Please select a valid address from suggestions.";
+          continue;
+        }
+        const comp = getValue(flat, "job.address_components") as Record<string, unknown> | undefined;
+        const suburb = comp?.suburb;
+        const state = comp?.state;
+        const postcode = comp?.postcode;
+        if (!suburb && !state && !postcode) {
+          errors[f.key] = "Please select a valid address from suggestions.";
+          continue;
+        }
+      }
+
       // Check for empty values first (but allow false for boolean and empty array for array_enum to be checked separately)
       if (v === undefined || v === null || (typeof v === "string" && v === "")) {
         console.log(`Field ${f.key} is empty: v=`, v);

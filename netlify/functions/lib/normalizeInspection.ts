@@ -156,6 +156,33 @@ export function normalizeInspection(
         // Keep original value if date parsing fails
       }
     }
+
+    // Handle special case: property_address - prefer address_components assembly, fallback to property_address/job.address string
+    if (canonicalField === "property_address") {
+      const comp = getFieldValue(raw, "job.address_components") as Record<string, unknown> | undefined;
+      let assembled = "";
+      if (comp && typeof comp === "object" && !Array.isArray(comp)) {
+        const parts: string[] = [];
+        const streetNumber = comp.street_number;
+        const route = comp.route;
+        const suburb = comp.suburb;
+        const state = comp.state;
+        const postcode = comp.postcode;
+        const country = comp.country;
+        if (streetNumber && typeof streetNumber === "string") parts.push(streetNumber);
+        if (route && typeof route === "string") parts.push(route);
+        if (suburb && typeof suburb === "string") parts.push(suburb);
+        if (state && typeof state === "string") parts.push(state);
+        if (postcode && typeof postcode === "string") parts.push(postcode);
+        if (country && typeof country === "string") parts.push(country);
+        if (parts.length > 0) assembled = parts.join(", ");
+      }
+      if (assembled) {
+        value = assembled;
+      } else {
+        value = value ?? getFieldValue(raw, "job.address") ?? getFieldValue(raw, "property_address") ?? getFieldValue(raw, "address");
+      }
+    }
     
     // Set canonical value (use empty string or null instead of undefined)
     if (value === undefined) {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FieldDef } from "../lib/fieldDictionary";
 import { getEnum, getSkipReasons } from "../lib/fieldDictionary";
 import type { Answer, AnswerValue } from "../hooks/useInspection";
+import { AddressAutocomplete, type StructuredAddress } from "./AddressAutocomplete";
 
 type Props = {
   field: FieldDef;
@@ -10,6 +11,10 @@ type Props = {
   error?: string;
   isGate?: boolean;
   onGateChange?: (key: string, newVal: unknown, prevVal: unknown) => void;
+  /** For address_autocomplete: composed structured value */
+  addressValue?: StructuredAddress | null;
+  /** For address_autocomplete: handler that sets job.address, job.address_place_id, etc. */
+  onAddressChange?: (addr: StructuredAddress | null) => void;
 };
 
 const SKIP_REASONS = getSkipReasons();
@@ -36,7 +41,7 @@ function normalizeVal(v: unknown, type: string): string | number | boolean | str
   return currentValue as string | number | boolean | string[];
 }
 
-export function FieldRenderer({ field, value, onChange, error, isGate, onGateChange }: Props) {
+export function FieldRenderer({ field, value, onChange, error, isGate, onGateChange, addressValue, onAddressChange }: Props) {
   const raw = typeof value === "object" && value !== null && "value" in (value as object) ? (value as Answer) : null;
   const val = normalizeVal(value, field.type);
   const skipped = raw?.status === "skipped";
@@ -56,6 +61,22 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
   };
 
   const id = `f-${field.key.replace(/\./g, "-")}`;
+
+  if (field.ui === "address_autocomplete") {
+    return (
+      <div className="field">
+        <AddressAutocomplete
+          value={addressValue ?? null}
+          onChange={(addr) => {
+            if (onAddressChange) onAddressChange(addr);
+          }}
+          required={field.required ?? true}
+          disabled={skipped}
+          error={error}
+        />
+      </div>
+    );
+  }
 
   if (field.ui === "text") {
     return (

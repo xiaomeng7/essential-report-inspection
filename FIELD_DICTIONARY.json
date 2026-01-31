@@ -256,11 +256,11 @@
       "fields": [
         {
           "key": "job.address",
-          "label": "Job address",
+          "label": "Property address",
           "type": "string",
           "required": true,
           "skippable": false,
-          "ui": "text"
+          "ui": "address_autocomplete"
         },
         {
           "key": "job.client_type",

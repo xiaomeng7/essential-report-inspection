@@ -22,8 +22,41 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     raw = JSON.parse(event.body ?? "{}") as Record<string, unknown>;
   } catch (e) {
     console.error("JSON parse error:", e);
-    return { statusCode: 400, body: "Invalid JSON" };
+    return { statusCode: 400, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
+
+  // Address validation: require address_place_id and suburb/state/postcode
+  const extractValue = (v: unknown): unknown => {
+    if (v == null) return undefined;
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
+    if (typeof v === "object" && "value" in (v as object)) {
+      const answerValue = (v as { value: unknown }).value;
+      if (typeof answerValue === "object" && answerValue !== null && "value" in (answerValue as object)) {
+        return extractValue(answerValue);
+      }
+      return answerValue;
+    }
+    return undefined;
+  };
+  const job = raw.job as Record<string, unknown> | undefined;
+  const placeId = extractValue(job?.address_place_id);
+  const comp = extractValue(job?.address_components) as Record<string, unknown> | undefined;
+  const suburb = comp?.suburb;
+  const state = comp?.state;
+  const postcode = comp?.postcode;
+  const hasPlaceId = placeId !== undefined && placeId !== null && String(placeId).trim() !== "";
+  const hasComponents = (suburb && String(suburb).trim()) || (state && String(state).trim()) || (postcode && String(postcode).trim());
+  if (!hasPlaceId || !hasComponents) {
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        error: "Invalid address",
+        message: "Please select a valid address from suggestions. Address must include suburb, state, and postcode.",
+      }),
+    };
+  }
+
   try {
     console.log("Starting inspection processing...");
     const inspection_id = await genId(event);

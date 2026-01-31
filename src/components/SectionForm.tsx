@@ -4,6 +4,7 @@ import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
 import type { InspectionState } from "../hooks/useInspection";
 import { FieldRenderer } from "./FieldRenderer";
 import { IssueDetailCapture, createEmptyIssueDetail, type IssueDetail } from "./IssueDetailCapture";
+import type { StructuredAddress, AddressComponents, AddressGeo } from "./AddressAutocomplete";
 
 type Props = {
   section: SectionDef;
@@ -137,6 +138,37 @@ export function SectionForm({
     [setIssueDetail]
   );
 
+  const handleAddressChange = useCallback(
+    (addr: StructuredAddress | null) => {
+      if (!addr) {
+        setAnswer("job.address", { value: "", status: "answered" });
+        setAnswer("job.address_place_id", { value: "", status: "answered" });
+        setAnswer("job.address_components", { value: {} as Record<string, unknown>, status: "answered" });
+        setAnswer("job.address_geo", { value: null, status: "answered" });
+      } else {
+        setAnswer("job.address", { value: addr.property_address, status: "answered" });
+        setAnswer("job.address_place_id", { value: addr.address_place_id, status: "answered" });
+        setAnswer("job.address_components", { value: addr.address_components as Record<string, unknown>, status: "answered" });
+        setAnswer("job.address_geo", { value: (addr.address_geo ?? null) as Record<string, unknown> | null, status: "answered" });
+      }
+    },
+    [setAnswer]
+  );
+
+  const getAddressValue = useCallback((): StructuredAddress | null => {
+    const placeId = getValue("job.address_place_id");
+    if (!placeId || typeof placeId !== "string" || !placeId.trim()) return null;
+    const addr = getValue("job.address");
+    const comp = getValue("job.address_components");
+    const geo = getValue("job.address_geo");
+    return {
+      property_address: String(addr ?? ""),
+      address_place_id: String(placeId ?? ""),
+      address_components: (typeof comp === "object" && comp !== null ? comp : {}) as AddressComponents,
+      address_geo: (typeof geo === "object" && geo !== null && !Array.isArray(geo) ? geo : undefined) as AddressGeo | undefined,
+    };
+  }, [getValue]);
+
   const visibleFields = useMemo(() => {
     const out: FieldDef[] = [];
     for (const f of section.fields) {
@@ -170,6 +202,7 @@ export function SectionForm({
         }
         const showIssueCapture = isIssueTriggered(f, value);
         const issueDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
+        const isAddressField = f.key === "job.address" && f.ui === "address_autocomplete";
         return (
           <div key={f.key}>
             <FieldRenderer
@@ -179,6 +212,8 @@ export function SectionForm({
               error={errors[f.key]}
               isGate={gateKeys.has(f.key)}
               onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
+              addressValue={isAddressField ? getAddressValue() : undefined}
+              onAddressChange={isAddressField ? handleAddressChange : undefined}
             />
             {showIssueCapture && setIssueDetail && (
               <IssueDetailCapture

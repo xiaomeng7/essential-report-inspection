@@ -4,7 +4,7 @@ import { getClearPathsForGateChange } from "../lib/gates";
 
 const DRAFT_KEY = "inspection-draft";
 
-export type AnswerValue = string | number | boolean | string[] | Record<string, unknown>[] | null;
+export type AnswerValue = string | number | boolean | string[] | Record<string, unknown>[] | Record<string, unknown> | null;
 export type Answer = {
   value: AnswerValue;
   status: "answered" | "skipped";
