@@ -1,5 +1,14 @@
 import type { InspectionState } from "../hooks/useInspection";
-import { getSections } from "./fieldDictionary";
+import { getSections, getFieldDictionary } from "./fieldDictionary";
+
+type CrossFieldValidation = {
+  id: string;
+  description: string;
+  condition: string;
+  rule: string;
+  error_message: string;
+  fields: string[];
+};
 
 function getValue(obj: unknown, path: string): unknown {
   if (obj == null || typeof obj !== "object") return undefined;
@@ -212,7 +221,163 @@ export function validateSection(
     }
   }
 
+  // Add cross-field validation for this section
+  const crossErrors = validateCrossFieldRulesForSection(sectionId, state);
+  for (const [field, error] of Object.entries(crossErrors)) {
+    errors[field] = error;
+  }
+
   return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/**
+ * Validate cross-field rules that apply to fields in a specific section
+ */
+function validateCrossFieldRulesForSection(
+  sectionId: string,
+  state: InspectionState
+): Record<string, string> {
+  const dict = getFieldDictionary();
+  const sections = getSections();
+  const section = sections.find((s) => s.id === sectionId);
+  if (!section) return {};
+
+  const sectionFieldKeys = new Set(section.fields.map((f) => f.key));
+  const validations = (dict as unknown as { cross_field_validations?: CrossFieldValidation[] }).cross_field_validations ?? [];
+  const flat = flattenAnswers(state);
+  const errors: Record<string, string> = {};
+
+  for (const v of validations) {
+    // Only validate if at least one field belongs to this section
+    const relevantFields = v.fields.filter((f) => sectionFieldKeys.has(f));
+    if (relevantFields.length === 0) continue;
+
+    // Check condition first
+    if (v.condition) {
+      const conditionMet = evalCrossFieldCondition(v.condition, flat);
+      if (!conditionMet) continue;
+    }
+
+    // Get field values
+    const values: Record<string, number> = {};
+    let allFieldsPresent = true;
+    for (const field of v.fields) {
+      const val = getValue(flat, field);
+      if (val === undefined || val === null || val === "") {
+        allFieldsPresent = false;
+        break;
+      }
+      const numVal = typeof val === "number" ? val : parseFloat(String(val));
+      if (isNaN(numVal)) {
+        allFieldsPresent = false;
+        break;
+      }
+      const shortKey = field.split(".").pop() || field;
+      values[shortKey] = numVal;
+    }
+
+    if (!allFieldsPresent) continue;
+
+    // Validate rule
+    const ruleValid = evalCrossFieldRule(v.id, values);
+    if (!ruleValid) {
+      let errorMsg = v.error_message;
+      for (const [key, val] of Object.entries(values)) {
+        errorMsg = errorMsg.replace(`{${key}}`, String(val));
+      }
+      // Add error to the first relevant field in this section
+      for (const field of relevantFields) {
+        errors[field] = errorMsg;
+        break;
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate cross-field rules (e.g., pass + fail = total)
+ */
+export function validateCrossFieldRules(
+  state: InspectionState
+): Record<string, string> {
+  const dict = getFieldDictionary();
+  const validations = (dict as unknown as { cross_field_validations?: CrossFieldValidation[] }).cross_field_validations ?? [];
+  const flat = flattenAnswers(state);
+  const errors: Record<string, string> = {};
+
+  for (const v of validations) {
+    // Check condition first
+    if (v.condition) {
+      const conditionMet = evalCrossFieldCondition(v.condition, flat);
+      if (!conditionMet) continue;
+    }
+
+    // Get field values
+    const values: Record<string, number> = {};
+    let allFieldsPresent = true;
+    for (const field of v.fields) {
+      const val = getValue(flat, field);
+      if (val === undefined || val === null || val === "") {
+        allFieldsPresent = false;
+        break;
+      }
+      const numVal = typeof val === "number" ? val : parseFloat(String(val));
+      if (isNaN(numVal)) {
+        allFieldsPresent = false;
+        break;
+      }
+      // Extract short key name for error message template
+      const shortKey = field.split(".").pop() || field;
+      values[shortKey] = numVal;
+    }
+
+    if (!allFieldsPresent) continue;
+
+    // Validate rule
+    const ruleValid = evalCrossFieldRule(v.id, values);
+    if (!ruleValid) {
+      // Format error message with values
+      let errorMsg = v.error_message;
+      for (const [key, val] of Object.entries(values)) {
+        errorMsg = errorMsg.replace(`{${key}}`, String(val));
+      }
+      // Add error to the last field (or all fields)
+      const lastField = v.fields[v.fields.length - 1];
+      errors[lastField] = errorMsg;
+    }
+  }
+
+  return errors;
+}
+
+function evalCrossFieldCondition(condition: string, flat: Record<string, unknown>): boolean {
+  // Simple condition evaluation: "field === true" or "field === false"
+  const match = condition.match(/^(.+?)\s*===\s*(.+)$/);
+  if (!match) return true;
+  const [, fieldPath, expected] = match;
+  const val = getValue(flat, fieldPath.trim());
+  if (expected.trim() === "true") return val === true;
+  if (expected.trim() === "false") return val === false;
+  return String(val) === expected.trim();
+}
+
+function evalCrossFieldRule(ruleId: string, values: Record<string, number>): boolean {
+  // Hardcoded rule evaluation for known rules
+  if (ruleId === "rcd_pass_fail_sum") {
+    const pass = values["total_pass"] ?? 0;
+    const fail = values["total_fail"] ?? 0;
+    const total = values["total_tested"] ?? 0;
+    return pass + fail === total;
+  }
+  if (ruleId === "gpo_polarity_earth_sum") {
+    const polarity = values["polarity_pass"] ?? 0;
+    const earth = values["earth_present_pass"] ?? 0;
+    const total = values["total_gpo_tested"] ?? 0;
+    return polarity <= total && earth <= total;
+  }
+  return true;
 }
 
 export function validateAll(state: InspectionState): Record<string, Record<string, string>> {
@@ -222,5 +387,19 @@ export function validateAll(state: InspectionState): Record<string, Record<strin
     const { errors } = validateSection(s.id, state);
     if (Object.keys(errors).length) out[s.id] = errors;
   }
+  
+  // Add cross-field validation errors
+  const crossErrors = validateCrossFieldRules(state);
+  for (const [field, error] of Object.entries(crossErrors)) {
+    // Find which section this field belongs to
+    for (const s of sections) {
+      if (s.fields.some(f => f.key === field)) {
+        if (!out[s.id]) out[s.id] = {};
+        out[s.id][field] = error;
+        break;
+      }
+    }
+  }
+  
   return out;
 }

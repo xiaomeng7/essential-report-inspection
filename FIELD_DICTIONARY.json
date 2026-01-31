@@ -5,6 +5,24 @@
     "Aligned with On-Site Technical Checklist MASTER MERGED (Essential Electrical Report Field Data Standard).",
     "Section-based wizard; gate logic for skip; each field supports status=answered|skipped."
   ],
+  "cross_field_validations": [
+    {
+      "id": "rcd_pass_fail_sum",
+      "description": "RCD pass + fail must equal total tested",
+      "condition": "rcd_tests.performed === true",
+      "rule": "rcd_tests.summary.total_pass + rcd_tests.summary.total_fail === rcd_tests.summary.total_tested",
+      "error_message": "Pass ({total_pass}) + Fail ({total_fail}) must equal Total Tested ({total_tested})",
+      "fields": ["rcd_tests.summary.total_pass", "rcd_tests.summary.total_fail", "rcd_tests.summary.total_tested"]
+    },
+    {
+      "id": "gpo_polarity_earth_sum",
+      "description": "GPO polarity + earth pass cannot exceed total tested",
+      "condition": "gpo_tests.performed === true",
+      "rule": "gpo_tests.summary.polarity_pass <= gpo_tests.summary.total_gpo_tested && gpo_tests.summary.earth_present_pass <= gpo_tests.summary.total_gpo_tested",
+      "error_message": "Pass counts cannot exceed Total Tested ({total_gpo_tested})",
+      "fields": ["gpo_tests.summary.polarity_pass", "gpo_tests.summary.earth_present_pass", "gpo_tests.summary.total_gpo_tested"]
+    }
+  ],
   "on_issue_capture": {
     "description": "When a field has on_issue_capture=true and the answer indicates an issue (boolean=true OR enum=yes OR integer/number>0), the UI expands a sub-form to capture: location, photo(s), and optional notes. The captured data is stored as {field_key}_detail object.",
     "triggers": {
