@@ -69,7 +69,6 @@ export async function renderDocxWithHtmlMerge(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Promise<Buffer> {
-  console.log("[report-fp] Using renderer: HTML_MERGE(A)");
   // 1. 使用 docxtemplater 填充封面信息
   const zip = new PizZip(templateBuffer);
   const doc = new Docxtemplater(zip, {
@@ -139,6 +138,7 @@ export async function renderDocxWithHtmlMerge(
 
     merger.save("nodebuffer", (mergedBuffer: Buffer) => {
       if (mergedBuffer) {
+        console.log("[report-fp] Using renderer: HTML_MERGE(A)");
         resolve(mergedBuffer);
       } else {
         reject(new Error("合并 DOCX 失败"));
@@ -266,12 +266,12 @@ export async function renderDocx(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Promise<Buffer> {
-  // 优先使用方案 A（保留格式）
   try {
-    return await renderDocxWithHtmlMerge(templateBuffer, data);
+    const outBuffer = await renderDocxWithHtmlMerge(templateBuffer, data);
+    return outBuffer;
   } catch (error) {
-    console.warn("方案 A 失败，回退到方案 B（纯文本）:", error);
-    // 回退到方案 B（纯文本，简单但会丢失格式）
+    const msg = error instanceof Error ? error.message : String(error);
+    console.log("[report-fp] fallback to B because:", msg);
     return renderDocxWithHtmlAsText(templateBuffer, data);
   }
 }

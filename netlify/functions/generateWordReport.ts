@@ -1961,6 +1961,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
 
+    const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
+    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos);
     console.log("[report][RUN_ID]", RUN_ID, "after load inspection", {
       inspection_id: inspection.inspection_id,
       findings_count: inspection.findings.length,

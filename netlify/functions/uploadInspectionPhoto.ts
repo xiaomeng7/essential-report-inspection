@@ -106,7 +106,13 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   const newPhotoIds = [...existingPhotoIds, photoId];
   (finding as any).photo_ids = newPhotoIds;
 
-  await save(inspection_id, inspection, event);
+  try {
+    await save(inspection_id, inspection, event);
+    console.log("[report-fp] upload saved inspection_id=" + inspection_id + " finding_id=" + finding_id + " new_photo_id=" + photoId + " photo_ids_count=" + newPhotoIds.length);
+  } catch (saveErr) {
+    console.error("[report-fp] upload save FAILED:", saveErr);
+    throw saveErr;
+  }
 
   return {
     statusCode: 200,

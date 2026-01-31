@@ -129,6 +129,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         body: JSON.stringify({ error: "Inspection not found" })
       };
     }
+    const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
+    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos);
 
     // 2. 规范化检查数据（canonical layer）
     const { canonical } = normalizeInspection(inspection.raw, inspection.inspection_id);
