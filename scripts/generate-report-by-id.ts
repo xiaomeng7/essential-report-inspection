@@ -42,9 +42,10 @@ async function loadInspectionWithFallback(inspectionId: string): Promise<any> {
   
   // Fallback to local fixture
   const fixturePaths = [
-    path.join(process.cwd(), "sample-inspection.json"),
+    path.join(process.cwd(), `${inspectionId}.json`),
     path.join(process.cwd(), "fixtures", `${inspectionId}.json`),
     path.join(process.cwd(), "test-data", `${inspectionId}.json`),
+    path.join(process.cwd(), "sample-inspection.json"),
   ];
   
   for (const fixturePath of fixturePaths) {
@@ -93,10 +94,16 @@ async function generateReportById(inspectionId: string) {
     }
     console.log(`   ✅ Normalized to canonical format\n`);
     
-    // 3. Derive findings
+    // 3. Derive findings (skip if error, use inspection.findings instead)
     console.log("Step 3: Deriving findings...");
-    const derivedFindings = deriveFindings(inspection.raw || {});
-    console.log(`   ✅ Derived ${derivedFindings.length} findings\n`);
+    let derivedFindings: any[] = [];
+    try {
+      derivedFindings = deriveFindings(inspection.raw || {});
+      console.log(`   ✅ Derived ${derivedFindings.length} findings\n`);
+    } catch (error) {
+      console.log(`   ⚠️ Skipping deriveFindings due to error: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`   ℹ️ Using inspection.findings instead\n`);
+    }
     
     // Use derived findings if available, otherwise use inspection.findings
     const findings = derivedFindings.length > 0 

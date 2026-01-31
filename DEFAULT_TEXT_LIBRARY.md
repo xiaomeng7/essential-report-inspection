@@ -147,6 +147,26 @@ Thermal imaging can provide additional value as a non-invasive decision support 
 ### CAPEX_NO_DATA
 Capital expenditure estimates will be provided upon request based on detailed quotations from licensed electrical contractors.
 
+### DECISION_CONFIDENCE_STATEMENT
+This report is intended to **reduce decision uncertainty**. If you obtain contractor quotes, you can use the observations and priorities here to challenge scope creep and avoid unnecessary upgrades. The risk interpretations are designed to help you distinguish between urgent liability risks and planned capital expenditure opportunities.
+
+## Decision Pathways
+
+### DECISION_PATHWAYS_INTRO
+This report provides a framework for managing electrical risk within acceptable parameters. Based on the findings and priorities outlined in this report, you can choose one of the following pathways:
+
+### DECISION_PATHWAY_MONITOR
+Take no action now. Reassess in 12 months or at the next tenancy turnover. This option is suitable when all findings are classified as 'Monitor / Acceptable' and there are no immediate or recommended actions.
+
+### DECISION_PATHWAY_PLANNED
+Budget and schedule the planned items within the suggested windows to reduce reactive maintenance. This approach allows you to manage costs proactively and avoid emergency call-outs. Use the CapEx Roadmap in this report to inform your forward planning and budget provisioning.
+
+### DECISION_PATHWAY_INDEPENDENT
+Use this report to brief any contractor of your choice. Request itemised scope aligned to priorities. The observations and risk interpretations in this report are designed to help you challenge scope creep and ensure that any quotes you receive are aligned with the actual risk profile of the property.
+
+### DECISION_PATHWAY_MANAGEMENT_PLAN
+Delegate coordination, quotation review, and completion verification to a management plan (Standard or Premium). This option provides end-to-end management of electrical works, from contractor briefing through to quality assurance and compliance documentation. Contact the inspection provider for details on management plan options.
+
 ## Legal Limitations & Disclaimer
 
 ### LEGAL_FRAMEWORK

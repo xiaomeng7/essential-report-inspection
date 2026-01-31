@@ -1,0 +1,61 @@
+{
+  "inspection_id": "TEST-2026-001",
+  "created_at": "2026-01-31T00:00:00.000Z",
+  "updated_at": "2026-01-31T00:00:00.000Z",
+  "findings": [
+    {
+      "id": "SWITCHBOARD_AGED",
+      "priority": "RECOMMENDED",
+      "title": "Aged Switchboard"
+    },
+    {
+      "id": "SMOKE_ALARM_AGED",
+      "priority": "RECOMMENDED",
+      "title": "Smoke Alarm Service Life"
+    },
+    {
+      "id": "GPO_LOOSE_MOUNTING",
+      "priority": "PLAN",
+      "title": "Loose Power Point"
+    }
+  ],
+  "raw": {
+    "inspection_id": "TEST-2026-001",
+    "assessment_date": "2026-01-31",
+    "prepared_for": "Test Property Owner",
+    "prepared_by": "Better Home Technology Pty Ltd",
+    "property_address": "123 Test Street, Melbourne VIC 3000",
+    "property_type": "Residential",
+    "switchboard": {
+      "age_years": 25,
+      "has_rcbo": false,
+      "has_rcd": true,
+      "condition": "fair"
+    },
+    "smoke_alarms": {
+      "service_life_remaining_years": 2,
+      "photoelectric": "partial",
+      "count": 4
+    },
+    "internal": {
+      "power_point_moves_count": 1,
+      "accessible_gpo_count": 20
+    },
+    "measured": {
+      "supply_voltage_l1_noload": 240,
+      "supply_voltage_l1_load": 238,
+      "load_current_l1": 12.5,
+      "earth_resistance_ohm": 0.8,
+      "insulation_resistance_mohm": 25
+    },
+    "test_data": {
+      "rcd_tests": {
+        "main_rcd_trip_time_ms": 28
+      },
+      "gpo_tests": {},
+      "earthing": {
+        "earth_resistance_ohm": 0.8
+      }
+    }
+  }
+}

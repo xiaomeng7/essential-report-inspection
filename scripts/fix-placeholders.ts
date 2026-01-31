@@ -518,6 +518,7 @@ function main() {
   console.log("=".repeat(60));
 }
 
-if (require.main === module) {
+// Run if this is the main module (ES modules compatible)
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }

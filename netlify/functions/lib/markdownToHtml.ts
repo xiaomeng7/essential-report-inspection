@@ -10,10 +10,25 @@ const VERSION = "2026-01-31-v1";
 
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import MarkdownIt from "markdown-it";
 import { markdownItTable } from "markdown-it-table";
 import { sanitizeText } from "./sanitizeText";
 import { sha1 } from "./fingerprint";
+
+// Get __dirname equivalent for ES modules
+let __dirname: string;
+try {
+  if (typeof import.meta !== "undefined" && import.meta.url) {
+    const __filename = fileURLToPath(import.meta.url);
+    __dirname = path.dirname(__filename);
+  } else {
+    __dirname = process.cwd();
+  }
+} catch (e) {
+  console.warn("Could not determine __dirname from import.meta.url, using process.cwd()");
+  __dirname = process.cwd();
+}
 
 const FALLBACK_CSS = `
 /* Report styles (docx-safe) - fallback */

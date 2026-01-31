@@ -290,12 +290,103 @@ function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<
 }
 
 /**
+ * Section 3A: What This Means for You (NEW - Gold Sample inspired)
+ */
+function buildWhatThisMeansSection(
+  findings: Array<{ id: string; priority: string; title?: string }>,
+  responses: any,
+  defaultText: any
+): string {
+  const md: string[] = [];
+  
+  md.push('<h2 class="page-title">Page 4 | What This Means for You</h2>');
+  md.push("");
+  
+  // Group findings by priority
+  const urgent = findings.filter(f => 
+    f.priority === "IMMEDIATE" || 
+    f.priority === "URGENT" ||
+    f.priority === "IMMEDIATE_SAFETY_CRITICAL"
+  );
+  
+  const budgetary = findings.filter(f => 
+    f.priority === "RECOMMENDED" || 
+    f.priority === "RECOMMENDED_0_3_MONTHS" ||
+    f.priority === "SHORT_TERM"
+  );
+  
+  const monitor = findings.filter(f => 
+    f.priority === "PLAN" || 
+    f.priority === "PLAN_MONITOR" ||
+    f.priority === "MONITOR"
+  );
+  
+  // 1. What requires action now
+  md.push("### What requires action now");
+  if (urgent.length === 0) {
+    md.push("**No urgent liability risks identified.**");
+    md.push("");
+    md.push("No immediate safety concerns were detected at the time of assessment. This provides a stable foundation for planned electrical management.");
+  } else {
+    md.push("The following items should be addressed as soon as practically possible:");
+    md.push("");
+    urgent.forEach(f => {
+      const resp = responses?.findings?.[f.id];
+      const timeline = resp?.timeline || "immediately";
+      const reason = resp?.why_it_matters || "to reduce liability risk";
+      md.push(`- **${f.title || f.id}** should be addressed ${timeline} ${reason}.`);
+    });
+  }
+  md.push("");
+  
+  // 2. What should be planned (to avoid future disruption)
+  md.push("### What should be planned (to avoid future disruption)");
+  if (budgetary.length === 0) {
+    md.push("No planned items identified at this time. The electrical installation is operating within acceptable parameters.");
+  } else {
+    md.push("These items do not represent active faults, but **modernisation or upgrades are recommended** to improve safety margins and avoid reactive call-outs:");
+    md.push("");
+    budgetary.forEach(f => {
+      const resp = responses?.findings?.[f.id];
+      const timeline = resp?.timeline || "within 12 months";
+      const reason = resp?.why_it_matters || "to reduce future risk";
+      md.push(`- **${f.title || f.id}** recommended ${timeline} ${reason}.`);
+    });
+  }
+  md.push("");
+  
+  // 3. What can wait (monitor)
+  md.push("### What can wait (monitor)");
+  if (monitor.length === 0) {
+    md.push("All identified items warrant planned attention. No items are suitable for indefinite deferral.");
+  } else {
+    md.push("These items can be addressed during next renovation or scheduled electrical works:");
+    md.push("");
+    monitor.forEach(f => {
+      const resp = responses?.findings?.[f.id];
+      const context = resp?.planning_guidance || "during next scheduled electrical works";
+      md.push(`- **${f.title || f.id}** can be addressed ${context}.`);
+    });
+  }
+  md.push("");
+  
+  // 4. Decision confidence statement
+  md.push("### Decision confidence statement");
+  md.push(defaultText.DECISION_CONFIDENCE_STATEMENT || 
+    "This report is intended to **reduce decision uncertainty**. If you obtain contractor quotes, you can use the observations and priorities here to challenge scope creep and avoid unnecessary upgrades. " +
+    "The risk interpretations are designed to help you distinguish between urgent liability risks and planned capital expenditure opportunities.");
+  md.push("");
+  
+  return md.join("\n");
+}
+
+/**
  * Section 4: Priority Overview (Single Table)
  */
 function buildPriorityOverviewSection(findings: Array<{ priority: string }>): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 4 | Priority Overview</h2>');
+  md.push('<h2 class="page-title">Page 5 | Priority Overview</h2>');
   md.push("");
   
   const immediateCount = findings.filter(f => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
@@ -321,7 +412,7 @@ function buildPriorityOverviewSection(findings: Array<{ priority: string }>): st
 function buildScopeSection(inspection: StoredInspection, canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 5 | Assessment Scope & Limitations</h2>');
+  md.push('<h2 class="page-title">Page 6 | Assessment Scope & Limitations</h2>');
   md.push("");
   
   // Scope
@@ -361,7 +452,7 @@ async function buildObservedConditionsSection(
 ): Promise<string> {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 6 | Observed Conditions & Risk Interpretation</h2>');
+  md.push('<h2 class="page-title">Page 7 | Observed Conditions & Risk Interpretation</h2>');
   md.push("");
   
   if (findings.length === 0) {
@@ -423,7 +514,7 @@ async function buildObservedConditionsSection(
 function buildThermalImagingSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 7 | Thermal Imaging Analysis (If Applicable)</h2>');
+  md.push('<h2 class="page-title">Page 8 | Thermal Imaging Analysis (If Applicable)</h2>');
   md.push("");
   
   const testData = canonical.test_data || {};
@@ -520,7 +611,7 @@ function buildCapExRoadmapSection(
 ): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 9 | 5-Year Capital Expenditure (CapEx) Roadmap</h2>');
+  md.push('<h2 class="page-title">Page 10 | 5-Year Capital Expenditure (CapEx) Roadmap</h2>');
   md.push("");
   
   // Filter findings that should appear in CapEx roadmap
@@ -607,20 +698,48 @@ function buildCapExRoadmapSection(
 }
 
 /**
- * Section 9: Decision Pathways (was Investor Options & Next Steps)
+ * Section 9: Decision Pathways (NEW - Gold Sample 4-option format)
  */
 function buildDecisionPathwaysSection(defaultText: any): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 10 | Decision Pathways</h2>');
+  md.push('<h2 class="page-title">Page 11 | Owner Decision Pathways</h2>');
   md.push("");
   
-  md.push(defaultText.DECISION_PATHWAYS_SECTION || defaultText.DECISION_PATHWAYS_TEXT ||
-    "This report provides a framework for managing electrical risk within acceptable parameters. Investors and asset managers should consider the following decision pathways:\n\n" +
-    "1. **Immediate Actions:** Address all immediate safety concerns as soon as possible.\n" +
-    "2. **Short-term Planning:** Plan and complete recommended actions within 0-3 months.\n" +
-    "3. **Ongoing Monitoring:** Monitor planning items and address during routine maintenance.\n" +
-    "4. **Follow-up Assessment:** Consider a follow-up assessment after completing recommended actions.");
+  md.push(defaultText.DECISION_PATHWAYS_INTRO || 
+    "This report provides a framework for managing electrical risk within acceptable parameters. " +
+    "Based on the findings and priorities outlined in this report, you can choose one of the following pathways:");
+  md.push("");
+  
+  // Option A - Monitor only
+  md.push("### Option A — Monitor only");
+  md.push(defaultText.DECISION_PATHWAY_MONITOR || 
+    "Take no action now. Reassess in 12 months or at the next tenancy turnover. " +
+    "This option is suitable when all findings are classified as 'Monitor / Acceptable' and there are no immediate or recommended actions.");
+  md.push("");
+  
+  // Option B - Planned upgrades
+  md.push("### Option B — Planned upgrades");
+  md.push(defaultText.DECISION_PATHWAY_PLANNED || 
+    "Budget and schedule the planned items within the suggested windows to reduce reactive maintenance. " +
+    "This approach allows you to manage costs proactively and avoid emergency call-outs. " +
+    "Use the CapEx Roadmap in this report to inform your forward planning and budget provisioning.");
+  md.push("");
+  
+  // Option C - Independent rectification
+  md.push("### Option C — Independent rectification");
+  md.push(defaultText.DECISION_PATHWAY_INDEPENDENT || 
+    "Use this report to brief any contractor of your choice. Request itemised scope aligned to priorities. " +
+    "The observations and risk interpretations in this report are designed to help you challenge scope creep " +
+    "and ensure that any quotes you receive are aligned with the actual risk profile of the property.");
+  md.push("");
+  
+  // Option D - Management plan integration
+  md.push("### Option D — Management plan integration");
+  md.push(defaultText.DECISION_PATHWAY_MANAGEMENT_PLAN || 
+    "Delegate coordination, quotation review, and completion verification to a management plan (Standard or Premium). " +
+    "This option provides end-to-end management of electrical works, from contractor briefing through to quality assurance and compliance documentation. " +
+    "Contact the inspection provider for details on management plan options.");
   md.push("");
   
   return md.join("\n");
@@ -632,7 +751,7 @@ function buildDecisionPathwaysSection(defaultText: any): string {
 async function buildTermsSection(): Promise<string> {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 11 | Important Legal Limitations & Disclaimer (Terms & Conditions)</h2>');
+  md.push('<h2 class="page-title">Page 12 | Important Legal Limitations & Disclaimer (Terms & Conditions)</h2>');
   md.push("");
   const terms = await loadTermsAndConditions();
   md.push(terms);
@@ -647,7 +766,7 @@ async function buildTermsSection(): Promise<string> {
 function buildClosingSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 12 | Closing Statement</h2>');
+  md.push('<h2 class="page-title">Page 13 | Closing Statement</h2>');
   md.push("");
   
   const technicianName = canonical.prepared_by || defaultText.PREPARED_BY || "Licensed Electrician";
@@ -716,7 +835,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 function buildAppendixSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
-  md.push('<h2 class="page-title">Page 8 | Test Data & Technical Notes</h2>');
+  md.push('<h2 class="page-title">Page 9 | Test Data & Technical Notes</h2>');
   md.push("");
   
   const testData = canonical.test_data || {};
@@ -1102,6 +1221,10 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   
   // 3. Executive Summary (One-Page Only)
   sections.push(buildExecutiveSummarySection(computed, findings, defaultText));
+  sections.push(PAGE_BREAK);
+  
+  // 3A. What This Means for You (NEW - Gold Sample inspired)
+  sections.push(buildWhatThisMeansSection(findings, params.responses, defaultText));
   sections.push(PAGE_BREAK);
   
   // 4. Priority Overview (Single Table)
