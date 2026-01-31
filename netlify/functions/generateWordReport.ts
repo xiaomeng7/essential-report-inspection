@@ -1904,8 +1904,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   try {
-    console.log("generateWordReport handler started");
-    
+    const RUN_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    console.log("[report][RUN_ID]", RUN_ID, "handler started");
+
     // Extract inspection_id from query string or POST body
     let inspection_id: string | undefined;
     
@@ -1938,8 +1939,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         body: JSON.stringify({ error: "Inspection not found" })
       };
     }
-    
-    console.log("Inspection data retrieved:", {
+
+    console.log("[report][RUN_ID]", RUN_ID, "after load inspection", {
       inspection_id: inspection.inspection_id,
       findings_count: inspection.findings.length,
       limitations_count: inspection.limitations.length
@@ -2032,7 +2033,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Cover data built:", Object.keys(coverData));
     
     // Generate HTML report: StructuredReport → preflight → slot-only markdown → HTML
-    console.log("Generating HTML report...");
+    console.log("[report][RUN_ID]", RUN_ID, "before buildReportMarkdown/buildReportHtml");
     let reportHtml: string;
     try {
       const baseUrl = getBaseUrl(event);
@@ -2053,6 +2054,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       reportHtml = markdownToHtml(renderReportFromSlots(structuredReport));
     } catch (preflightError: unknown) {
       const msg = preflightError instanceof Error ? preflightError.message : String(preflightError);
+      console.log("[report][RUN_ID]", RUN_ID, "buildReportMarkdown/buildReportHtml FAILED:", msg);
       if (msg.includes("Report preflight failed")) {
         console.error("Report preflight failed:", msg);
         return {
@@ -2063,23 +2065,31 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
       throw preflightError;
     }
-    console.log("HTML report generated, length:", reportHtml.length);
+    console.log("[report][RUN_ID]", RUN_ID, "after buildReportMarkdown/buildReportHtml, length:", reportHtml.length);
     
     // Prepare data for renderDocx (cover fields + body + explicit template keys)
-    const rawTemplateData = {
-      ...coverData,
-      // Explicit cover/template fields (template may reference these)
-      ASSESSMENT_PURPOSE: coverData.ASSESSMENT_PURPOSE,
-      PROPERTY_TYPE: coverData.PROPERTY_TYPE,
-      REPORT_VERSION: reportData.REPORT_VERSION ?? "1.0",
+    const capExSnapshotRaw = reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "";
+    const capExSnapshot =
+      !capExSnapshotRaw || String(capExSnapshotRaw).includes("undefined") || String(capExSnapshotRaw).trim() === ""
+        ? "To be confirmed (indicative, planning only)"
+        : String(capExSnapshotRaw);
+    const rawTemplateData: Record<string, string | number> = {
+      INSPECTION_ID: String(coverData.INSPECTION_ID ?? ""),
+      ASSESSMENT_DATE: String(coverData.ASSESSMENT_DATE ?? ""),
+      PREPARED_FOR: String(coverData.PREPARED_FOR ?? ""),
+      PREPARED_BY: String(coverData.PREPARED_BY ?? ""),
+      PROPERTY_ADDRESS: String(coverData.PROPERTY_ADDRESS ?? ""),
+      PROPERTY_TYPE: String(coverData.PROPERTY_TYPE ?? ""),
+      ASSESSMENT_PURPOSE: String(coverData.ASSESSMENT_PURPOSE ?? "Decision-support electrical risk & CapEx planning assessment"),
+      REPORT_VERSION: String(reportData.REPORT_VERSION ?? "1.0"),
       REPORT_BODY_HTML: reportHtml,
-      TERMS_AND_CONDITIONS: reportData.TERMS_AND_CONDITIONS,
-      DYNAMIC_FINDING_PAGES: reportData.DYNAMIC_FINDING_PAGES,
-      OVERALL_STATUS_BADGE: reportData.OVERALL_STATUS_BADGE,
-      EXECUTIVE_DECISION_SIGNALS: reportData.EXECUTIVE_DECISION_SIGNALS,
-      CAPEX_SNAPSHOT: reportData.CAPEX_SNAPSHOT,
-      RISK_RATING: reportData.RISK_RATING,
-      OVERALL_STATUS: reportData.OVERALL_STATUS,
+      TERMS_AND_CONDITIONS: String(reportData.TERMS_AND_CONDITIONS ?? ""),
+      DYNAMIC_FINDING_PAGES: String(reportData.DYNAMIC_FINDING_PAGES ?? ""),
+      OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? overallStatus ?? ""),
+      EXECUTIVE_DECISION_SIGNALS: String(reportData.EXECUTIVE_DECISION_SIGNALS ?? executiveSummary ?? ""),
+      CAPEX_SNAPSHOT: capExSnapshot,
+      RISK_RATING: String(reportData.RISK_RATING ?? riskRating ?? ""),
+      OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? overallStatus ?? ""),
       CAPEX_RANGE_LOW: overallScore.CAPEX_LOW ?? 0,
       CAPEX_RANGE_HIGH: overallScore.CAPEX_HIGH ?? 0,
     };
@@ -2177,10 +2187,21 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     console.log("✅ Template contains {{REPORT_BODY_HTML}} placeholder");
     
-    // Use renderDocx to generate Word document
-    console.log("Rendering Word document with renderDocx...");
+    // Hard assertions before renderDocx
+    const undefKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+    if (undefKeys.length > 0) {
+      throw new Error(`[report] templateData has undefined values: ${undefKeys.join(", ")}`);
+    }
+    if (!reportHtml.includes("SENTINEL_FINDINGS_V1")) {
+      throw new Error("[report] reportHtml must contain SENTINEL_FINDINGS_V1; possible old buildReportMarkdown");
+    }
+    if (reportHtml.includes("Photo P") && !reportHtml.includes("<a href=")) {
+      throw new Error("[report] reportHtml has Photo P but missing <a href=; Evidence links broken");
+    }
+
+    console.log("[report][RUN_ID]", RUN_ID, "before renderDocx");
     const outBuffer = await renderDocx(templateBuffer, templateData);
-    console.log("Word document generated, size:", outBuffer.length, "bytes");
+    console.log("[report][RUN_ID]", RUN_ID, "after renderDocx, size:", outBuffer.length, "bytes");
 
     // Dev-only: verify DOCX contains hyperlinks when input had <a href>
     if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {

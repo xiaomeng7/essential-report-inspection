@@ -7,6 +7,8 @@
  * Pipeline: buildStructuredReport → assertReportReady → renderReportFromSlots → markdownToHtml
  */
 
+const VERSION = "2026-01-31-v1";
+
 import type { StoredInspection } from "./store";
 import type { CanonicalInspection } from "./normalizeInspection";
 import { loadDefaultText } from "./defaultTextLoader";
@@ -883,6 +885,8 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 
 {{ASSESSMENT_PURPOSE}}
 
+SENTINEL_PURPOSE_V1
+
 <div class="page-break" style="page-break-after:always;"></div>
 
 ## Executive Summary (One-Page Only)
@@ -914,6 +918,8 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 
 ## Observed Conditions & Risk Interpretation
 
+SENTINEL_FINDINGS_V1
+
 {{FINDING_PAGES_HTML}}
 
 <div class="page-break" style="page-break-after:always;"></div>
@@ -941,6 +947,8 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 <div class="page-break" style="page-break-after:always;"></div>
 
 ## Decision Pathways
+
+SENTINEL_DECISION_V1
 
 {{DECISION_PATHWAYS}}
 
@@ -983,6 +991,7 @@ export type BuildStructuredReportParams = BuildReportMarkdownParams & {
 export async function buildStructuredReport(
   params: BuildStructuredReportParams
 ): Promise<StructuredReport> {
+  console.log("[report] buildReportMarkdown VERSION=" + VERSION);
   const { inspection, canonical, findings, responses, computed, event, coverData, reportData, baseUrl, signingSecret } =
     params;
   const defaultText = await loadDefaultText(event);
@@ -1043,7 +1052,12 @@ export async function buildStructuredReport(
     OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
     OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? computed.RISK_RATING ?? "🟡 Moderate"),
     EXECUTIVE_DECISION_SIGNALS: String(reportData.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_SUMMARY ?? defaultText.EXECUTIVE_SUMMARY ?? "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles."),
-    CAPEX_SNAPSHOT: String(reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "AUD $0 – $0 (indicative, planning only)"),
+    CAPEX_SNAPSHOT: (() => {
+      const raw = reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "AUD $0 – $0 (indicative, planning only)";
+      const s = String(raw);
+      if (!s || s.includes("undefined") || s.trim() === "") return "To be confirmed (indicative, planning only)";
+      return s;
+    })(),
     PRIORITY_TABLE_ROWS: String(reportData.PRIORITY_TABLE_ROWS ?? priorityOverview),
     PRIORITY_COUNTS: {
       immediate: findings.filter((f) => f.priority === "IMMEDIATE" || f.priority === "URGENT").length,

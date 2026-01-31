@@ -452,9 +452,9 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       md.push(observedCondition);
       md.push("");
       
-      // 3. Evidence（如果 raw 没有就写 "No photo/evidence provided."）
+      // 3. Evidence（如果 raw 没有就写 "No photographic evidence captured at time of assessment."）
       md.push("#### Evidence");
-      let evidence: string = "No photo/evidence provided.";
+      let evidence: string = "No photographic evidence captured at time of assessment.";
       
       // 尝试从 raw 读取 photo_ids 或 evidence
       const rawForEvidence = inspection.raw || {};
@@ -505,7 +505,7 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       }
       
       // 如果还没有 evidence，尝试其他来源
-      if (evidence === "No photo/evidence provided.") {
+      if (evidence === "No photographic evidence captured at time of assessment.") {
         if (finding.facts && finding.facts.trim().length > 0) {
           evidence = finding.facts;
         } else if (Array.isArray(response.observed_condition) && response.observed_condition.length > 0) {

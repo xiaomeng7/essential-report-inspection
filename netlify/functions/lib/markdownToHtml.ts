@@ -6,6 +6,8 @@
  * 返回完整 HTML 文档，样式从 reportStyles.css 加载，找不到则用内置 fallback。
  */
 
+const VERSION = "2026-01-31-v1";
+
 import * as fs from "fs";
 import * as path from "path";
 import MarkdownIt from "markdown-it";
@@ -97,6 +99,7 @@ function docxSafeNormalize(html: string): string {
  * 将 Markdown 转为完整 HTML 文档（raw HTML 如 page-break div 保留不转义）
  */
 export function markdownToHtml(markdown: string): string {
+  console.log("[report] markdownToHtml VERSION=" + VERSION);
   if (!markdown) {
     return "";
   }

@@ -9,6 +9,8 @@
  * 或者使用更简单的方案 B：将 HTML 转换为格式化的纯文本插入（会丢失格式但更简单）
  */
 
+const VERSION = "2026-01-31-v1";
+
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import { asBlob } from "html-docx-js-typescript";
@@ -28,6 +30,7 @@ export async function renderDocxWithHtmlMerge(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Promise<Buffer> {
+  console.log("[report] renderDocx VERSION=" + VERSION);
   // 1. 使用 docxtemplater 填充封面信息
   const zip = new PizZip(templateBuffer);
   const doc = new Docxtemplater(zip, {

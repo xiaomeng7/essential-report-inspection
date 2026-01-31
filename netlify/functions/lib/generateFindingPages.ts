@@ -12,6 +12,8 @@
  * Returns docx-compatible HTML content with page breaks.
  */
 
+const VERSION = "2026-01-31-v1";
+
 import type { HandlerEvent } from "@netlify/functions";
 import type { FindingProfile } from "./findingProfilesLoader";
 import { loadCategoryDefaults, generateBudgetRangeFromBand } from "./findingProfilesLoader";
@@ -495,6 +497,8 @@ export async function generateFindingPages(
 
   for (let i = 0; i < sortedFindings.length; i++) {
     const finding = sortedFindings[i];
+    const photoCount = (finding.photo_ids && Array.isArray(finding.photo_ids)) ? finding.photo_ids.length : 0;
+    console.log("[report] generateFindingPages VERSION=" + VERSION, "finding.id=" + finding.id, "photo_ids=" + photoCount);
     const profile = profiles[finding.id];
     if (!profile) {
       const errorMsg = `Finding profile not found for ${finding.id}`;
