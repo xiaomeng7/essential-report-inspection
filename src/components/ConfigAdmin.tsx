@@ -126,6 +126,24 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   }, []);
 
+  const loadDimensions = useCallback(async (token: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/configAdmin/dimensions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> };
+      setDimensionsData(data);
+      setEditedDimensions(data.findings || {});
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Check URL tab param (e.g. ?tab=dimensions)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -333,24 +351,6 @@ export function ConfigAdmin({ onBack }: Props) {
       setTesting(false);
     }
   };
-
-  const loadDimensions = useCallback(async (token: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/configAdmin/dimensions", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> };
-      setDimensionsData(data);
-      setEditedDimensions(data.findings || {});
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const handleTabChange = (newTab: ConfigType) => {
     setActiveTab(newTab);
@@ -663,7 +663,7 @@ export function ConfigAdmin({ onBack }: Props) {
                         <td style={{ padding: 4 }}>
                           <input
                             type="number"
-                            value={row.budget_low ?? ""}
+                            value={row.budget_low != null ? String(row.budget_low) : ""}
                             onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_low: e.target.value ? Number(e.target.value) : null } }))}
                             style={{ width: 70, padding: 4, fontSize: 12 }}
                             placeholder="—"
@@ -672,7 +672,7 @@ export function ConfigAdmin({ onBack }: Props) {
                         <td style={{ padding: 4 }}>
                           <input
                             type="number"
-                            value={row.budget_high ?? ""}
+                            value={row.budget_high != null ? String(row.budget_high) : ""}
                             onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_high: e.target.value ? Number(e.target.value) : null } }))}
                             style={{ width: 70, padding: 4, fontSize: 12 }}
                             placeholder="—"
