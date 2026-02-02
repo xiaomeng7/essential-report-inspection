@@ -346,11 +346,6 @@ export function Wizard({ onSubmitted }: Props) {
         <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
           Back
         </button>
-        {!isLast && (
-          <button type="button" className="btn-secondary" onClick={() => {}}>
-            Save Draft
-          </button>
-        )}
         <button type="button" className="btn-primary" onClick={goNext}>
           {isLast ? "Submit Inspection" : "Next"}
         </button>

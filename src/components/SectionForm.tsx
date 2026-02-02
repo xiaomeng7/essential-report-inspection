@@ -52,8 +52,11 @@ function getNested(obj: unknown, path: string): unknown {
 
 function evalRequiredWhen(expr: string, flat: Record<string, unknown>): boolean {
   if (expr === "any(access.*_accessible==false)") {
-    const keys = ["access.switchboard_accessible", "access.roof_accessible", "access.underfloor_accessible"];
-    return keys.some((k) => getNested(flat, k) === false);
+    const switchboard = getNested(flat, "access.switchboard_accessible") === false;
+    const roof = getNested(flat, "access.roof_accessible") === false;
+    const underfloor = getNested(flat, "access.underfloor_accessible");
+    const underfloorNotAccessible = underfloor === false || underfloor === "not_accessible";
+    return switchboard || roof || underfloorNotAccessible;
   }
   if (expr.startsWith("any(")) {
     const rest = expr.slice(4);

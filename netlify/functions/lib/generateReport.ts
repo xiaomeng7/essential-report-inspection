@@ -380,7 +380,13 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("");
   md.push(`- **Switchboard:** ${switchboardAccessible === "true" || switchboardAccessible === true ? "Accessible" : "Not accessible"}`);
   md.push(`- **Roof space:** ${roofAccessible === "true" || roofAccessible === true ? "Accessible" : "Not accessible"}`);
-  md.push(`- **Underfloor:** ${underfloorAccessible === "true" || underfloorAccessible === true ? "Accessible" : "Not accessible"}`);
+  const underfloorLabel =
+    underfloorAccessible === "not_applicable"
+      ? "N/A (no underfloor)"
+      : underfloorAccessible === "true" || underfloorAccessible === true || underfloorAccessible === "accessible"
+        ? "Accessible"
+        : "Not accessible";
+  md.push(`- **Underfloor:** ${underfloorLabel}`);
   md.push("");
   md.push("---");
   md.push("");

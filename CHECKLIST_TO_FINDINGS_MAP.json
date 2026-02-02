@@ -620,6 +620,14 @@
         "operator": "eq",
         "value": false
       }
+    },
+    {
+      "finding": "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED",
+      "condition": {
+        "field": "access.underfloor_accessible",
+        "operator": "eq",
+        "value": "not_accessible"
+      }
     }
   ]
 }

@@ -246,6 +246,7 @@ const FINDING_RULES: FindingRule[] = [
   // Access Limitations
   { finding_id: "ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED", priority: "PLAN_MONITOR", when: { field: "access.roof_accessible", condition: "equals", value: false } },
   { finding_id: "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED", priority: "PLAN_MONITOR", when: { field: "access.underfloor_accessible", condition: "equals", value: false } },
+  { finding_id: "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED", priority: "PLAN_MONITOR", when: { field: "access.underfloor_accessible", condition: "equals", value: "not_accessible" } },
 ];
 
 /**

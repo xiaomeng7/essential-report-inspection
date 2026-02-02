@@ -643,8 +643,11 @@ function buildTestDataAndNotes(
     if (access.roof_accessible === false) {
       accessNotes.push("Roof space not accessible");
     }
-    if (access.underfloor_accessible === false) {
+    const uf = access.underfloor_accessible;
+    if (uf === false || uf === "not_accessible") {
       accessNotes.push("Underfloor not accessible");
+    } else if (uf === "not_applicable") {
+      accessNotes.push("Underfloor: N/A (no subfloor)");
     }
     if (accessNotes.length > 0) {
       technicalNotesParts.push(`Access Constraints: ${accessNotes.join("; ")}`);

@@ -48,6 +48,11 @@
       "partial",
       "skipped"
     ],
+    "underfloor_access": [
+      "accessible",
+      "not_accessible",
+      "not_applicable"
+    ],
     "skip_reason": [
       "no_access",
       "customer_declined",
@@ -69,7 +74,7 @@
       "owner_occupied"
     ],
     "property_type": [
-      "detached",
+      "house",
       "townhouse",
       "apartment",
       "unit",
@@ -346,6 +351,7 @@
           "enum": "client_type",
           "required": true,
           "skippable": false,
+          "helper_text": "Owner = 业主（自住或自用）. Landlord = 房东（出租物业）. Property manager = 物业/托管方.",
           "ui": "radio"
         },
         {
@@ -364,6 +370,7 @@
           "enum": "property_type",
           "required": true,
           "skippable": false,
+          "helper_text": "House = 独立屋/别墅（最常见）. Townhouse/Apartment/Unit/Commercial/Other.",
           "ui": "radio"
         },
         {
@@ -430,19 +437,22 @@
         },
         {
           "key": "access.underfloor_accessible",
-          "label": "Underfloor accessible?",
-          "type": "boolean",
+          "label": "Underfloor / subfloor space",
+          "type": "enum",
+          "enum": "underfloor_access",
           "required": true,
           "skippable": false,
-          "ui": "radio_yes_no"
+          "helper_text": "多数住宅无地下层，无则选 N/A。有则选可进入 / 不可进入。",
+          "ui": "radio"
         },
         {
           "key": "access.no_access_reason",
-          "label": "If any above is No: reason",
+          "label": "不可进入原因（任一项选「不可进入」时必选）",
           "type": "enum",
           "enum": "skip_reason",
           "required_when": "any(access.*_accessible==false)",
           "skippable": false,
+          "helper_text": "当配电盘/屋顶/地下任一项选「不可进入」时，必须选一项原因（无钥匙、客户拒绝、上锁、不安全等）。",
           "ui": "select"
         },
         {
