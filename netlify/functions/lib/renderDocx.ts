@@ -48,13 +48,300 @@ function ensureStylesXml(docxBuffer: Buffer): Buffer {
  * 或者使用更简单的方案 B：将 HTML 转换为格式化的纯文本插入（会丢失格式但更简单）
  */
 
-const VERSION = "2026-01-31-v1";
+const VERSION = "2026-01-31-v2-html-to-docx";
 
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
-import { asBlob } from "html-docx-js-typescript";
+import HTMLtoDOCX from "html-to-docx";
 import DocxMerger from "docx-merger";
 import { sanitizeText } from "./sanitizeText";
+
+/**
+ * Extract body fragment from full HTML document.
+ * Removes <html>, <head>, <style>, <meta>, <!doctype>, keeps only <body> content.
+ * This fixes issues where html-docx-js-typescript doesn't handle full HTML documents correctly.
+ */
+function extractBodyFragment(html: string): string {
+  if (!html || typeof html !== "string") return "";
+  
+  let fragment = html;
+  
+  // Remove <!doctype ...>
+  fragment = fragment.replace(/<!doctype[^>]*>/gi, "");
+  
+  // Remove <style>...</style> (including content)
+  fragment = fragment.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  
+  // Remove <head>...</head> (including content)
+  fragment = fragment.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "");
+  
+  // Extract <body>...</body> content if present
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(fragment);
+  if (bodyMatch && bodyMatch[1]) {
+    fragment = bodyMatch[1];
+  } else {
+    // Remove opening/closing html and body tags if no body match
+    fragment = fragment.replace(/<\/?html[^>]*>/gi, "");
+    fragment = fragment.replace(/<\/?body[^>]*>/gi, "");
+  }
+  
+  // Remove <meta ...> tags
+  fragment = fragment.replace(/<meta[^>]*\/?>/gi, "");
+  
+  fragment = fragment.trim();
+  
+  // Diagnostic: if fragment is too short, log snippet
+  if (fragment.length < 2000) {
+    const snippet = fragment.length > 500 ? fragment.substring(0, 500) + "..." : fragment;
+    console.log("[docx-diag] extractBodyFragment WARNING: fragmentLength=" + fragment.length + " (< 2000), snippet=" + snippet);
+  }
+  
+  return fragment;
+}
+
+/**
+ * Preprocess HTML to avoid html-to-docx bugs (e.g. Invalid XML name: @w in buildTableCellWidth).
+ * Strips complex attributes from table/td/th/tr/colgroup that trigger xmlbuilder2 namespace errors.
+ */
+function cleanHtmlForDocx(html: string): string {
+  if (!html || typeof html !== "string") return html;
+  let out = html;
+  // Strip all attributes from table elements - keep only tag names
+  out = out.replace(/<table[^>]*>/gi, "<table>");
+  out = out.replace(/<thead[^>]*>/gi, "<thead>");
+  out = out.replace(/<tbody[^>]*>/gi, "<tbody>");
+  out = out.replace(/<tfoot[^>]*>/gi, "<tfoot>");
+  out = out.replace(/<tr[^>]*>/gi, "<tr>");
+  out = out.replace(/<th[^>]*>/gi, "<th>");
+  out = out.replace(/<td[^>]*>/gi, "<td>");
+  out = out.replace(/<colgroup[^>]*>/gi, "<colgroup>");
+  out = out.replace(/<col[^>]*\/?>/gi, "<col/>");
+  return out;
+}
+
+/**
+ * NEW: Stable rendering path that merges cover + body without relying on placeholder injection.
+ * 
+ * Flow:
+ * 1. Render cover using docxtemplater (cover fields only)
+ * 2. Convert HTML to DOCX using html-docx-js-typescript
+ * 3. Merge cover + body DOCX using docx-merger
+ * 
+ * This avoids the failed "inject HTML into placeholder" approach.
+ */
+export async function renderDocxByMergingCoverAndBody(
+  coverTemplateBuffer: Buffer,
+  templateData: Record<string, any>,
+  reportHtml: string,
+  runId?: string
+): Promise<Buffer> {
+  const RID = runId || "unknown";
+  console.log("[docx-diag][RUN_ID=" + RID + "] renderDocxByMergingCoverAndBody: START");
+  
+  // 1. Render cover DOCX with docxtemplater (cover fields only, no HTML injection)
+  const coverZip = new PizZip(coverTemplateBuffer);
+  const coverDoc = new Docxtemplater(coverZip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: "{{", end: "}}" },
+  });
+  
+  const coverData: Record<string, string> = {
+    INSPECTION_ID: templateData.INSPECTION_ID || "",
+    ASSESSMENT_DATE: templateData.ASSESSMENT_DATE || "",
+    PREPARED_FOR: templateData.PREPARED_FOR || "",
+    PREPARED_BY: templateData.PREPARED_BY || "",
+    PROPERTY_ADDRESS: templateData.PROPERTY_ADDRESS || "",
+    PROPERTY_TYPE: templateData.PROPERTY_TYPE || "",
+    ASSESSMENT_PURPOSE: templateData.ASSESSMENT_PURPOSE || "",
+    REPORT_BODY_HTML: "", // Empty - we don't inject via placeholder
+    TERMS_AND_CONDITIONS: "",
+  };
+  
+  coverDoc.setData(coverData);
+  
+  try {
+    coverDoc.render();
+  } catch (error: any) {
+    console.error("[docx-diag][RUN_ID=" + RID + "] Cover render error:", error);
+    if (error.properties && error.properties.errors instanceof Array) {
+      const errorMessages = error.properties.errors
+        .map((e: any) => `${e.name}: ${e.message}`)
+        .join("\n");
+      throw new Error(`Cover template render failed: ${errorMessages}`);
+    }
+    throw error;
+  }
+  
+  const coverBuffer = coverDoc.getZip().generate({ type: "nodebuffer" });
+  
+  // Read cover document.xml for diagnostics
+  const coverZipCheck = new PizZip(coverBuffer);
+  const coverDocEntry = coverZipCheck.files["word/document.xml"];
+  const coverDocXml = coverDocEntry ? (coverDocEntry as { asText?: () => string }).asText?.() ?? "" : "";
+  const coverDocXmlLength = coverDocXml.length;
+  console.log("[docx-diag][RUN_ID=" + RID + "] coverDocumentXmlLength=" + coverDocXmlLength);
+  
+  // 2. Extract body inner HTML (remove html/head/style wrapper)
+  let bodyInner = reportHtml;
+  if (reportHtml.includes("<body")) {
+    bodyInner = extractBodyFragment(reportHtml);
+  }
+  
+  const rawHtmlLength = reportHtml.length;
+  const fragmentLength = bodyInner.length;
+  console.log("[docx-diag][RUN_ID=" + RID + "] rawHtmlLength=" + rawHtmlLength + " fragmentLength=" + fragmentLength);
+  
+  // FORCE_SIMPLE_HTML override for testing
+  if (process.env.FORCE_SIMPLE_HTML === "1") {
+    bodyInner = "<p>HELLO TEST</p><p>Second line</p><p>Third paragraph for testing html-docx conversion</p>";
+    console.log("[docx-diag][RUN_ID=" + RID + "] force simple html enabled: replaced with test HTML");
+  }
+  
+  // 3. Convert HTML to DOCX using html-to-docx (generates real content in document.xml, not altChunk)
+  if (!bodyInner || bodyInner.trim().length === 0) {
+    throw new Error("Body HTML is empty after extracting fragment; cannot generate body DOCX");
+  }
+  
+  // html-to-docx expects full HTML document, so wrap fragment if needed
+  let htmlForConversion = bodyInner;
+  if (!bodyInner.toLowerCase().includes("<!doctype") && !bodyInner.toLowerCase().includes("<html")) {
+    htmlForConversion = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body>
+${bodyInner}
+</body>
+</html>`;
+  }
+  
+  // Preprocess: strip table attributes that trigger html-to-docx bug (Invalid XML name: @w)
+  htmlForConversion = cleanHtmlForDocx(htmlForConversion);
+  console.log("[docx-diag][RUN_ID=" + RID + "] htmlForConversion length=" + htmlForConversion.length + " (after cleanHtmlForDocx)");
+  
+  const bodyBuffer = await HTMLtoDOCX(htmlForConversion, null, {
+    table: { row: { cantSplit: true } },
+    footer: false,
+    pageNumber: false,
+    font: "Calibri",
+    fontSize: 11,
+  });
+  
+  // 4. Merge cover + body manually (docx-merger has issues with html-to-docx output)
+  // Strategy: Take cover DOCX structure, append body content to document.xml
+  console.log("[docx-diag][RUN_ID=" + RID + "] manual merge: extracting cover and body structures");
+  
+  const coverZipFinal = new PizZip(coverBuffer);
+  const bodyZipFinal = new PizZip(bodyBuffer);
+  
+  // Reuse bodyDocEntry/bodyDocXml from diagnostics above if already defined, otherwise extract
+  const bodyDocEntry2 = bodyZipFinal.files["word/document.xml"];
+  const bodyDocXml2 = bodyDocEntry2 ? (bodyDocEntry2 as { asText?: () => string }).asText?.() ?? "" : "";
+  
+  // Extract <w:body>...</w:body> content from body
+  const bodyMatch = /<w:body[^>]*>([\s\S]*?)<\/w:body>/i.exec(bodyDocXml2);
+  if (!bodyMatch || !bodyMatch[1]) {
+    throw new Error("Cannot extract <w:body> from body DOCX");
+  }
+  const bodyContent = bodyMatch[1];
+  
+  // Extract cover document.xml
+  const coverDocEntry2 = coverZipFinal.files["word/document.xml"];
+  let coverDocXml2 = coverDocEntry2 ? (coverDocEntry2 as { asText?: () => string }).asText?.() ?? "" : "";
+  
+  // Insert body content before </w:body> in cover
+  // Cover has structure: <w:document>...<w:body>...[cover content]...<w:sectPr>...</w:sectPr></w:body></w:document>
+  // We want to insert body content before <w:sectPr>
+  
+  const coverBodyMatch = /<w:body[^>]*>([\s\S]*?)<\/w:body>/i.exec(coverDocXml2);
+  if (!coverBodyMatch) {
+    throw new Error("Cannot find <w:body> in cover DOCX");
+  }
+  
+  const coverBodyInner = coverBodyMatch[1];
+  // Find last <w:sectPr> (page setup) in cover body - we want to keep it at the end
+  const sectPrMatch = /(<w:sectPr[\s\S]*?<\/w:sectPr>)\s*$/i.exec(coverBodyInner);
+  
+  let mergedBodyInner: string;
+  if (sectPrMatch) {
+    // Insert body content before sectPr
+    const beforeSectPr = coverBodyInner.substring(0, sectPrMatch.index!);
+    const sectPr = sectPrMatch[1];
+    mergedBodyInner = beforeSectPr + "\n" + bodyContent + "\n" + sectPr;
+  } else {
+    // No sectPr, just append
+    mergedBodyInner = coverBodyInner + "\n" + bodyContent;
+  }
+  
+  // Replace body content in cover XML
+  const mergedDocXml2 = coverDocXml2.replace(
+    /<w:body[^>]*>[\s\S]*?<\/w:body>/i,
+    `<w:body>${mergedBodyInner}</w:body>`
+  );
+  
+  // Update cover ZIP with merged document.xml
+  coverZipFinal.file("word/document.xml", mergedDocXml2);
+  
+  // Copy styles from body if needed (html-to-docx has its own styles)
+  const bodyStylesEntry = bodyZipFinal.files["word/styles.xml"];
+  if (bodyStylesEntry) {
+    const bodyStyles = bodyStylesEntry.asText();
+    if (bodyStyles && bodyStyles.length > 1000) {
+      // html-to-docx has better styles, use them
+      coverZipFinal.file("word/styles.xml", bodyStyles);
+      console.log("[docx-diag][RUN_ID=" + RID + "] copied styles.xml from body DOCX");
+    }
+  }
+  
+  // Generate final merged buffer
+  const mergedBuffer = coverZipFinal.generate({ type: "nodebuffer" }) as Buffer;
+  
+  // 5. Verify merged DOCX has body content
+  const mergedZip = new PizZip(mergedBuffer);
+  const mergedDocEntry = mergedZip.files["word/document.xml"];
+  const mergedDocXmlFinal = mergedDocEntry ? (mergedDocEntry as { asText?: () => string }).asText?.() ?? "" : "";
+  const mergedDocXmlLength = mergedDocXmlFinal.length;
+  
+  // Compute body doc xml length for diagnostics
+  const bodyDocXmlLength2 = bodyDocXml2.length;
+  const coverDocXmlLength2 = coverDocXml2.length;
+  
+  console.log("[docx-diag][RUN_ID=" + RID + "] bodyDocxDocumentXmlLength=" + bodyDocXmlLength2);
+  console.log("[docx-diag][RUN_ID=" + RID + "] mergedDocumentXmlLength=" + mergedDocXmlLength);
+  
+  // Validation: merged document.xml must be significantly larger than cover (indicating body was merged)
+  const MIN_MERGED_LENGTH = 20000;
+  if (mergedDocXmlLength < MIN_MERGED_LENGTH) {
+    const diagnostic = {
+      mergedDocXmlLength,
+      coverDocXmlLength: coverDocXmlLength2,
+      bodyDocXmlLength: bodyDocXmlLength2,
+      fragmentLength,
+      minRequired: MIN_MERGED_LENGTH,
+    };
+    throw new Error("DOCX_RENDER_FAILED: merged document.xml too small (body not injected). " + JSON.stringify(diagnostic));
+  }
+  
+  // Check for body markers
+  const hasBodyMarker = 
+    mergedDocXmlFinal.includes("Executive Summary") ||
+    mergedDocXmlFinal.includes("Executive") ||
+    mergedDocXmlFinal.includes("Evidence") ||
+    mergedDocXmlFinal.includes("Observed Condition") ||
+    mergedDocXmlFinal.includes("HELLO TEST") || // for FORCE_SIMPLE_HTML test
+    mergedDocXmlFinal.includes("Recommended Findings");
+  
+  if (!hasBodyMarker) {
+    console.warn("[docx-diag][RUN_ID=" + RID + "] WARNING: merged DOCX has no recognizable body markers (may be empty body)");
+  } else {
+    console.log("[docx-diag][RUN_ID=" + RID + "] ✅ merged DOCX contains body markers");
+  }
+  
+  console.log("[docx-diag][RUN_ID=" + RID + "] renderDocxByMergingCoverAndBody: SUCCESS");
+  return mergedBuffer;
+}
 
 /**
  * 方案 A：将 HTML 转换为 DOCX 并合并（推荐，保留格式）
@@ -108,13 +395,23 @@ export async function renderDocxWithHtmlMerge(
   // 2. 生成封面 DOCX
   const coverBuffer = doc.getZip().generate({ type: "nodebuffer" });
 
-  // 3. 将 HTML 转换为 DOCX
-  let htmlContent = data.REPORT_BODY_HTML || "";
-  if (!htmlContent) {
+  // 3. 将 HTML 转换为 DOCX（提取 body fragment，移除 html/head/style 等外层标签）
+  const rawHtml = data.REPORT_BODY_HTML || "";
+  if (!rawHtml) {
     throw new Error("REPORT_BODY_HTML 不能为空");
   }
+  
+  let fragment = extractBodyFragment(rawHtml);
+  
+  // FORCE_SIMPLE_HTML=1: override with test HTML to verify html-docx module works
+  if (process.env.FORCE_SIMPLE_HTML === "1") {
+    fragment = "<p>HELLO TEST</p><p>Second line</p><p>Third paragraph for testing</p>";
+    console.log("[docx-diag] force simple html enabled: replaced REPORT_BODY_HTML with test HTML");
+  }
+  
+  console.log("[docx-diag] rawHtmlLength=" + rawHtml.length + " fragmentLength=" + fragment.length);
 
-  const htmlDocxResult = await asBlob(htmlContent, {
+  const htmlDocxResult = await asBlob(fragment, {
     pageSize: {
       width: 12240, // A4 width in twips (8.5 inches)
       height: 15840, // A4 height in twips (11 inches)
@@ -138,7 +435,23 @@ export async function renderDocxWithHtmlMerge(
 
     merger.save("nodebuffer", (mergedBuffer: Buffer) => {
       if (mergedBuffer) {
-        console.log("[report-fp] Using renderer: HTML_MERGE(A)");
+        // Post-render validation: read merged document.xml to ensure body injected
+        try {
+          const mergedZip = new PizZip(mergedBuffer);
+          const mergedDocEntry = mergedZip.files["word/document.xml"];
+          const mergedDocXml = mergedDocEntry ? (mergedDocEntry as { asText?: () => string }).asText?.() ?? "" : "";
+          const outLen = mergedDocXml.length;
+          const containsPlaceholder = mergedDocXml.includes("{{REPORT_BODY_HTML}}");
+          const containsHtmlDoctype = mergedDocXml.includes("<!doctype") || mergedDocXml.includes("<html");
+          console.log("[docx-diag] post-merge: outDocumentXmlLength=" + outLen + " containsPlaceholder=" + containsPlaceholder + " containsHtmlDoctype=" + containsHtmlDoctype);
+          if (outLen < 20000) {
+            reject(new Error("DOCX_RENDER_FAILED: body not injected; outXmlLen=" + outLen + " fragmentLen=" + fragment.length + " placeholderStillThere=" + containsPlaceholder));
+            return;
+          }
+        } catch (validateErr) {
+          console.warn("[docx-diag] post-merge validation failed:", validateErr);
+          // Don't fail the render if validation itself errors - just warn
+        }
         resolve(mergedBuffer);
       } else {
         reject(new Error("合并 DOCX 失败"));
@@ -148,15 +461,14 @@ export async function renderDocxWithHtmlMerge(
 }
 
 /**
- * 方案 B：将 HTML 转换为格式化的纯文本插入（简单但会丢失格式）
- * 
- * 这个方案会保留基本的段落结构，但会丢失 HTML 格式（粗体、列表等）
+ * 方案 B：将 HTML 转为纯文本插入模板（已禁用，不可达）。
+ * B 会把 HTML 当纯文本塞进 docx，导致 Word 无法渲染结构，正文全部不可见（只有封面）。
+ * renderDocx() 仅允许 A；若 A 失败则直接 throw，不再 fallback 到 B。
  */
 export function renderDocxWithHtmlAsText(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Buffer {
-  console.log("[report-fp] Using renderer: HTML_ASTEXT(B)");
   const zip = new PizZip(templateBuffer);
   
   // 检查模板是否包含 REPORT_BODY_HTML 占位符
@@ -177,7 +489,7 @@ export function renderDocxWithHtmlAsText(
   htmlContent = sanitizeText(htmlContent, { preserveEmoji: true });
   const textContent = htmlToFormattedText(htmlContent);
 
-  // 准备所有数据
+  // 准备所有数据（需覆盖模板中所有占位符）
   const templateData: Record<string, string> = {
     INSPECTION_ID: data.INSPECTION_ID || "",
     ASSESSMENT_DATE: data.ASSESSMENT_DATE || "",
@@ -185,6 +497,7 @@ export function renderDocxWithHtmlAsText(
     PREPARED_BY: data.PREPARED_BY || "",
     PROPERTY_ADDRESS: data.PROPERTY_ADDRESS || "",
     PROPERTY_TYPE: data.PROPERTY_TYPE || "",
+    ASSESSMENT_PURPOSE: data.ASSESSMENT_PURPOSE || "",
     REPORT_BODY_HTML: textContent, // 使用格式化文本替代 HTML
   };
 
@@ -257,21 +570,34 @@ function htmlToFormattedText(html: string): string {
 }
 
 /**
- * 主函数：根据配置选择方案
+ * 主函数：仅允许 HTML_MERGE(A)。禁止使用 HTML_ASTEXT(B) —— B 会把 HTML 当纯文本塞进 docx，
+ * 导致 Word 无法渲染结构，正文全部不可见（只有封面）。
  * 
- * 默认使用方案 A（HTML 转 DOCX 并合并），保留更多格式
- * 如果遇到问题，可以切换到方案 B（纯文本）
+ * Debug 环境变量：FORCE_DOCX_RENDERER=A|B 可强制指定 renderer（B 仅用于 debug）。
  */
 export async function renderDocx(
   templateBuffer: Buffer,
   data: Record<string, any>
 ): Promise<Buffer> {
-  try {
-    const outBuffer = await renderDocxWithHtmlMerge(templateBuffer, data);
-    return outBuffer;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.log("[report-fp] fallback to B because:", msg);
+  const html = data.REPORT_BODY_HTML;
+  if (!html || typeof html !== "string" || String(html).trim().length === 0) {
+    throw new Error("REPORT_BODY_HTML is required for DOCX generation; cannot render without body HTML.");
+  }
+
+  const forcedRenderer = process.env.FORCE_DOCX_RENDERER as "A" | "B" | undefined;
+  if (forcedRenderer === "B") {
+    console.log("[report-fp] renderer forced: B (HTML_ASTEXT) — may cause body content loss");
     return renderDocxWithHtmlAsText(templateBuffer, data);
   }
+
+  if (forcedRenderer === "A") {
+    console.log("[report-fp] renderer forced: A (HTML_MERGE)");
+  } else {
+    console.log("[report-fp] renderer selected: A (forced) — HTML_MERGE only, ASTEXT disabled");
+  }
+  const buf = await renderDocxWithHtmlMerge(templateBuffer, data);
+  if (!buf || !Buffer.isBuffer(buf) || buf.length === 0) {
+    throw new Error("renderDocxWithHtmlMerge returned empty or invalid buffer");
+  }
+  return buf;
 }

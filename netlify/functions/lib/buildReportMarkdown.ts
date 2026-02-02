@@ -14,7 +14,10 @@ import type { CanonicalInspection } from "./normalizeInspection";
 import { loadDefaultText } from "./defaultTextLoader";
 import { loadFindingProfiles, getFindingProfile } from "./findingProfilesLoader";
 import { getAssetDisplayTitle } from "./assetTitles";
+import { sanitizeForClientReport } from "./sanitizeText";
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
+import { buildComputedFields } from "./buildComputedFields";
+import { dedupeSentences } from "./textDedupe";
 import { markdownToHtml } from "./markdownToHtml";
 import type { HandlerEvent } from "@netlify/functions";
 import type { StructuredReport } from "./reportContract";
@@ -51,7 +54,7 @@ export type ComputedFields = {
 export type BuildReportMarkdownParams = {
   inspection: StoredInspection;
   canonical: CanonicalInspection;
-  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>;
+  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string; photo_ids?: string[] }>;
   responses: {
     findings?: Record<string, {
       title?: string;
@@ -281,6 +284,40 @@ function buildPurposeSection(defaultText: any): string {
 }
 
 /**
+ * Section 2.5: How We Assess Risk — 9 dimensions explained (investor-focused, supports trust & upsell)
+ */
+function buildHowWeAssessRiskSection(): string {
+  const md: string[] = [];
+  md.push('<h2 class="page-title">How We Assess Risk</h2>');
+  md.push("");
+  md.push("Each finding in this report has been evaluated across **9 independent risk dimensions** using a structured assessment framework. This ensures priorities reflect actual risk exposure—not subjective judgment or sales incentives.");
+  md.push("");
+  md.push("### The 9 Risk Dimensions");
+  md.push("");
+  md.push("| Dimension | What We Evaluate | Why It Matters |");
+  md.push("|------------|------------------|----------------|");
+  md.push("| **Safety Impact** | Could this cause injury or fire if left unaddressed? | Liability exposure |");
+  md.push("| **Escalation Risk** | Will the condition worsen over time or remain stable? | Future cost volatility |");
+  md.push("| **Time Flexibility** | Can this be planned into a scheduled maintenance cycle? | Operational disruption |");
+  md.push("| **Compliance Risk** | Does this create regulatory or insurance documentation gaps? | Transaction readiness |");
+  md.push("| **Tenant Disruption** | Will fixing this require vacant possession or cause inconvenience? | Rental continuity |");
+  md.push("| **Asset Value Impact** | Could this affect property valuation or marketability? | Exit strategy |");
+  md.push("| **Cost Predictability** | Is the repair cost stable or subject to scope creep? | Budget confidence |");
+  md.push("| **Observability** | Is the issue visible or will it surprise a buyer's inspector? | Negotiation risk |");
+  md.push("| **Planning Value** | Does addressing this create strategic leverage (e.g. bundle with reno)? | Capital efficiency |");
+  md.push("");
+  md.push("### How Priorities Are Determined");
+  md.push("");
+  md.push("- **🔴 Urgent:** High safety impact + immediate action required (rare: only a small share of findings).");
+  md.push("- **🟡 Recommended:** Moderate risk + planning flexibility → best addressed within 6–18 months in scheduled work.");
+  md.push("- **🟢 Acceptable:** Low risk + stable condition → monitor at next inspection or renovation trigger.");
+  md.push("");
+  md.push("_By separating what was observed from what it means, you can challenge contractor quotes, prioritise capital spend, and avoid emotional decision-making. Each finding's Risk Assessment Profile (see individual pages) shows the underlying logic._");
+  md.push("");
+  return md.join("\n");
+}
+
+/**
  * Section 3: Executive Summary (One-Page Only)
  */
 function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<{ priority: string }>, defaultText: any): string {
@@ -332,6 +369,24 @@ function buildExecutiveSummarySection(computed: ComputedFields, findings: Array<
 }
 
 /**
+ * Priority Snapshot table (Gold Sample format) - 3-column table for Executive Summary
+ */
+function buildPrioritySnapshotTable(findings: Array<{ priority: string }>): string {
+  const immediateCount = findings.filter(f => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
+  const recommendedCount = findings.filter(f => f.priority === "RECOMMENDED" || f.priority === "RECOMMENDED_0_3_MONTHS").length;
+  const planCount = findings.filter(f => f.priority === "PLAN" || f.priority === "PLAN_MONITOR" || f.priority === "MONITOR").length;
+  const md: string[] = [];
+  md.push("| Priority | Meaning | Investor Interpretation |");
+  md.push("|----------|---------|-------------------------|");
+  md.push("| Urgent liability risk | Immediate action required to reduce safety/legal exposure | Do not defer. Treat as time-critical risk control. |");
+  md.push("| Budgetary provision recommended | No active fault detected, but upgrade is advisable within an asset cycle | Plan into CapEx and schedule within the stated window. |");
+  md.push("| Monitor / Acceptable | No action required at this stage; revisit at next review or renovation | Keep on watchlist; avoid unnecessary spend now. |");
+  md.push("");
+  md.push(`*This assessment identified: ${immediateCount} urgent, ${recommendedCount} recommended, ${planCount} acceptable items*`);
+  return md.join("\n");
+}
+
+/**
  * Section 3A: What This Means for You (NEW - Gold Sample inspired)
  */
 function buildWhatThisMeansSection(
@@ -377,7 +432,7 @@ function buildWhatThisMeansSection(
       const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
       const timeline = resp?.timeline || "immediately";
-      const reason = resp?.why_it_matters || "to reduce liability risk";
+      const reason = sanitizeForClientReport(resp?.why_it_matters) || "to reduce liability risk";
       md.push(`- **${displayTitle}** should be addressed ${timeline} ${reason}.`);
     });
   }
@@ -395,7 +450,7 @@ function buildWhatThisMeansSection(
       const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
       const timeline = resp?.timeline || "within 12 months";
-      const reason = resp?.why_it_matters || "to reduce future risk";
+      const reason = sanitizeForClientReport(resp?.why_it_matters) || "to reduce future risk";
       md.push(`- **${displayTitle}** recommended ${timeline} ${reason}.`);
     });
   }
@@ -412,7 +467,7 @@ function buildWhatThisMeansSection(
       const profile = getFindingProfile(f.id);
       const displayTitle = getAssetDisplayTitle(f.id, profile.asset_component || profile.messaging?.title, f.title);
       const resp = responses?.findings?.[f.id];
-      const context = resp?.planning_guidance || "during next scheduled electrical works";
+      const context = sanitizeForClientReport(resp?.planning_guidance) || "during next scheduled electrical works";
       md.push(`- **${displayTitle}** can be addressed ${context}.`);
     });
   }
@@ -493,7 +548,7 @@ function buildScopeSection(inspection: StoredInspection, canonical: CanonicalIns
 async function buildObservedConditionsSection(
   inspection: StoredInspection,
   canonical: CanonicalInspection,
-  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>,
+  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string; location?: string }>,
   event?: HandlerEvent,
   baseUrl?: string,
   signingSecret?: string
@@ -514,14 +569,15 @@ async function buildObservedConditionsSection(
   const responsesMap: Record<string, Response> = responses.findings || {};
   const profilesMap = loadFindingProfiles();
   
-  // Convert findings to Finding type
+  // Convert findings to Finding type (preserve photo_ids, location for custom title "Asset–Condition" display)
   const findingList: Finding[] = findings.map(f => ({
     id: f.id,
     priority: f.priority,
     title: f.title,
     observed: f.observed,
     facts: f.facts,
-    photo_ids: (f as any).photo_ids,
+    photo_ids: f.photo_ids ?? (f as any).photo_ids,
+    location: (f as any).location,
   }));
   
   // Convert profiles to FindingProfile map
@@ -553,6 +609,19 @@ async function buildObservedConditionsSection(
   
   md.push("");
   
+  return md.join("\n");
+}
+
+/**
+ * Methodology overview (Gold Sample Section 5)
+ */
+function buildMethodologySection(defaultText: any): string {
+  const md: string[] = [];
+  md.push("- Visual review of accessible components (switchboard, outlets, smoke alarms, visible cabling, labels).");
+  md.push("- Functional checks where appropriate (RCD test button, sample outlet polarity/earth continuity where accessible).");
+  md.push("- Thermal imaging (if performed) to identify abnormal heat signatures under typical load conditions.");
+  md.push("- Risk classification based on likelihood of escalation + consequence to safety/legal exposure + timing flexibility.");
+  md.push("");
   return md.join("\n");
 }
 
@@ -628,9 +697,10 @@ function getObservedConditionSummary(
     return String(finding.facts).substring(0, 100);
   }
   
-  // Fallback to profile messaging or title
-  if (profile?.messaging?.why_it_matters) {
-    return String(profile.messaging.why_it_matters).substring(0, 100);
+  // Fallback to profile messaging or title — never show developer-facing text
+  const whyMatters = profile?.messaging?.why_it_matters;
+  if (whyMatters && sanitizeForClientReport(whyMatters)) {
+    return sanitizeForClientReport(whyMatters)!.substring(0, 100);
   }
   
   return "Condition observed during inspection";
@@ -653,7 +723,7 @@ function cellText(s: string): string {
 function buildCapExRoadmapSection(
   computed: ComputedFields,
   defaultText: any,
-  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string }>,
+  findings: Array<{ id: string; priority: string; title?: string; observed?: string; facts?: string; location?: string }>,
   responses: { findings?: Record<string, any> }
 ): string {
   const md: string[] = [];
@@ -782,12 +852,12 @@ function buildDecisionPathwaysSection(defaultText: any): string {
     "and ensure that any quotes you receive are aligned with the actual risk profile of the property.");
   md.push("");
   
-  // Option D - Management plan integration
+  // Option D - Management plan integration (framed as reducing cognitive load, not sales)
   md.push("### Option D — Management plan integration");
   md.push(defaultText.DECISION_PATHWAY_MANAGEMENT_PLAN || 
-    "Delegate coordination, quotation review, and completion verification to a management plan (Standard or Premium). " +
-    "This option provides end-to-end management of electrical works, from contractor briefing through to quality assurance and compliance documentation. " +
-    "Contact the inspection provider for details on management plan options.");
+    "Some owners delegate ongoing coordination—interpretation of this report, contractor briefing, quotation review, and completion verification—to a structured management arrangement. " +
+    "Doing so can reduce cognitive load, decision fatigue, and coordination risk: less time spent interpreting quotes, less risk of over-scoping when quotes exceed the report's priorities, and consistent application of the same framework across inspections and tenancy changes. " +
+    "This pathway is optional; the report remains sufficient for those who prefer to manage decisions themselves.");
   md.push("");
   
   return md.join("\n");
@@ -952,10 +1022,18 @@ function buildAppendixSection(canonical: CanonicalInspection, defaultText: any):
     });
   }
   
-  // Extract GPO test data
+  // Extract GPO test data (support gpo_tests.rooms → summary when summary missing; exclude not_accessible rooms)
   const gpoPerformed = extractValue(gpoTests.performed);
   if (gpoPerformed === true || gpoPerformed === "true" || gpoPerformed === "yes") {
-    const summary = gpoTests.summary as Record<string, unknown> | undefined;
+    let summary = gpoTests.summary as Record<string, unknown> | undefined;
+    const rooms = gpoTests.rooms as Array<Record<string, unknown>> | undefined;
+    const accessibleRooms = Array.isArray(rooms) ? rooms.filter((r) => r?.room_access !== "not_accessible") : [];
+    const notAccessibleCount = Array.isArray(rooms) ? rooms.filter((r) => r?.room_access === "not_accessible").length : 0;
+    if (!summary && accessibleRooms.length > 0) {
+      const totalTested = accessibleRooms.reduce((s, r) => s + (Number(r.tested_count) || 0), 0);
+      const passSum = accessibleRooms.reduce((s, r) => s + (Number(r.pass_count) || 0), 0);
+      summary = { total_gpo_tested: totalTested, polarity_pass: passSum, earth_present_pass: passSum };
+    }
     if (summary) {
       const totalTested = extractValue(summary.total_tested) || extractValue(summary.total_outlets_tested) || extractValue(summary.total_gpo_tested);
       const polarityPass = extractValue(summary.polarity_pass_count) || extractValue(summary.polarity_pass) || 0;
@@ -975,6 +1053,14 @@ function buildAppendixSection(canonical: CanonicalInspection, defaultText: any):
           unit: ""
         });
       }
+    }
+    if (notAccessibleCount > 0) {
+      testMeasurements.push({
+        test: "GPO Testing",
+        parameter: "Potential risk",
+        value: `${notAccessibleCount} room(s) not accessible – could not be tested`,
+        unit: ""
+      });
     }
   } else {
     // GPO tests not performed - show "not captured"
@@ -1048,34 +1134,34 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Document Purpose & How to Read This Report
+## 1. How to read this report
 
-{{ASSESSMENT_PURPOSE}}
-
-SENTINEL_PURPOSE_V1
+{{HOW_TO_READ_SECTION}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Executive Summary (One-Page Only)
+## 2. Executive decision summary
 
-### Overall Electrical Risk Rating
+### Overall risk position
 {{OVERALL_STATUS_BADGE}} {{OVERALL_STATUS}}
 
-### Key Decision Signals
 {{EXECUTIVE_DECISION_SIGNALS}}
 
-### Financial Planning Snapshot
+### Priority snapshot
+{{PRIORITY_SNAPSHOT_TABLE}}
+
+### Total estimated CapEx provision (0–5 years)
 {{CAPEX_SNAPSHOT}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Priority Overview
+## 3. What this means for you
 
-{{PRIORITY_TABLE_ROWS}}
+{{WHAT_THIS_MEANS_SECTION}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Assessment Scope & Limitations
+## 4. Scope and independence statement
 
 {{SCOPE_SECTION}}
 
@@ -1083,7 +1169,13 @@ SENTINEL_PURPOSE_V1
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Observed Conditions & Risk Interpretation
+## 5. Methodology overview
+
+{{METHODOLOGY_SECTION}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## 6. Observations and evidence
 
 SENTINEL_FINDINGS_V1
 
@@ -1091,21 +1183,19 @@ SENTINEL_FINDINGS_V1
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Thermal Imaging Analysis
+## 7. Risk prioritisation framework
+
+{{PRIORITY_TABLE_ROWS}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## 8. Thermal imaging analysis
 
 {{THERMAL_SECTION}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Test Data & Technical Notes
-
-{{TEST_DATA_SECTION}}
-
-{{TECHNICAL_NOTES}}
-
-<div class="page-break" style="page-break-after:always;"></div>
-
-## 5-Year Capital Expenditure (CapEx) Roadmap
+## 9. 5-year CapEx roadmap (budget plan)
 
 {{CAPEX_TABLE_ROWS}}
 
@@ -1113,7 +1203,7 @@ SENTINEL_FINDINGS_V1
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Decision Pathways
+## 10. Owner decision pathways
 
 SENTINEL_DECISION_V1
 
@@ -1121,9 +1211,18 @@ SENTINEL_DECISION_V1
 
 <div class="page-break" style="page-break-after:always;"></div>
 
-## Important Legal Limitations & Disclaimer (Terms & Conditions)
+## 11. Terms, limitations and legal framework
 
 {{TERMS_AND_CONDITIONS}}
+
+<div class="page-break" style="page-break-after:always;"></div>
+
+## 12. Appendix (photos and test notes)
+
+{{TEST_DATA_SECTION}}
+
+### Technical Notes
+{{TECHNICAL_NOTES}}
 
 <div class="page-break" style="page-break-after:always;"></div>
 
@@ -1171,7 +1270,8 @@ export async function buildStructuredReport(
     baseUrl,
     signingSecret
   );
-  const termsContent = await loadTermsAndConditions();
+  console.log("[report-fp] buildStructuredReport: observedConditions type=" + typeof observedConditions + " length=" + (observedConditions ? observedConditions.length : "null"));
+  const termsContent = (await loadTermsAndConditions()) || "Terms and conditions apply. Please refer to the full terms document.";
 
   const scopeOnly =
     defaultText.SCOPE_SECTION ||
@@ -1200,14 +1300,39 @@ export async function buildStructuredReport(
   const capexSection = buildCapExRoadmapSection(computed, defaultText, findings, responses);
   const capexTableRows = capexSection.split(/\*\*Indicative market/)[0]?.trim() || capexSection;
   const capexDisclaimer = "Provided for financial provisioning only. Not a quotation or scope of works.";
-  const decisionPathways =
-    defaultText.DECISION_PATHWAYS_SECTION ||
-    defaultText.DECISION_PATHWAYS_TEXT ||
-    "This report provides a framework for managing risk, not removing it.";
+
+  // Build Executive / What This Means / Decision Pathways via computed fields (no repetition)
+  const immediateCount = findings.filter((f) => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
+  const recommendedCount = findings.filter((f) => f.priority === "RECOMMENDED" || f.priority === "RECOMMENDED_0_3_MONTHS").length;
+  const planCount = findings.filter((f) => f.priority === "PLAN" || f.priority === "PLAN_MONITOR").length;
+  const built = buildComputedFields({
+    overallStatus: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
+    riskRating: String(reportData.RISK_RATING ?? computed.RISK_RATING ?? "MODERATE"),
+    capexSnapshot: String(reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "To be confirmed"),
+    immediateCount,
+    recommendedCount,
+    planCount,
+    defaultText,
+  });
+  const { blocks: deduped, removedCount } = dedupeSentences(
+    { exec: built.EXEC_SUMMARY_CORE, interp: built.INTERPRETATION_GUIDANCE, decision: built.DECISION_PATHWAYS_BULLETS },
+    { minLen: 15 }
+  );
+  const execCore = deduped.exec || built.EXEC_SUMMARY_CORE;
+  const whatThisMeansSection = deduped.interp || built.INTERPRETATION_GUIDANCE;
+  const decisionPathways = deduped.decision || built.DECISION_PATHWAYS_BULLETS;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[textDedupe] exec len=" + execCore.length + ", interp len=" + whatThisMeansSection.length + ", decision len=" + decisionPathways.length + ", removedCount=" + removedCount);
+  }
+
   const closingSection = buildClosingSection(canonical, defaultText);
+  const howToReadSection = buildPurposeSection(defaultText);
+  const prioritySnapshotTable = buildPrioritySnapshotTable(findings);
+  const methodologySection = buildMethodologySection(defaultText);
   const coverSection = buildCoverSection(canonical, defaultText);
 
-  return {
+  const reportObject = {
     COVER_SECTION: coverSection,
     INSPECTION_ID: coverData.INSPECTION_ID || canonical.inspection_id || "-",
     ASSESSMENT_DATE: coverData.ASSESSMENT_DATE || canonical.assessment_date || "-",
@@ -1216,9 +1341,16 @@ export async function buildStructuredReport(
     PROPERTY_ADDRESS: coverData.PROPERTY_ADDRESS || canonical.property_address || "-",
     PROPERTY_TYPE: coverData.PROPERTY_TYPE || canonical.property_type || "Not specified",
     ASSESSMENT_PURPOSE: coverData.ASSESSMENT_PURPOSE || assessmentPurpose,
+    HOW_TO_READ_SECTION: howToReadSection,
+    WHAT_THIS_MEANS_SECTION: whatThisMeansSection,
+    PRIORITY_SNAPSHOT_TABLE: prioritySnapshotTable,
     OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
     OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? computed.RISK_RATING ?? "🟡 Moderate"),
-    EXECUTIVE_DECISION_SIGNALS: String(reportData.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_SUMMARY ?? defaultText.EXECUTIVE_SUMMARY ?? "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles."),
+    EXECUTIVE_DECISION_SIGNALS: (() => {
+      const v = execCore || (reportData.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_SUMMARY ?? defaultText.EXECUTIVE_SUMMARY ?? "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.");
+      const s = String(v ?? "");
+      return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
+    })(),
     CAPEX_SNAPSHOT: (() => {
       const raw = reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "AUD $0 – $0 (indicative, planning only)";
       const s = String(raw);
@@ -1233,16 +1365,26 @@ export async function buildStructuredReport(
     },
     SCOPE_SECTION: scopeOnly || defaultText.SCOPE_SECTION || "This assessment is non-invasive and limited to accessible areas only.",
     LIMITATIONS_SECTION: limitationsOnly,
+    METHODOLOGY_SECTION: methodologySection,
     FINDING_PAGES_HTML: observedConditions,
     THERMAL_SECTION: thermalSection,
     CAPEX_TABLE_ROWS: capexTableRows,
-    CAPEX_DISCLAIMER_LINE: String(reportData.CAPEX_DISCLAIMER_LINE ?? capexDisclaimer),
+    CAPEX_DISCLAIMER_LINE: (() => {
+      const v = reportData.CAPEX_DISCLAIMER_LINE ?? capexDisclaimer;
+      const s = String(v ?? capexDisclaimer);
+      return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : capexDisclaimer;
+    })(),
     DECISION_PATHWAYS: decisionPathways,
-    TERMS_AND_CONDITIONS: String(reportData.TERMS_AND_CONDITIONS ?? termsContent),
+    TERMS_AND_CONDITIONS: (() => {
+      const v = reportData.TERMS_AND_CONDITIONS ?? termsContent;
+      const s = String(v ?? termsContent ?? "");
+      return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : (termsContent || "Terms and conditions apply. Please refer to the full terms document.");
+    })(),
     TEST_DATA_SECTION: testDataSection,
     TECHNICAL_NOTES: technicalNotesPart,
     CLOSING_STATEMENT: closingSection,
   } as StructuredReport;
+  return reportObject;
 }
 
 /**
@@ -1267,6 +1409,10 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   sections.push(buildPurposeSection(defaultText));
   sections.push(PAGE_BREAK);
   
+  // 2.5. How We Assess Risk (9 dimensions — investor-focused)
+  sections.push(buildHowWeAssessRiskSection());
+  sections.push(PAGE_BREAK);
+  
   // 3. Executive Summary (One-Page Only)
   sections.push(buildExecutiveSummarySection(computed, findings, defaultText));
   sections.push(PAGE_BREAK);
@@ -1285,7 +1431,7 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   
   // 6. Observed Conditions & Risk Interpretation (Dynamic Pages)
   // This section already contains HTML from generateFindingPages
-  const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event);
+  const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event, baseUrl, signingSecret);
   sections.push(observedConditions);
   sections.push(PAGE_BREAK);
   

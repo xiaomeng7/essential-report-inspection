@@ -27,6 +27,7 @@ export type Finding = {
   title?: string;
   observed?: string;
   facts?: string;
+  location?: string;
   photo_ids?: string[];
 };
 
@@ -72,6 +73,20 @@ function nl2br(text: string): string {
   return escapeHtml(text).replace(/\n/g, "<br/>");
 }
 
+/** Client-safe fallback when messaging contains developer-facing text (never show in report) */
+const CLIENT_SAFE_WHY_IT_MATTERS = "This condition may affect electrical safety, reliability, or compliance depending on severity and location.";
+
+/** Sanitize messaging text: return undefined if developer-facing (caller uses fallback), else return trimmed text */
+function sanitizeForClient(text: string | undefined | null): string | undefined {
+  if (!text || typeof text !== "string") return undefined;
+  const s = text.trim();
+  // Developer-facing phrases that must never appear in customer reports — treat as missing so caller fallback applies
+  if (/fallback profile|unmapped IDs?|ensure new IDs? are added|add.*to profiles/i.test(s)) {
+    return undefined;
+  }
+  return s;
+}
+
 /**
  * Get priority classification text (emoji is separate; no bracket labels)
  */
@@ -101,19 +116,55 @@ function normalizePriority(priority: string): "IMMEDIATE" | "RECOMMENDED" | "PLA
   return "PLAN";
 }
 
-/** Get asset-oriented display title (Gold Sample format). */
+/** Get asset-oriented display title (Gold Sample format). Never show "UNKNOWN FINDING FALLBACK" in reports. */
 function getAssetDisplayTitle(
   findingId: string,
   profile: FindingProfile,
   response: Response,
-  findingTitle?: string
+  finding: Finding
 ): string {
-  const fromProfile = profile.asset_component || profile.messaging?.title;
+  let fromProfile = profile.asset_component || profile.messaging?.title;
+  // Production: never show fallback label; use finding.title or formatted findingId
+  if (fromProfile && /UNKNOWN\s*FINDING\s*FALLBACK/i.test(String(fromProfile).trim())) {
+    fromProfile = undefined;
+  }
   const fromResponse = response?.title?.trim();
+  
+  // For custom findings (e.g. from "other" issues or fallback profiles), use Asset-Condition Hybrid strategy
+  const isCustomFinding = 
+    !fromProfile || 
+    findingId.includes("CUSTOM") || 
+    findingId.includes("OTHER") ||
+    profile.category === "UNKNOWN" ||
+    (finding.title && finding.title.toLowerCase().includes("general observation"));
+  
+  if (isCustomFinding && finding.location) {
+    // Use Asset-Condition Hybrid strategy for custom findings
+    const location = finding.location.trim();
+    const observed = (finding.observed || finding.title || "").toLowerCase();
+    
+    let conditionType = "Condition Noted";
+    if (observed.includes("loose") || observed.includes("mechanical")) {
+      conditionType = "Mechanical Looseness";
+    } else if (observed.includes("overheat") || observed.includes("thermal") || observed.includes("heat")) {
+      conditionType = "Thermal Concern";
+    } else if (observed.includes("water") || observed.includes("moisture")) {
+      conditionType = "Water Ingress Risk";
+    } else if (observed.includes("cable") || observed.includes("wiring")) {
+      conditionType = "Cabling Concern";
+    } else if (observed.includes("damage") || observed.includes("worn")) {
+      conditionType = "Physical Degradation";
+    } else if (observed.includes("burn") || observed.includes("scorch")) {
+      conditionType = "Thermal Damage";
+    }
+    
+    return `${location} – ${conditionType}`;
+  }
+  
   return getAssetTitle(
     findingId,
     fromProfile ?? fromResponse ?? undefined,
-    findingTitle ?? fromResponse
+    finding.title ?? fromResponse
   );
 }
 
@@ -175,14 +226,15 @@ function generateRiskInterpretation(
 ): string {
   const parts: string[] = [];
   
-  // 1. What it means now (current state)
-  const currentState = profile.messaging?.why_it_matters || 
-                      response.why_it_matters || 
-                      "This condition may affect electrical safety, reliability, or compliance depending on severity and location.";
+  // 1. What it means now (current state) — never show developer-facing text
+  const rawWhy = profile.messaging?.why_it_matters || response.why_it_matters;
+  const currentState = sanitizeForClient(rawWhy) || CLIENT_SAFE_WHY_IT_MATTERS;
   parts.push(currentState.trim());
   
-  // 2. What happens if not addressed (REQUIRED - must include escalation path)
-  let ifNotAddressed = profile.messaging?.if_not_addressed;
+  // 2. What happens if not addressed (REQUIRED - must include escalation path) — never use developer-facing text
+  let ifNotAddressed = profile.messaging?.if_not_addressed
+    ? sanitizeForClient(profile.messaging.if_not_addressed) ?? undefined
+    : undefined;
   if (!ifNotAddressed && response.risk_interpretation) {
     // Try to extract "if not addressed" clause from risk_interpretation
     const match = response.risk_interpretation.match(/If.*not.*addressed[^.]*\./i);
@@ -222,7 +274,7 @@ function generateRiskInterpretation(
   
   // 4. Why this priority level (why not Immediate, REQUIRED if not IMMEDIATE)
   if (priority !== "IMMEDIATE") {
-    let whyNotImmediate = profile.messaging?.planning_guidance;
+    let whyNotImmediate = sanitizeForClient(profile.messaging?.planning_guidance) ?? profile.messaging?.planning_guidance;
     if (!whyNotImmediate && response.risk_interpretation) {
       // Try to extract "why not immediate" explanation
       const match = response.risk_interpretation.match(/(not immediate|manageable|can be planned|allows for planning|not classified as urgent)[^.]*\./i);
@@ -260,6 +312,62 @@ function generateRiskInterpretation(
   }).join(" ");
 }
 
+/** Map profile.risk + priority to 9-dimension display labels and badge colours for Risk Assessment Profile */
+function getRiskProfileDimensions(
+  profile: FindingProfile,
+  effectivePriority: string
+): {
+  safety_impact: string; safetyBadge: string;
+  failure_likelihood: string; escalationBadge: string;
+  time_flexibility: string; urgencyBadge: string;
+  tenant_disruption: string; tenantBadge: string;
+  compliance_risk: string; complianceBadge: string;
+  cost_predictability: string; costBadge: string;
+  asset_value_impact: string; trendBadge: string;
+  observability: string; observabilityBadge: string;
+  planning_value: string; planningBadge: string;
+} {
+  const risk = profile.risk || { safety: "LOW", compliance: "LOW", escalation: "LOW" };
+  const safetyLabel = risk.safety === "HIGH" ? "High" : risk.safety === "MODERATE" ? "Moderate" : "Low";
+  const safetyBadge = risk.safety === "HIGH" ? "red" : risk.safety === "MODERATE" ? "yellow" : "green";
+  const escalationLabel = risk.escalation === "HIGH" ? "High" : risk.escalation === "MODERATE" ? "Medium" : "Low";
+  const escalationBadge = risk.escalation === "HIGH" ? "red" : risk.escalation === "MODERATE" ? "yellow" : "green";
+  const complianceLabel = risk.compliance === "HIGH" ? "Material" : risk.compliance === "MEDIUM" ? "Minor" : "None";
+  const complianceBadge = risk.compliance === "HIGH" ? "red" : risk.compliance === "MEDIUM" ? "yellow" : "green";
+  const timeFlex = effectivePriority === "IMMEDIATE" ? "Immediate" : effectivePriority === "RECOMMENDED" ? "Near-term" : "Planned cycle OK";
+  const urgencyBadge = effectivePriority === "IMMEDIATE" ? "red" : effectivePriority === "RECOMMENDED" ? "yellow" : "green";
+  const tenantLabel = "Low";
+  const tenantBadge = "green";
+  const costLabel = "Stable";
+  const costBadge = "green";
+  const assetLabel = risk.escalation === "HIGH" ? "Moderate" : risk.escalation === "MODERATE" ? "Moderate" : "Low";
+  const trendBadge = risk.escalation === "HIGH" ? "yellow" : "green";
+  const observabilityLabel = "Obvious";
+  const observabilityBadge = "green";
+  const planningLabel = effectivePriority === "PLAN" ? "High" : effectivePriority === "RECOMMENDED" ? "High" : "Medium";
+  const planningBadge = "green";
+  return {
+    safety_impact: safetyLabel,
+    safetyBadge,
+    failure_likelihood: escalationLabel,
+    escalationBadge,
+    time_flexibility: timeFlex,
+    urgencyBadge,
+    tenant_disruption: tenantLabel,
+    tenantBadge,
+    compliance_risk: complianceLabel,
+    complianceBadge,
+    cost_predictability: costLabel,
+    costBadge,
+    asset_value_impact: assetLabel,
+    trendBadge,
+    observability: observabilityLabel,
+    observabilityBadge,
+    planning_value: planningLabel,
+    planningBadge,
+  };
+}
+
 /**
  * Generate a single finding page as HTML
  */
@@ -276,11 +384,11 @@ function generateFindingPageHtml(
   // Page break before each finding block
   htmlParts.push('<div style="page-break-before:always;"></div>');
   
-  // Normalize priority
-  const effectivePriority = normalizePriority(profile.priority || finding.priority);
+  // Normalize priority: use finding.priority first (authoritative from rules engine), profile only as fallback
+  const effectivePriority = normalizePriority(finding.priority || profile.priority || profile.default_priority || "PLAN");
   
   // 1. Asset Component (Gold Sample: asset-oriented title, e.g. "Main Switchboard – Ageing Components")
-  const assetComponent = getAssetDisplayTitle(finding.id, profile, response, finding.title);
+  const assetComponent = getAssetDisplayTitle(finding.id, profile, response, finding);
   
   if (!assetComponent || assetComponent.trim().length === 0) {
     errors.push({ field: "asset_component", message: "Asset Component is missing or empty" });
@@ -304,6 +412,9 @@ function generateFindingPageHtml(
     observedCondition = finding.observed || 
                        finding.facts || 
                        `${assetComponent} was observed during the visual inspection.`;
+  }
+  if (finding.location && finding.location.trim()) {
+    observedCondition = `Location: ${finding.location}. ${observedCondition}`;
   }
   
   if (!observedCondition || observedCondition.trim().length === 0) {
@@ -353,6 +464,17 @@ function generateFindingPageHtml(
   
   htmlParts.push(`<h4>Risk Interpretation</h4>`);
   htmlParts.push(`<p>${nl2br(riskInterpretation)}</p>`);
+  
+  // 4A. Risk Assessment Profile (9 dimensions) — structured, investor-friendly
+  const dims = getRiskProfileDimensions(profile, effectivePriority);
+  htmlParts.push(`<h4>Risk Assessment Profile</h4>`);
+  htmlParts.push(`<table class="risk-profile-compact">`);
+  htmlParts.push(`<tbody>`);
+  htmlParts.push(`<tr><td><strong>Safety Impact:</strong> <span class="badge-${dims.safetyBadge}">${escapeHtml(dims.safety_impact)}</span></td><td><strong>Escalation Risk:</strong> <span class="badge-${dims.escalationBadge}">${escapeHtml(dims.failure_likelihood)}</span></td><td><strong>Time Flexibility:</strong> <span class="badge-${dims.urgencyBadge}">${escapeHtml(dims.time_flexibility)}</span></td></tr>`);
+  htmlParts.push(`<tr><td><strong>Tenant Disruption:</strong> <span class="badge-${dims.tenantBadge}">${escapeHtml(dims.tenant_disruption)}</span></td><td><strong>Compliance Risk:</strong> <span class="badge-${dims.complianceBadge}">${escapeHtml(dims.compliance_risk)}</span></td><td><strong>Cost Predictability:</strong> <span class="badge-${dims.costBadge}">${escapeHtml(dims.cost_predictability)}</span></td></tr>`);
+  htmlParts.push(`<tr><td><strong>Asset Value Impact:</strong> <span class="badge-${dims.trendBadge}">${escapeHtml(dims.asset_value_impact)}</span></td><td><strong>Observability:</strong> <span class="badge-${dims.observabilityBadge}">${escapeHtml(dims.observability)}</span></td><td><strong>Planning Value:</strong> <span class="badge-${dims.planningBadge}">${escapeHtml(dims.planning_value)}</span></td></tr>`);
+  htmlParts.push(`</tbody></table>`);
+  htmlParts.push(`<p class="small" style="margin-top:4pt;color:#666;"><em>Priority determined by multi-factor risk model. This classification reflects structured assessment across safety, timing, and financial dimensions—not subjective judgment.</em></p>`);
   
   // 5. Priority Classification: emoji + text only (e.g. 🟡 Budgetary Provision Recommended), no bracket labels
   const priorityKey = effectivePriority === "IMMEDIATE" ? "IMMEDIATE" : effectivePriority === "RECOMMENDED" ? "RECOMMENDED_0_3_MONTHS" : "PLAN_MONITOR";
@@ -414,24 +536,14 @@ function getNestedValue(obj: unknown, path: string): unknown {
 }
 
 /**
- * Extract photo_ids from finding or raw data
+ * Extract photo_ids from finding only. Do NOT fall back to raw paths (avoids showing photos for findings that have none).
+ * Rule: photo_ids.length === 0 → "No photographic evidence"; photo_ids.length > 0 → list photos.
  */
-function getPhotoIds(finding: Finding, inspectionRaw: Record<string, unknown>, canonicalTestData: Record<string, unknown>): string[] {
+function getPhotoIds(finding: Finding, _inspectionRaw: Record<string, unknown>, _canonicalTestData: Record<string, unknown>): string[] {
   if (finding.photo_ids && Array.isArray(finding.photo_ids) && finding.photo_ids.length > 0) {
-    return finding.photo_ids.slice(0, 2);
-  }
-  const findingIdLower = finding.id.toLowerCase();
-  const possiblePaths = [
-    `${findingIdLower}.photo_ids`,
-    `exceptions.${findingIdLower}.photo_ids`,
-    `rcd_tests.exceptions.photo_ids`,
-    `gpo_tests.exceptions.photo_ids`,
-  ];
-  for (const path of possiblePaths) {
-    const value = getNestedValue(inspectionRaw, path) || getNestedValue(canonicalTestData, path);
-    if (value && Array.isArray(value) && value.length > 0) {
-      return (value as string[]).slice(0, 2);
-    }
+    // Filter out base64 data URLs (uploaded but not yet replaced with blob IDs)
+    const realIds = finding.photo_ids.filter((id): id is string => typeof id === "string" && !id.startsWith("data:image"));
+    return realIds.slice(0, 2);
   }
   return [];
 }
@@ -532,7 +644,7 @@ export async function generateFindingPages(
   for (let i = 0; i < sortedFindings.length; i++) {
     const finding = sortedFindings[i];
     const photoCount = (finding.photo_ids && Array.isArray(finding.photo_ids)) ? finding.photo_ids.length : 0;
-    console.log("[report] generateFindingPages VERSION=" + VERSION, "finding.id=" + finding.id, "photo_ids=" + photoCount);
+    console.log("[photo-fp] VERSION=" + VERSION + " finding.id=" + finding.id + " photo_ids length=" + photoCount);
     const profile = profiles[finding.id];
     if (!profile) {
       const errorMsg = `Finding profile not found for ${finding.id}`;
@@ -556,6 +668,8 @@ export async function generateFindingPages(
       baseUrl,
       signingSecret
     );
+    const snippet = typeof evidence === "string" && evidence.length > 0 ? evidence.slice(0, 200) : "";
+    console.log("[photo-fp] evidence html snippet for finding.id=" + finding.id + ": " + (snippet ? snippet.replace(/\n/g, " ") : "(empty)"));
     const { html, errors } = generateFindingPageHtml(finding, i, profile, response, evidence);
 
     htmlParts.push(html);

@@ -9,22 +9,10 @@
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { get, save, savePhoto, type PhotoMetadata } from "./lib/store";
+import { get, save, savePhoto, allocatePhotoId, photoKeyExists, type PhotoMetadata } from "./lib/store";
 
 const MAX_PHOTOS_PER_FINDING = 2;
-
-function generatePhotoId(existingIds: string[]): string {
-  const max = existingIds.reduce((acc, id) => {
-    const m = id.match(/^P(\d+)$/i);
-    if (m) {
-      const n = parseInt(m[1], 10);
-      return n > acc ? n : acc;
-    }
-    return acc;
-  }, 0);
-  const next = max + 1;
-  return `P${String(next).padStart(2, "0")}`;
-}
+const ALLOCATE_RETRIES = 3;
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "POST") {
@@ -88,7 +76,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   }
 
-  const photoId = generatePhotoId(existingPhotoIds);
+  let photoId: string | null = null;
+  for (let attempt = 0; attempt < ALLOCATE_RETRIES; attempt++) {
+    const candidate = await allocatePhotoId(inspection_id, event);
+    if (!(await photoKeyExists(inspection_id, candidate, ext, event))) {
+      photoId = candidate;
+      break;
+    }
+    console.log("[photo-fp] collision for " + candidate + ", retry " + (attempt + 1) + "/" + ALLOCATE_RETRIES);
+  }
+  if (!photoId) {
+    console.error("[photo-fp] allocate failed after " + ALLOCATE_RETRIES + " retries");
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Could not allocate unique photo id after retries" }),
+    };
+  }
+
   const blobKeyImage = `photos/${inspection_id}/${photoId}.${ext}`;
   const blobKeyMeta = `photos/${inspection_id}/${photoId}.json`;
 
@@ -108,18 +113,23 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
 
   try {
     await save(inspection_id, inspection, event);
-    console.log("[report-fp] upload saved inspection_id=" + inspection_id + " finding_id=" + finding_id + " new_photo_id=" + photoId + " photo_ids=" + JSON.stringify(newPhotoIds));
+    console.log("[photo-fp] upload saved inspection_id=" + inspection_id + " finding_id=" + finding_id + " new_photo_id=" + photoId + " photo_ids=" + JSON.stringify(newPhotoIds));
   } catch (saveErr) {
-    console.error("[report-fp] upload save FAILED:", saveErr);
+    console.error("[photo-fp] upload save FAILED:", saveErr);
     throw saveErr;
   }
 
-  // Re-read with strong consistency to verify write
-  const reRead = await get(inspection_id, event, true);
+  // Re-read to verify write (strong read when available; fallback to normal)
+  let reRead: Awaited<ReturnType<typeof get>>;
+  try {
+    reRead = await get(inspection_id, event, true);
+  } catch {
+    reRead = await get(inspection_id, event);
+  }
   const reFinding = reRead?.findings?.find((f) => f.id === finding_id);
   const reIds = Array.isArray((reFinding as any)?.photo_ids) ? (reFinding as any).photo_ids : [];
   const verified = JSON.stringify(reIds) === JSON.stringify(newPhotoIds);
-  console.log("[report-fp] upload verify inspection_id=" + inspection_id + " finding_id=" + finding_id + " re_read_photo_ids=" + JSON.stringify(reIds) + " verified=" + verified);
+  console.log("[photo-fp] after-save verify: finding_id=" + finding_id + ", photo_ids length=" + reIds.length + ", verified=" + verified);
 
   return {
     statusCode: 200,

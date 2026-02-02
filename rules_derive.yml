@@ -1,0 +1,46 @@
+# 9 维度 → 信号规则（配置蓝图）
+# Optional: use as config for derivePropertySignals engine
+# See REPORT_OUTPUT_CONTRACT.md §0 for design principle: Finding ≠ Decision
+#
+# Internal dimensions (D1–D9) — per Finding:
+#   D1 safety_impact         low|medium|high
+#   D2 compliance_risk       none|minor|material
+#   D3 failure_likelihood    low|medium|high
+#   D4 urgency               now|short|planned
+#   D5 degradation_trend     stable|worsening
+#   D6 tenant_disruption_risk low|medium|high
+#   D7 cost_volatility       stable|uncertain
+#   D8 detectability         obvious|hidden
+#   D9 decision_complexity   simple|requires_judgement
+
+finding_derivation_rules:
+  immediate_safety_risk:
+    when:
+      - safety_impact: high
+      - urgency: now
+    result: true
+
+  sudden_failure_risk:
+    when:
+      - failure_likelihood: high
+      - detectability: hidden
+    result: true
+
+  tenant_disruption_risk:
+    when:
+      - tenant_disruption_risk: medium_or_above
+      - failure_likelihood: medium_or_above
+    result: true
+
+  deferrable:
+    unless:
+      - urgency: now
+      - degradation_trend: worsening
+    result: true
+
+  planning_value:
+    when_any:
+      - degradation_trend: worsening
+      - cost_volatility: uncertain
+      - decision_complexity: requires_judgement
+    result: true

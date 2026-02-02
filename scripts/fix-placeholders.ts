@@ -518,7 +518,8 @@ function main() {
   console.log("=".repeat(60));
 }
 
-// Run if this is the main module (ES modules compatible)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run when executed directly (not when imported). CJS/ESM compatible to avoid import.meta warning when bundled.
+const isDirectRun = process.argv[1]?.includes("fix-placeholders") ?? false;
+if (isDirectRun) {
   main();
 }

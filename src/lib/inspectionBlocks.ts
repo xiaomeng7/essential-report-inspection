@@ -28,7 +28,7 @@ export const INSPECTION_BLOCKS: BlockDef[] = [
     ],
   },
   { id: "rcd", title: "RCD 测试", titleEn: "RCD Tests", sectionIds: ["S5_RCD_TESTS_SUMMARY", "S6_RCD_TESTS_EXCEPTIONS"] },
-  { id: "gpo_lighting", title: "GPO 与照明", titleEn: "GPO & Lighting", sectionIds: ["S7_GPO_LIGHTING_SUMMARY", "S8_GPO_LIGHTING_EXCEPTIONS"] },
+  { id: "gpo_lighting", title: "GPO 与照明", titleEn: "GPO & Lighting", sectionIds: ["S7A_GPO_BY_ROOM", "S8_GPO_LIGHTING_EXCEPTIONS", "S7B_LIGHTING_BY_ROOM"] },
   {
     id: "internal_installation",
     title: "室内安装",

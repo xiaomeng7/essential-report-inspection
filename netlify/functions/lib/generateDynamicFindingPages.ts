@@ -200,6 +200,9 @@ function generateFindingPage(
                        finding.facts || 
                        `${assetComponent} was observed during the visual inspection.`;
   }
+  if (finding.location && finding.location.trim()) {
+    observedCondition = `Location: ${finding.location}. ${observedCondition}`;
+  }
   lines.push(observedCondition);
   lines.push("");
   
@@ -409,6 +412,7 @@ export async function generateDynamicFindingPages(
     title: f.title,
     observed: f.observed,
     facts: f.facts,
+    location: (f as any).location,
     photo_ids: (f as any).photo_ids,
   }));
   

@@ -66,12 +66,32 @@ function findMappingPath(): string {
   return possiblePaths[0];
 }
 
+function findFindingProfilesPath(): string {
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "profiles", "finding_profiles.yml"),
+    path.join(__dirname, "finding_profiles.yml"),
+    path.join(process.cwd(), "profiles", "finding_profiles.yml"),
+    path.join(process.cwd(), "netlify", "functions", "finding_profiles.yml"),
+    "/opt/build/repo/profiles/finding_profiles.yml",
+    "/var/task/finding_profiles.yml",
+  ];
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* continue */
+    }
+  }
+  return possiblePaths[0];
+}
+
 function findResponsesPath(): string {
   const possiblePaths = [
-    path.join(__dirname, "..", "..", "responses.yml"), // Root of project
-    path.join(process.cwd(), "responses.yml"),
+    path.join(__dirname, "..", "..", "netlify", "functions", "responses.yml"),
+    path.join(__dirname, "..", "..", "responses.yml"),
     path.join(process.cwd(), "netlify", "functions", "responses.yml"),
-    "/opt/build/repo/responses.yml",
+    path.join(process.cwd(), "responses.yml"),
+    "/opt/build/repo/netlify/functions/responses.yml",
     "/var/task/responses.yml",
   ];
   for (const p of possiblePaths) {
@@ -101,13 +121,15 @@ function getConfigStore(event?: HandlerEvent) {
 
 // Load from file or blob store
 // IMPORTANT: Prioritize Blob Store to preserve user edits (user edits are saved to Blob Store)
-async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses"): Promise<{ content: string; source: "file" | "blob" }> {
+async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses" | "finding_profiles"): Promise<{ content: string; source: "file" | "blob" }> {
   // Determine file path (for fallback)
   let filePath: string;
   if (type === "rules") {
     filePath = findRulesPath();
   } else if (type === "mapping") {
     filePath = findMappingPath();
+  } else if (type === "finding_profiles") {
+    filePath = findFindingProfilesPath();
   } else {
     filePath = findResponsesPath();
   }
@@ -155,7 +177,7 @@ async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
 }
 
 // Save to blob store
-async function saveConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses", content: string): Promise<void> {
+async function saveConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses" | "finding_profiles", content: string): Promise<void> {
   const blobStore = getConfigStore(event);
   const blobKey = `${type}.${type === "mapping" ? "json" : "yml"}`;
   await blobStore.set(blobKey, content, {
@@ -177,6 +199,76 @@ async function saveConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
   });
 }
 
+/** Build merged dimensions view from rules + finding_profiles + responses */
+function buildDimensionsData(
+  rulesData: { hard_overrides?: Record<string, unknown>; findings?: Record<string, { safety?: string; urgency?: string; liability?: string }> },
+  profilesData: { finding_profiles?: Record<string, { risk?: { safety?: string; escalation?: string }; default_priority?: string; risk_severity?: number; likelihood?: number; budget?: string; budget_band?: string; messaging?: { title?: string } }> },
+  responsesData: { findings?: Record<string, { budgetary_range?: { low?: number; high?: number }; default_priority?: string }> }
+): { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> } {
+  const allIds = new Set<string>();
+  if (rulesData.findings) Object.keys(rulesData.findings).forEach((k) => allIds.add(k));
+  if (rulesData.hard_overrides) {
+    Object.keys(rulesData.hard_overrides).forEach((k) => {
+      if (k !== "priority_bucket" && k !== "findings" && rulesData.hard_overrides![k]) allIds.add(k);
+    });
+  }
+  if (profilesData.finding_profiles) Object.keys(profilesData.finding_profiles).forEach((k) => allIds.add(k));
+  if (responsesData.findings) Object.keys(responsesData.findings).forEach((k) => allIds.add(k));
+
+  const findings: Record<string, Record<string, unknown>> = {};
+  const missing: Array<{ id: string; missing: string[] }> = [];
+
+  const getRules = (id: string) => {
+    const ho = rulesData.hard_overrides?.[id] as { safety?: string; urgency?: string; liability?: string } | undefined;
+    if (ho && typeof ho === "object") return ho;
+    return rulesData.findings?.[id];
+  };
+
+  for (const id of allIds) {
+    const pf = profilesData.finding_profiles?.[id];
+    const resp = responsesData.findings?.[id];
+    const rulesEntry = getRules(id);
+
+    const safety = rulesEntry?.safety ?? pf?.risk?.safety ?? "";
+    const urgency = rulesEntry?.urgency ?? "";
+    const liability = rulesEntry?.liability ?? "";
+    const budgetLow = resp?.budgetary_range?.low ?? null;
+    const budgetHigh = resp?.budgetary_range?.high ?? null;
+    const priority = pf?.default_priority ?? resp?.default_priority ?? "";
+    const severity = pf?.risk_severity ?? null;
+    const likelihood = pf?.likelihood ?? null;
+    const escalation = pf?.risk?.escalation ?? "";
+
+    const gaps: string[] = [];
+    if (!safety && !pf?.risk?.safety) gaps.push("Safety");
+    if (!urgency) gaps.push("Urgency");
+    if (!liability) gaps.push("Liability");
+    if (budgetLow == null && budgetHigh == null && !pf?.budget_band && !pf?.budget) gaps.push("Budget");
+    if (!priority) gaps.push("Priority");
+    if (severity == null) gaps.push("Severity");
+    if (likelihood == null) gaps.push("Likelihood");
+    if (!escalation) gaps.push("Escalation");
+
+    if (gaps.length > 0) missing.push({ id, missing: gaps });
+
+    findings[id] = {
+      safety,
+      urgency,
+      liability,
+      budget_low: budgetLow,
+      budget_high: budgetHigh,
+      priority,
+      severity: severity ?? "",
+      likelihood: likelihood ?? "",
+      escalation,
+      title: pf?.messaging?.title ?? id.replace(/_/g, " "),
+      missing: gaps,
+    };
+  }
+
+  return { findings, missing };
+}
+
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (!checkAuth(event)) {
     return {
@@ -187,6 +279,109 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   const pathRaw = event.path ?? "";
+
+  // Handle dimensions endpoint (merged view + save)
+  if (pathRaw.includes("/dimensions")) {
+    try {
+      if (event.httpMethod === "GET") {
+        const [rulesResult, profilesResult, responsesResult] = await Promise.all([
+          loadConfig(event, "rules"),
+          loadConfig(event, "finding_profiles").catch(() => {
+            const fp = findFindingProfilesPath();
+            return { content: fs.existsSync(fp) ? fs.readFileSync(fp, "utf8") : "finding_profiles: {}", source: "file" as const };
+          }),
+          loadConfig(event, "responses"),
+        ]);
+        const profilesContent = profilesResult.content || "finding_profiles: {}";
+        const rulesData = (yaml.load(rulesResult.content) || {}) as Parameters<typeof buildDimensionsData>[0];
+        const profilesData = (yaml.load(profilesContent) || {}) as Parameters<typeof buildDimensionsData>[1];
+        const responsesData = (yaml.load(responsesResult.content) || {}) as Parameters<typeof buildDimensionsData>[2];
+        const { findings, missing } = buildDimensionsData(rulesData, profilesData, responsesData);
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ findings, missing }),
+        };
+      }
+      if (event.httpMethod === "POST") {
+        const body = JSON.parse(event.body ?? "{}");
+        const { findings: edits } = body;
+        if (!edits || typeof edits !== "object") {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Missing findings object" }),
+          };
+        }
+        const [rulesResult, profilesResult, responsesResult] = await Promise.all([
+          loadConfig(event, "rules"),
+          loadConfig(event, "finding_profiles").catch(() => {
+            const fp = findFindingProfilesPath();
+            return { content: fs.existsSync(fp) ? fs.readFileSync(fp, "utf8") : "finding_profiles: {}", source: "file" as const };
+          }),
+          loadConfig(event, "responses"),
+        ]);
+        const profilesContent = profilesResult.content || "finding_profiles: {}";
+        const rulesData = yaml.load(rulesResult.content) as Record<string, unknown> & { findings?: Record<string, unknown>; hard_overrides?: Record<string, unknown> };
+        const profilesData = yaml.load(profilesContent) as Record<string, unknown> & { finding_profiles?: Record<string, Record<string, unknown>> };
+        const responsesData = yaml.load(responsesResult.content) as Record<string, unknown> & { findings?: Record<string, Record<string, unknown>> };
+
+        for (const [id, row] of Object.entries(edits) as [string, Record<string, unknown>][]) {
+          const s = String(row.safety ?? "").trim();
+          const u = String(row.urgency ?? "").trim();
+          const l = String(row.liability ?? "").trim();
+          if (s || u || l) {
+            const entry = { ...(s && { safety: s }), ...(u && { urgency: u }), ...(l && { liability: l }) };
+            const ho = rulesData.hard_overrides as Record<string, unknown> | undefined;
+            if (ho && ho[id] && typeof ho[id] === "object" && ho[id] !== null) {
+              (ho[id] as Record<string, string>) = { ...(ho[id] as Record<string, string>), ...entry };
+            }
+            if (!rulesData.findings) rulesData.findings = {};
+            (rulesData.findings as Record<string, Record<string, string>>)[id] = {
+              ...((rulesData.findings as Record<string, Record<string, string>>)[id] || {}),
+              ...entry,
+            };
+          }
+          if (!profilesData.finding_profiles) profilesData.finding_profiles = {};
+          const p = profilesData.finding_profiles[id] || (profilesData.finding_profiles[id] = {});
+          if (row.severity != null && row.severity !== "") p.risk_severity = Number(row.severity) || undefined;
+          if (row.likelihood != null && row.likelihood !== "") p.likelihood = Number(row.likelihood) || undefined;
+          if (row.escalation) p.risk = { ...(p.risk as object || {}), escalation: String(row.escalation) } as Record<string, string>;
+          if (row.priority) p.default_priority = String(row.priority);
+          if (row.safety && !(rulesData.findings as Record<string, unknown>)?.[id]) p.risk = { ...(p.risk as object || {}), safety: String(row.safety) } as Record<string, string>;
+          if (row.budget_low != null || row.budget_high != null) {
+            if (!responsesData.findings) responsesData.findings = {};
+            const r = responsesData.findings[id] || (responsesData.findings[id] = {});
+            r.budgetary_range = r.budgetary_range || {};
+            if (row.budget_low != null) (r.budgetary_range as Record<string, number>).low = Number(row.budget_low);
+            if (row.budget_high != null) (r.budgetary_range as Record<string, number>).high = Number(row.budget_high);
+          }
+        }
+
+        const rulesYaml = yaml.dump(rulesData, { indent: 2, lineWidth: 120, sortKeys: false });
+        const profilesYaml = yaml.dump(profilesData, { indent: 2, lineWidth: 120, sortKeys: false });
+        const responsesYaml = yaml.dump(responsesData, { indent: 2, lineWidth: 120, sortKeys: false });
+
+        await saveConfig(event, "rules", rulesYaml);
+        await saveConfig(event, "responses", responsesYaml);
+        await saveConfig(event, "finding_profiles", profilesYaml);
+
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ success: true, message: "Dimensions saved" }),
+        };
+      }
+    } catch (e) {
+      console.error("Dimensions error:", e);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Dimensions failed", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
+
   const configType = pathRaw.includes("/mapping") ? "mapping" : pathRaw.includes("/responses") ? "responses" : "rules";
   
   // Check for force reload from file system

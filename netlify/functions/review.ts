@@ -1,5 +1,6 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { get } from "./lib/store";
+import { get, save } from "./lib/store";
+import { deriveCustomFindingsPending } from "./lib/deriveCustomFindings";
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET") {
@@ -38,6 +39,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     };
   }
   
+  const customFindingsPending = deriveCustomFindingsPending(data.raw);
+
   return {
     statusCode: 200,
     headers: { "Content-Type": "application/json" },
@@ -46,7 +49,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       report_html: data.report_html,
       findings: data.findings,
       limitations: data.limitations,
-      raw_data: data.raw, // Include raw data for AI enhancement
+      raw_data: data.raw,
+      custom_findings_pending: customFindingsPending,
     }),
   };
 };

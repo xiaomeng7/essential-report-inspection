@@ -38,6 +38,18 @@ type Props = {
 const DEBOUNCE_MS = 300;
 const MAX_SUGGESTIONS = 8;
 
+/** 示例地址（未配置 Google API 或测试时一键填充） */
+const SAMPLE_ADDRESS: StructuredAddress = {
+  property_address: "123 Example St, Sydney NSW 2000",
+  address_place_id: "ChIJN1t_tDeuEmsRUsoyG83frY4",
+  address_components: {
+    suburb: "Sydney",
+    state: "NSW",
+    postcode: "2000",
+    country: "Australia",
+  },
+};
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
@@ -188,10 +200,11 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
       <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
         Property Address {required && <span style={{ color: "red" }}>*</span>}
       </label>
-      <input
-        type="text"
-        value={inputText}
-        onChange={handleInputChange}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          type="text"
+          value={inputText}
+          onChange={handleInputChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
@@ -201,14 +214,35 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
         aria-autocomplete="list"
         aria-expanded={open && suggestions.length > 0}
         style={{
-          width: "100%",
+          flex: 1,
           padding: "10px 12px",
           fontSize: 14,
           border: error ? "1px solid #c62828" : "1px solid #ccc",
           borderRadius: 4,
           outline: "none",
         }}
-      />
+        />
+        <button
+          type="button"
+          onClick={() => {
+            onChange(SAMPLE_ADDRESS);
+            setInputText(SAMPLE_ADDRESS.property_address);
+            setApiError(null);
+          }}
+          disabled={disabled}
+          style={{
+            padding: "10px 12px",
+            fontSize: 13,
+            whiteSpace: "nowrap",
+            border: "1px solid #999",
+            borderRadius: 4,
+            background: "#f5f5f5",
+            cursor: disabled ? "not-allowed" : "pointer",
+          }}
+        >
+          使用示例地址
+        </button>
+      </div>
       {loading && (
         <span style={{ position: "absolute", right: 12, top: 38, fontSize: 12, color: "#666" }}>
           Loading...

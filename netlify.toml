@@ -6,6 +6,7 @@
 [functions]
   included_files = [
     "./profiles/finding_profiles.yml",
+    "./mappings/issue_to_finding.json",
     "./mappings/raw_to_canonical.yml",
     "./netlify/functions/report-template.docx",
     "./netlify/functions/report-template-md.docx",

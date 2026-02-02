@@ -421,21 +421,134 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
   return out;
 }
 
-/**
- * Convert facts (checklist answers) to finding codes using configurable mapping rules
- */
-async function factsToFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<string[]> {
-  const ids: string[] = [];
-  const mapping = await loadMapping(event);
+/** Issue-to-finding mapping (gpo_room_issue, lighting_switch_issue → finding ID). "other" maps to null = requires custom 7 dimensions. */
+let issueToFindingCache: { gpo_room_issue: Record<string, string | null>; lighting_switch_issue: Record<string, string | null> } | null = null;
 
-  // Evaluate each mapping rule
-  for (const rule of mapping.mappings) {
-    if (evaluateMappingRule(rule, facts)) {
-      ids.push(rule.finding);
+function loadIssueToFinding(): typeof issueToFindingCache {
+  if (issueToFindingCache) return issueToFindingCache;
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "..", "mappings", "issue_to_finding.json"),
+    path.join(__dirname, "..", "..", "mappings", "issue_to_finding.json"),
+    path.join(process.cwd(), "mappings", "issue_to_finding.json"),
+    path.join(process.cwd(), "netlify", "functions", "mappings", "issue_to_finding.json"),
+  ];
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, "utf8");
+        issueToFindingCache = JSON.parse(raw) as typeof issueToFindingCache;
+        return issueToFindingCache;
+      }
+    } catch {
+      /* continue */
+    }
+  }
+  issueToFindingCache = {
+    gpo_room_issue: { missing_earth: "GPO_EARTH_FAULT", polarity_reversed: "POLARITY_ISSUE_DETECTED", no_power: "GPO_MECHANICAL_LOOSE", loose: "GPO_MECHANICAL_LOOSE", damage: "DAMAGED_OUTLET_OR_SWITCH", overheating: "GPO_OVERHEATING", other: null },
+    lighting_switch_issue: { fitting_overheat: "FITTING_OVERHEAT", fitting_not_working: "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE", switch_loose: "SWITCH_LOOSE_MOUNTING", switch_arcing: "SWITCH_ARCING", switch_unresponsive: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", dimmer_not_working: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", other: null },
+  };
+  return issueToFindingCache;
+}
+
+/** Room label from room_type + room_name_custom */
+function roomLabel(room: Record<string, unknown>): string {
+  const rt = String(room?.room_type ?? "").trim();
+  const custom = String(room?.room_name_custom ?? "").trim();
+  if (rt === "other" && custom) return custom;
+  const labels: Record<string, string> = {
+    bedroom_1: "Bedroom 1", bedroom_2: "Bedroom 2", living_room: "Living Room", kitchen: "Kitchen",
+    bathroom_1: "Bathroom 1", garage: "Garage", shed: "Shed", veranda: "Veranda", hallway: "Hallway",
+    office: "Office", external_area: "External Area", other: "Other",
+  };
+  return labels[rt] ?? (rt.replace(/_/g, " ") || "Room");
+}
+
+type RoomFinding = { id: string; location: string; photo_ids: string[] };
+
+/** Derive findings from gpo_tests.rooms and lighting.rooms with location and photo_ids. */
+function deriveFindingsFromRooms(facts: Record<string, unknown>): RoomFinding[] {
+  const out: RoomFinding[] = [];
+  const map = loadIssueToFinding();
+  if (!map) return out;
+
+  const gpoRooms = getAt(facts, "gpo_tests.rooms") as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(gpoRooms)) {
+    for (const r of gpoRooms) {
+      if (r?.room_access === "not_accessible") continue;
+      const issue = (r?.issue as string) || "";
+      if (!issue || issue === "other") continue;
+      const findingId = map.gpo_room_issue?.[issue];
+      if (!findingId) continue;
+      const loc = roomLabel(r);
+      const pids = Array.isArray(r?.photo_ids) ? (r.photo_ids as string[]).filter((x): x is string => typeof x === "string") : [];
+      out.push({ id: findingId, location: loc, photo_ids: pids });
     }
   }
 
-  return [...new Set(ids)];
+  const lightingRooms = getAt(facts, "lighting.rooms") as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(lightingRooms)) {
+    for (const r of lightingRooms) {
+      if (r?.room_access === "not_accessible") continue;
+      const issues = (r?.issues as string[]) || [];
+      const loc = roomLabel(r);
+      const pids = Array.isArray(r?.photo_ids) ? (r.photo_ids as string[]).filter((x): x is string => typeof x === "string") : [];
+      for (const issue of issues) {
+        if (!issue || issue === "none" || issue === "other") continue;
+        const findingId = map.lighting_switch_issue?.[issue];
+        if (findingId) out.push({ id: findingId, location: loc, photo_ids: pids });
+      }
+    }
+  }
+
+  return out;
+}
+
+/** Section/location mapping for CHECKLIST findings (field path prefix → location label) */
+const SECTION_LOCATION_MAP: Record<string, string> = {
+  switchboard: "Switchboard",
+  rcd_tests: "RCD Tests",
+  gpo_tests: "GPO Tests",
+  earthing: "Earthing",
+  access: "Access",
+  lighting: "Lighting",
+  smoke_alarms: "Smoke Alarms",
+  thermal_imaging: "Thermal Imaging",
+  assets: "Solar/Battery/EV",
+  signoff: "Sign-off",
+};
+
+/**
+ * Convert facts (checklist answers) to finding codes using configurable mapping rules.
+ * Returns { checklistIds, roomFindings } for merging.
+ */
+async function factsToFindings(
+  facts: Record<string, unknown>,
+  event?: HandlerEvent
+): Promise<{ checklistIds: string[]; roomFindings: RoomFinding[]; ruleFieldPaths: Record<string, string> }> {
+  const checklistIds: string[] = [];
+  const ruleFieldPaths: Record<string, string> = {};
+  const mapping = await loadMapping(event);
+
+  for (const rule of mapping.mappings) {
+    if (evaluateMappingRule(rule, facts)) {
+      checklistIds.push(rule.finding);
+      const path = rule.condition?.field ?? rule.conditions?.all?.[0]?.field ?? rule.conditions?.any?.[0]?.field;
+      if (path && !ruleFieldPaths[rule.finding]) ruleFieldPaths[rule.finding] = path;
+    }
+  }
+
+  const roomFindings = deriveFindingsFromRooms(facts);
+  return {
+    checklistIds: [...new Set(checklistIds)],
+    roomFindings,
+    ruleFieldPaths,
+  };
+}
+
+/** Location label from field path (e.g. switchboard.signs_of_overheating → Switchboard) */
+function locationFromFieldPath(path: string): string {
+  const prefix = path.split(".")[0];
+  return prefix ? (SECTION_LOCATION_MAP[prefix] ?? prefix.replace(/_/g, " ")) : "";
 }
 
 async function applyPriority(
@@ -477,18 +590,45 @@ async function applyPriority(
   return bucket;
 }
 
-export async function evaluateFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<Array<{ id: string; priority: string; title?: string }>> {
+export type EvaluatedFinding = { id: string; priority: string; title?: string; location?: string; photo_ids?: string[] };
+
+export async function evaluateFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<EvaluatedFinding[]> {
   const r = await loadRules(event);
   const findings = r.findings ?? {};
-  const ids = await factsToFindings(facts, event);
-  const out: Array<{ id: string; priority: string; title?: string }> = [];
-  for (const id of ids) {
+  const { checklistIds, roomFindings, ruleFieldPaths } = await factsToFindings(facts, event);
+
+  const byId = new Map<string, EvaluatedFinding>();
+
+  for (const id of checklistIds) {
     const meta = findings[id];
     if (!meta) continue;
     const priority = await applyPriority(id, meta, event);
-    out.push({ id, priority, title: id.replace(/_/g, " ") });
+    const loc = locationFromFieldPath(ruleFieldPaths[id] ?? "");
+    byId.set(id, { id, priority, title: id.replace(/_/g, " "), location: loc || undefined });
   }
-  return out;
+
+  for (const rf of roomFindings) {
+    const meta = findings[rf.id];
+    if (!meta) continue;
+    const priority = await applyPriority(rf.id, meta, event);
+    const existing = byId.get(rf.id);
+    if (existing) {
+      const locs = [existing.location, rf.location].filter(Boolean);
+      const pids = [...(existing.photo_ids ?? []), ...rf.photo_ids];
+      existing.location = locs.length ? [...new Set(locs)].join("; ") : undefined;
+      existing.photo_ids = [...new Set(pids)].slice(0, 10);
+    } else {
+      byId.set(rf.id, {
+        id: rf.id,
+        priority,
+        title: rf.id.replace(/_/g, " "),
+        location: rf.location || undefined,
+        photo_ids: rf.photo_ids.length ? rf.photo_ids : undefined,
+      });
+    }
+  }
+
+  return Array.from(byId.values());
 }
 
 export function collectLimitations(raw: Record<string, unknown>): string[] {

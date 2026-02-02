@@ -6,7 +6,7 @@ type Props = {
 
 const ADMIN_TOKEN_KEY = "admin_token";
 
-type ConfigType = "rules" | "mapping" | "responses";
+type ConfigType = "rules" | "mapping" | "responses" | "dimensions";
 
 type ConfigData = {
   content: string;
@@ -63,6 +63,11 @@ export function ConfigAdmin({ onBack }: Props) {
   const [editedMappings, setEditedMappings] = useState<MappingRule[]>([]);
   const [editedFindings, setEditedFindings] = useState<Record<string, FindingValue>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [dimensionsData, setDimensionsData] = useState<{
+    findings: Record<string, Record<string, unknown>>;
+    missing: Array<{ id: string; missing: string[] }>;
+  } | null>(null);
+  const [editedDimensions, setEditedDimensions] = useState<Record<string, Record<string, unknown>>>({});
 
   const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
     try {
@@ -121,14 +126,15 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   }, []);
 
-  // Check if redirected from /admin/rules
+  // Check URL tab param (e.g. ?tab=dimensions)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam === "rules" && activeTab !== "rules") {
-      setActiveTab("rules");
+    if (tabParam && ["rules", "mapping", "responses", "dimensions"].includes(tabParam) && activeTab !== tabParam) {
+      setActiveTab(tabParam as ConfigType);
       if (authToken) {
-        loadConfig(authToken, "rules");
+        if (tabParam === "dimensions") loadDimensions(authToken);
+        else loadConfig(authToken, tabParam as "rules" | "mapping" | "responses");
       }
     }
   }, []);
@@ -137,13 +143,17 @@ export function ConfigAdmin({ onBack }: Props) {
     const savedToken = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
     if (savedToken) {
       setAuthToken(savedToken);
-      loadConfig(savedToken, activeTab);
+      if (activeTab === "dimensions") {
+        loadDimensions(savedToken);
+      } else {
+        loadConfig(savedToken, activeTab);
+      }
     } else {
       setLoading(false);
       setIsAuthError(true);
       setError("请输入 Admin Token");
     }
-  }, [loadConfig, activeTab]);
+  }, [loadConfig, loadDimensions, activeTab]);
 
   const handleRetryWithToken = () => {
     const t = tokenInput.trim();
@@ -171,6 +181,26 @@ export function ConfigAdmin({ onBack }: Props) {
       setSaving(true);
       setError(null);
       setSuccess(false);
+
+      if (activeTab === "dimensions") {
+        const res = await fetch("/api/configAdmin/dimensions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ findings: editedDimensions }),
+        });
+        if (!res.ok) {
+          const err = (await res.json()) as { message?: string };
+          throw new Error(err.message || `HTTP ${res.status}`);
+        }
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+        await loadDimensions(authToken);
+        setSaving(false);
+        return;
+      }
       
       let contentToSave = content;
       
@@ -304,12 +334,34 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   };
 
+  const loadDimensions = useCallback(async (token: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/configAdmin/dimensions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> };
+      setDimensionsData(data);
+      setEditedDimensions(data.findings || {});
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleTabChange = (newTab: ConfigType) => {
     setActiveTab(newTab);
     setEditMode("visual");
     setSearchTerm("");
     if (authToken) {
-      loadConfig(authToken, newTab);
+      if (newTab === "dimensions") {
+        loadDimensions(authToken);
+      } else {
+        loadConfig(authToken, newTab);
+      }
     }
   };
 
@@ -413,6 +465,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "映射 (CHECKLIST_TO_FINDINGS_MAP.json)";
       case "responses":
         return "文案 (responses.yml)";
+      case "dimensions":
+        return "Finding 维度 (7 维度)";
     }
   };
 
@@ -424,6 +478,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "编辑映射规则，定义从 checklist 字段到 finding_code 的映射关系";
       case "responses":
         return "编辑文案模板，定义每个 finding 的标题、说明、建议等文本内容";
+      case "dimensions":
+        return "可视化编辑 7 维度：Safety、Urgency、Liability、Budget、Priority、Severity、Likelihood、Escalation";
     }
   };
 
@@ -467,13 +523,13 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>成功:</strong> {activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : "文案"}已保存！
+          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : "文案"}已保存！
         </div>
       )}
 
       {/* Tab Navigation */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
-        {(["rules", "mapping", "responses"] as ConfigType[]).map((tab) => (
+        {(["rules", "mapping", "responses", "dimensions"] as ConfigType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -496,7 +552,12 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* Tab Description */}
       <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
         <p style={{ margin: 0, color: "#666" }}>{getTabDescription(activeTab)}</p>
-        {configData && (
+        {activeTab === "dimensions" && dimensionsData && (
+          <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#856404" }}>
+            共 {Object.keys(dimensionsData.findings).length} 个 findings，{dimensionsData.missing.length} 个缺少维度
+          </p>
+        )}
+        {configData && activeTab !== "dimensions" && (
           <div style={{ marginTop: "8px" }}>
             <p style={{ margin: "4px 0", fontSize: "13px", color: "#999" }}>
               来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
@@ -517,6 +578,162 @@ export function ConfigAdmin({ onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* Dimensions Tab - 7-dimension editor */}
+      {activeTab === "dimensions" && dimensionsData && (
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="搜索 finding..."
+                style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 6, minWidth: 200 }}
+              />
+            </div>
+            <button onClick={handleSave} className="btn-primary" disabled={saving}>
+              {saving ? "保存中..." : "保存维度更改"}
+            </button>
+          </div>
+          <div style={{ overflowX: "auto", maxHeight: "70vh", overflowY: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead style={{ position: "sticky", top: 0, background: "#f5f5f5", zIndex: 1 }}>
+                <tr style={{ borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: 8, textAlign: "left" }}>Finding ID</th>
+                  <th style={{ padding: 8 }}>Safety</th>
+                  <th style={{ padding: 8 }}>Urgency</th>
+                  <th style={{ padding: 8 }}>Liability</th>
+                  <th style={{ padding: 8 }}>Budget Low</th>
+                  <th style={{ padding: 8 }}>Budget High</th>
+                  <th style={{ padding: 8 }}>Priority</th>
+                  <th style={{ padding: 8 }}>Severity 1-5</th>
+                  <th style={{ padding: 8 }}>Likelihood 1-5</th>
+                  <th style={{ padding: 8 }}>Escalation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(editedDimensions)
+                  .filter(([id]) => !searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([id, row]) => {
+                    const missing = (row.missing as string[]) || [];
+                    const hasMissing = missing.length > 0;
+                    return (
+                      <tr key={id} style={{ borderBottom: "1px solid #eee", background: hasMissing ? "#fff8e6" : undefined }}>
+                        <td style={{ padding: 6 }}>
+                          <span title={(row.title as string) || id}>{id}</span>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.safety ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], safety: e.target.value } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="MODERATE">MODERATE</option>
+                            <option value="LOW">LOW</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.urgency ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], urgency: e.target.value } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            <option value="IMMEDIATE">IMMEDIATE</option>
+                            <option value="SHORT_TERM">SHORT_TERM</option>
+                            <option value="LONG_TERM">LONG_TERM</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.liability ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], liability: e.target.value } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="MEDIUM">MEDIUM</option>
+                            <option value="LOW">LOW</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <input
+                            type="number"
+                            value={row.budget_low ?? ""}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_low: e.target.value ? Number(e.target.value) : null } }))}
+                            style={{ width: 70, padding: 4, fontSize: 12 }}
+                            placeholder="—"
+                          />
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <input
+                            type="number"
+                            value={row.budget_high ?? ""}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_high: e.target.value ? Number(e.target.value) : null } }))}
+                            style={{ width: 70, padding: 4, fontSize: 12 }}
+                            placeholder="—"
+                          />
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.priority ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], priority: e.target.value } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            <option value="IMMEDIATE">IMMEDIATE</option>
+                            <option value="RECOMMENDED_0_3_MONTHS">RECOMMENDED_0_3_MONTHS</option>
+                            <option value="PLAN_MONITOR">PLAN_MONITOR</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.severity ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], severity: e.target.value ? Number(e.target.value) : "" } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.likelihood ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], likelihood: e.target.value ? Number(e.target.value) : "" } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: 4 }}>
+                          <select
+                            value={String(row.escalation ?? "")}
+                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], escalation: e.target.value } }))}
+                            style={{ width: "100%", padding: 4, fontSize: 12 }}
+                          >
+                            <option value="">—</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="MODERATE">MODERATE</option>
+                            <option value="LOW">LOW</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Edit Mode Toggle - for responses, mapping, and rules */}
       {(activeTab === "responses" || activeTab === "mapping" || activeTab === "rules") && configData && (

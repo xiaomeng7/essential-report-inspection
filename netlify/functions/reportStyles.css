@@ -23,3 +23,10 @@ th { font-weight: 700; background: #f2f2f2; }
 .page-break, div[style*="page-break-after"] { page-break-after: always; }
 h2, h3, h4, table, tr { page-break-inside: avoid; }
 tbody { page-break-inside: auto; }
+
+/* Risk Assessment Profile (9 dimensions per finding) */
+.risk-profile-compact { font-size: 9.5pt; margin: 6pt 0; border: 1px solid #ddd; }
+.risk-profile-compact td { padding: 4pt 6pt; border: 1px solid #e8e8e8; vertical-align: middle; }
+.badge-green { color: #28a745; font-weight: 600; }
+.badge-yellow { color: #b8860b; font-weight: 600; }
+.badge-red { color: #dc3545; font-weight: 600; }

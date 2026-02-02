@@ -5,6 +5,20 @@
  * Handles emoji replacement, smart quotes, control characters, and more.
  */
 
+/** Developer-facing phrases that must never appear in customer reports */
+const DEV_PHRASES = /fallback profile|unmapped IDs?|ensure new IDs? are added|add.*to profiles/i;
+
+/**
+ * Sanitize messaging text for client reports. Returns undefined if text contains developer-facing phrases
+ * (so caller uses fallback), otherwise returns trimmed text.
+ */
+export function sanitizeForClientReport(text: string | undefined | null): string | undefined {
+  if (!text || typeof text !== "string") return undefined;
+  const s = text.trim();
+  if (DEV_PHRASES.test(s)) return undefined;
+  return s;
+}
+
 export type SanitizeTextOptions = {
   /** When true, keep 🟢🟡🔴 emoji instead of replacing with [LOW]/[MODERATE]/[ELEVATED]. Default false. */
   preserveEmoji?: boolean;

@@ -1,9 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { PhotoEvidenceSection } from "./PhotoEvidenceSection";
+import { CustomFindingsModal, type CustomFindingInput } from "./CustomFindingsModal";
 
 type Props = {
   inspectionId: string;
   onBack: () => void;
+};
+
+type CustomFindingPending = {
+  id: string;
+  title: string;
+  source: "gpo" | "lighting";
+  roomLabel?: string;
 };
 
 type ReviewData = {
@@ -12,6 +20,7 @@ type ReviewData = {
   findings: Array<{ id: string; priority: string; title?: string }>;
   limitations?: string[];
   raw_data?: Record<string, unknown>;
+  custom_findings_pending?: CustomFindingPending[];
 };
 
 export function ReviewPage({ inspectionId, onBack }: Props) {
@@ -30,24 +39,71 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [officialWordError, setOfficialWordError] = useState<string | null>(null);
   const [isGeneratingMarkdownWord, setIsGeneratingMarkdownWord] = useState(false);
   const [markdownWordError, setMarkdownWordError] = useState<string | null>(null);
+  const [customFindingsToFill, setCustomFindingsToFill] = useState<CustomFindingInput[] | null>(null);
+  const [isSavingCustomFindings, setIsSavingCustomFindings] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/review/${inspectionId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as ReviewData;
+      setData(json);
+      const pending = json.custom_findings_pending ?? [];
+      if (pending.length > 0) {
+        setCustomFindingsToFill(
+          pending.map((p) => ({
+            id: p.id,
+            title: p.title,
+            source: p.source,
+            roomLabel: p.roomLabel,
+            safety: "",
+            urgency: "",
+            liability: "",
+            budget_low: "",
+            budget_high: "",
+            priority: "",
+            severity: "",
+            likelihood: "",
+            escalation: "",
+          }))
+        );
+      } else {
+        setCustomFindingsToFill(null);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [inspectionId]);
+
+  const handleSaveCustomFindings = async () => {
+    if (!customFindingsToFill?.length || !inspectionId) return;
+    setIsSavingCustomFindings(true);
+    try {
+      const res = await fetch(`/api/saveCustomFindings/${inspectionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ custom_findings: customFindingsToFill }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadData();
+    } catch (e) {
+      console.error("Failed to save custom findings:", e);
+      alert("保存失败：" + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setIsSavingCustomFindings(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/review/${inspectionId}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as ReviewData;
-        if (!cancelled) setData(json);
-      } catch (e) {
-        if (!cancelled) setError((e as Error).message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    setLoading(true);
+    setError(null);
+    loadData().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
-  }, [inspectionId]);
+  }, [loadData]);
 
   const handleEnhanceReport = async () => {
     if (!data) {
@@ -673,6 +729,23 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           transition: "opacity 0.3s"
         }}
       />
+
+      {customFindingsToFill && customFindingsToFill.length > 0 && (
+        <CustomFindingsModal
+          findings={customFindingsToFill}
+          onChange={(index, field, value) => {
+            setCustomFindingsToFill((prev) => {
+              if (!prev) return prev;
+              const next = [...prev];
+              next[index] = { ...next[index], [field]: value };
+              return next;
+            });
+          }}
+          onConfirm={() => handleSaveCustomFindings()}
+          onCancel={() => setCustomFindingsToFill(null)}
+          saving={isSavingCustomFindings}
+        />
+      )}
     </div>
   );
 }

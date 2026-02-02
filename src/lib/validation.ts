@@ -239,6 +239,131 @@ export function validateSection(
     }
   }
 
+  // GPO by room: tested <= gpo_count; when tested < gpo_count require note (reason); pass <= tested; when pass < tested require issue !== "none"; when issue !== "none" require photos
+  if (sectionId === "S7A_GPO_BY_ROOM") {
+    const rooms = getValue(flat, "gpo_tests.rooms") as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(rooms)) {
+      const roomDisplay = (r: Record<string, unknown>) => {
+        const roomType = (r?.room_type as string) || "";
+        const roomCustom = (r?.room_name_custom as string) || "";
+        return roomType === "other" && roomCustom ? roomCustom : roomType.replace(/_/g, " ") || "room";
+      };
+      for (let i = 0; i < rooms.length; i++) {
+        const r = rooms[i];
+        if (r?.room_access === "not_accessible") {
+          const reason = (r?.room_not_accessible_reason as string)?.trim() ?? "";
+          if (!reason) {
+            errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Reason required when room is not accessible.`;
+            break;
+          }
+          if (reason === "other") {
+            const reasonOther = (r?.room_not_accessible_reason_other as string)?.trim() ?? "";
+            if (!reasonOther) {
+              errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Please describe the reason when "Other" is selected.`;
+              break;
+            }
+          }
+          continue;
+        }
+
+        const gpoTotal = Number(r?.gpo_count) ?? 0;
+        const tested = Number(r?.tested_count) ?? 0;
+        const pass = Number(r?.pass_count) ?? 0;
+
+        if (tested > gpoTotal) {
+          errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Tested count cannot exceed GPO count (total).`;
+          break;
+        }
+        if (tested < gpoTotal) {
+          const note = (r?.note as string)?.trim() ?? "";
+          if (!note) {
+            errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Reason required when tested count is less than total GPO count.`;
+            break;
+          }
+        }
+        if (pass > tested) {
+          errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Pass count cannot exceed tested count.`;
+          break;
+        }
+        if (pass < tested) {
+          const issue = (r?.issue as string) || "none";
+          if (!issue || issue === "none") {
+            errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Issue required when pass count is less than tested count.`;
+            break;
+          }
+        }
+        const issue = (r?.issue as string) || "none";
+        if (issue === "other") {
+          const issueOther = (r?.issue_other as string)?.trim() ?? "";
+          if (!issueOther) {
+            errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Describe the issue when Issue is Other.`;
+            break;
+          }
+        }
+        if (issue && issue !== "none") {
+          const photoIds = r?.photo_ids as string[] | undefined;
+          if (!Array.isArray(photoIds) || photoIds.length === 0) {
+            errors["gpo_tests.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Photo evidence required when Issue is not None.`;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // GPO failures: when pass < total, require detailed exceptions (location, issue type, photos)
+  if (sectionId === "S8_GPO_LIGHTING_EXCEPTIONS") {
+    const gpoFailuresErrors = validateGpoFailuresRequireDetails(flat);
+    for (const [field, error] of Object.entries(gpoFailuresErrors)) {
+      errors[field] = error;
+    }
+  }
+
+  // Lighting by room: when room not accessible, require reason (and when "other", require custom text); when accessible and has issues, require photos; when "other" in issues, require issue_other
+  if (sectionId === "S7B_LIGHTING_BY_ROOM") {
+    const rooms = getValue(flat, "lighting.rooms") as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(rooms)) {
+      const roomDisplay = (r: Record<string, unknown>) => {
+        const roomType = (r?.room_type as string) || "";
+        const roomCustom = (r?.room_name_custom as string) || "";
+        return roomType === "other" && roomCustom ? roomCustom : roomType.replace(/_/g, " ") || "room";
+      };
+      for (let i = 0; i < rooms.length; i++) {
+        const r = rooms[i];
+        if (r?.room_access === "not_accessible") {
+          const reason = (r?.room_not_accessible_reason as string)?.trim() ?? "";
+          if (!reason) {
+            errors["lighting.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Reason required when room is not accessible.`;
+            break;
+          }
+          if (reason === "other") {
+            const reasonOther = (r?.room_not_accessible_reason_other as string)?.trim() ?? "";
+            if (!reasonOther) {
+              errors["lighting.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Please describe the reason when "Other" is selected.`;
+              break;
+            }
+          }
+          continue;
+        }
+        const issuesArr = r?.issues as string[] | undefined;
+        if (Array.isArray(issuesArr) && issuesArr.length > 0 && !(issuesArr.length === 1 && issuesArr[0] === "none")) {
+          if (issuesArr.includes("other")) {
+            const issueOther = (r?.issue_other as string)?.trim() ?? "";
+            if (!issueOther) {
+              errors["lighting.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Describe the issue when "Other" is selected.`;
+              break;
+            }
+          }
+          const photoIds = r?.photo_ids as string[] | undefined;
+          if (!Array.isArray(photoIds) || photoIds.length === 0) {
+            errors["lighting.rooms"] = `Row ${i + 1} (${roomDisplay(r)}): Photo evidence required when issues are present.`;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   // Add cross-field validation for this section
   const crossErrors = validateCrossFieldRulesForSection(sectionId, state);
   for (const [field, error] of Object.entries(crossErrors)) {
@@ -246,6 +371,62 @@ export function validateSection(
   }
 
   return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/**
+ * When GPO pass count < total tested, failures exist. Require detailed exceptions:
+ * - no_exceptions must be false
+ * - At least one exception
+ * - Each exception: location, issue type, and photos required
+ */
+function validateGpoFailuresRequireDetails(flat: Record<string, unknown>): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const performed = getValue(flat, "gpo_tests.performed");
+  if (performed !== true) return errors;
+
+  let total = Number(getValue(flat, "gpo_tests.summary.total_gpo_tested")) || 0;
+  let polarityPass = Number(getValue(flat, "gpo_tests.summary.polarity_pass")) || 0;
+  let earthPass = Number(getValue(flat, "gpo_tests.summary.earth_present_pass")) || 0;
+
+  const rooms = getValue(flat, "gpo_tests.rooms") as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(rooms) && rooms.length > 0 && total === 0) {
+    total = rooms.reduce((s, r) => s + (Number(r.tested_count) || 0), 0);
+    const passSum = rooms.reduce((s, r) => s + (Number(r.pass_count) || 0), 0);
+    polarityPass = earthPass = passSum;
+  }
+
+  const hasPolarityFailures = polarityPass < total;
+  const hasEarthFailures = earthPass < total;
+  if (!hasPolarityFailures && !hasEarthFailures) return errors;
+
+  const noExceptions = getValue(flat, "gpo_tests.no_exceptions");
+  const exceptions = getValue(flat, "gpo_tests.exceptions") as unknown[] | undefined;
+
+  if (noExceptions === true) {
+    errors["gpo_tests.no_exceptions"] =
+      "Failures detected (pass count < total tested). Please uncheck «No exceptions» and add exception(s) with location, issue type, and photos for each failed outlet.";
+    return errors;
+  }
+
+  if (!Array.isArray(exceptions) || exceptions.length === 0) {
+    errors["gpo_tests.exceptions"] =
+      "At least one exception required when pass count is less than total tested. Please add location, issue type, and photos for each failed outlet.";
+    return errors;
+  }
+
+  for (let i = 0; i < exceptions.length; i++) {
+    const item = exceptions[i] as Record<string, unknown> | undefined;
+    if (!item) continue;
+    const photoIds = item.photo_ids;
+    const hasPhotos = Array.isArray(photoIds) && photoIds.length > 0;
+    if (!hasPhotos) {
+      errors["gpo_tests.exceptions"] =
+        "Photos required for each failed outlet. Please add photo evidence to each exception.";
+      break;
+    }
+  }
+
+  return errors;
 }
 
 /**

@@ -180,7 +180,7 @@ Budget and schedule the planned items within the suggested windows to reduce rea
 Use this report to brief any contractor of your choice. Request itemised scope aligned to priorities. The observations and risk interpretations in this report are designed to help you challenge scope creep and ensure that any quotes you receive are aligned with the actual risk profile of the property.
 
 ### DECISION_PATHWAY_MANAGEMENT_PLAN
-Delegate coordination, quotation review, and completion verification to a management plan (Standard or Premium). This option provides end-to-end management of electrical works, from contractor briefing through to quality assurance and compliance documentation. Contact the inspection provider for details on management plan options.
+Some owners delegate ongoing coordination—interpretation of this report, contractor briefing, quotation review, and completion verification—to a structured management arrangement. Doing so can reduce cognitive load, decision fatigue, and coordination risk: less time spent interpreting quotes, less risk of over-scoping when quotes exceed the report's priorities, and consistent application of the same framework across inspections and tenancy changes. This pathway is optional; the report remains sufficient for those who prefer to manage decisions themselves.
 
 ## Legal Limitations & Disclaimer
 

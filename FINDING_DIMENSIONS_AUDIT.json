@@ -1,0 +1,1726 @@
+{
+  "generated": "2026-02-01T04:06:24.336Z",
+  "summary": {
+    "total": 176,
+    "complete": 0,
+    "missing": 176
+  },
+  "missing": [
+    {
+      "id": "ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ALARM_AGEING",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "ALARM_SOUNDED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ALL_CHECKLIST_ITEMS_COMPLETED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ALL_REQUIRED_PHOTOS_UPLOADED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ARCING_EVIDENCE_PRESENT",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "ASBESTOS_RISK",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "ASBESTOS_SUSPECTED_BACKBOARD",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "AUDIBLE_ARCING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BAKELITE_CERAMIC_ACCESSORY",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "BARE_EARTH_CONDUCTOR",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BARE_METAL_WIRE_CORE_IS_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "BARE_WIRE_EXPOSED",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BATTERY_INSTALL_UNVERIFIED",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BATTERY_THERMAL",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BOARD_AT_CAPACITY",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "BONDING_TO_WATER_GAS_NOT_VERIFIED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "BURN_MARKS_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "CABLE_DAMAGE_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "CABLE_ENTRY_UNPROTECTED",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "CABLE_WITH_NON_MODERN_INSULATION_OBSERVED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "CERAMIC_FUSE_HOLDER_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "COLOUR_IDENTIFICATION_INCORRECT",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "COOKTOP_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "COVER_BROKEN_OR_MISSING",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "CRACKS_VISIBLE_ON_FACEPLATE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "DAMAGED_OUTLET_OR_SWITCH",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "DAMAGE_CORROSION_OVERHEATING",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "DISHWASHER_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "DRYER_OUTLET_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EARTHING_CONTINUITY_NOT_VERIFIED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EARTHING_RESISTANCE_HIGH",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EARTH_DEGRADED",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EARTH_FAULT_LOOP_IMPEDANCE_BORDERLINE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EARTH_FAULT_LOOP_IMPEDANCE_FAIL",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EARTH_NEUTRAL_MIXED",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EARTH_PIN_MISSING_OR_DAMAGED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EV_LOAD_AGGREGATION",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EV_UNSEGREGATED_LOAD",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EXHAUST_FAN_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EXPOSED_CONDUCTOR",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EXPOSED_CONDUCTORS",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "EXTENSION_LEADS_PERMANENT_USE_OBSERVED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EXTERIOR_LIGHT_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "EXTERNAL_CABLE_MECHANICAL_RISK",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "FITTING_OVERHEAT",
+      "missing": [
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "FLEXIBLE_LEAD_FIXED",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "GARAGE_DOOR_OPENER_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "GENERAL_OBSERVATION_AGEING_INSTALLATION",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "GPO_BURN_MARKS",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GPO_EARTH_FAULT",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GPO_LOOSE_MOUNTING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GPO_MECHANICAL_LOOSE",
+      "missing": [
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "GPO_OVERHEATING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GPO_SOCKET_WORN",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GREASE_FIRE_RISK",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "HEATED_TOWEL_RAIL_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "HYBRID_UPGRADE_STAGE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "INSULATION_CONTACT",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "INSULATION_CONTACT_OBSERVED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "INSULATION_RESISTANCE_FAIL",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "INSULATION_RESISTANCE_LOW_BORDERLINE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "IP_UNVERIFIED",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LABELING_POOR",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "LEGACY_DEVICES",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LEGACY_EARTHING",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LEGACY_SUPPLY_FUSE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LIGHTING_CIRCUITS_NO_RCD",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "LIGHT_FITTING_LOOSE",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "LOCATION_PHOTOGRAPHED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MAIN_EARTH_CONDUCTOR_UNDERSIZED_SUSPECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MAIN_SWITCH_SERVICE_FUSE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MANUFACTURE_DATE_RECORDED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MATERIAL_DEGRADATION",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "MECHANICAL_EXPOSURE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "MEN_CONNECTION_DEFECTIVE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MEN_LINK",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MEN_NOT_VERIFIED",
+      "missing": [
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "MIXED_OLD_NEW_DEVICES",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "MOISTURE_DAMAGE",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "MOISTURE_STAINING_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "NON_STANDARD_WIRING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "NON_STANDARD_WORK",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "NO_ADVICE_OR_QUOTATIONS_PROVIDED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "NO_EXPANSION_MARGIN",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "NO_RCD_PROTECTION",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "NUMBER_OF_POWER_BOARDS_OBSERVED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "NUMBER_OF_POWER_POINTS_ABOVE_BENCH",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OLD_RUBBER_VIR_WIRING_SUSPECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OUTDOOR_COVER_MISSING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "OUTDOOR_POWER_POINT_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OVEN_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OVERALL_SWITCHBOARD",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "OVERCURRENT_PROTECTION_NONCOMPLIANT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "PARTIAL_RCD_COVERAGE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POLARITY_ISSUE_DETECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POWER_CIRCUITS_NO_RCD",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POWER_POINT_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POWER_POINT_PRESENT_IN_BATHROOM",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "PV_INVERTER_ALARM",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "PV_ISOLATION_UNVERIFIED",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "RANGE_HOOD_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "RCBO_RECOMMENDED_UPGRADE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "RCD_NOT_TESTED_OR_UNKNOWN",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "RCD_TEST_FAIL_OR_UNSTABLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "RCD_TRIP_TIME_SLOW",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "ROOF_SPACE_ACCESSED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARMS_EXPIRED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARMS_LOCATION_NONCOMPLIANT_SUSPECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARMS_MISSING",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARMS_NOT_INTERCONNECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARM_FAILURE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARM_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SMOKE_ALARM_TEST_FAIL",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SUPPLY_NO_MAIN_ISOLATION",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SURGE_PROTECTION_ABSENT",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_AGED_ORIGINAL",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_CERAMIC_FUSES_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_CLEARANCES_OR_ACCESS_ISSUE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_CONTAMINATION",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_ENCLOSURE_DAMAGED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_GREASE_OIL",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_INADEQUATE_SPARE_WAYS",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_LABELING_INCOMPLETE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_LOOSE_CONNECTIONS_SUSPECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_NO_RCBO",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_NO_RCD_OR_RCBO",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_REWIREABLE_FUSES_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCHBOARD_SIGNS_OF_HEAT_DAMAGE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCH_ARCING",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SWITCH_BODY_MOVES_WHEN_TOUCHED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCH_LOOSE_MOUNTING",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCH_PLATE_CRACKED_OR_DAMAGED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "SWITCH_PLATE_DAMAGED",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "TAPED_CONNECTION_VISIBLE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "TEST_BUTTON_PRESSED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "TEST_DATA_INCOMPLETE",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "THERMAL_HOTSPOT_DETECTED_MAJOR",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "THERMAL_HOTSPOT_DETECTED_MINOR",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "THERMAL_NORMAL_NO_HOTSPOTS",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "THERMAL_NOT_PERFORMED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "THERMAL_STRESS_ACTIVE",
+      "missing": [
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "TRANSFORMER_ON_INSULATION",
+      "missing": [
+        "Safety",
+        "Urgency",
+        "Liability",
+        "Budget",
+        "Priority",
+        "Severity(1-5)",
+        "Likelihood(1-5)",
+        "Escalation"
+      ]
+    },
+    {
+      "id": "TRANSFORMER_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "TRANSFORMER_RESTING_ON_INSULATION",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "UNIT_TESTED_AS_INTERCONNECTED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "UNKNOWN_FINDING_FALLBACK",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "WASHING_MACHINE_OUTLET_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "WEATHERPROOF_COVER_PRESENT",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "WIRING_INSULATION_DEGRADED",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    },
+    {
+      "id": "WIRING_UNSUPPORTED_OR_POOR_FIXING",
+      "missing": [
+        "Urgency",
+        "Liability",
+        "Severity(1-5)",
+        "Likelihood(1-5)"
+      ]
+    }
+  ],
+  "complete": []
+}

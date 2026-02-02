@@ -2,6 +2,138 @@
 > Goal: make every generated report **deterministic, investor-grade, and format-stable**.  
 > This contract defines **required fields**, **forbidden values**, and **hard gates** that must pass before generating DOCX.
 
+---
+
+## 0) Design Principle — Finding ≠ Decision
+
+**Core principle:** Multiple findings → one judgment. We do not report each finding as a decision; we aggregate findings into property-level signals.
+
+**Two-layer derivation:**
+
+```
+[Finding 的 9 维] 
+        ↓
+[Finding-level Signals]（内部）
+        ↓
+[Property-level Signals]（报告展示）
+```
+
+The report ultimately exposes only these **6 property-level fields**:
+
+```ts
+type PropertyDecisionSignals = {
+  overall_health: "GOOD" | "STABLE" | "ATTENTION" | "HIGH_RISK";
+  immediate_safety_risk: "NONE" | "PRESENT";
+  sudden_failure_risk: "LOW" | "MEDIUM" | "HIGH";
+  tenant_disruption_risk: "LOW" | "MEDIUM" | "HIGH";
+  can_this_wait: "YES" | "CONDITIONALLY" | "NO";
+  planning_value: "LOW" | "MEDIUM" | "HIGH";
+};
+```
+
+These 6 fields are the canonical output of the decision model. Existing slots (OVERALL_STATUS, EXECUTIVE_DECISION_SIGNALS, etc.) should be derived from or mapped to PropertyDecisionSignals.
+
+### Internal Dimensions (D1–D9) — per Finding
+
+| Dim | Semantic | Typical values |
+|-----|----------|----------------|
+| D1 | Safety Impact | low / medium / high |
+| D2 | Compliance Risk | none / minor / material |
+| D3 | Failure Likelihood | low / medium / high |
+| D4 | Urgency | now / short / planned |
+| D5 | Degradation Trend | stable / worsening |
+| D6 | Tenant Disruption Risk | low / medium / high |
+| D7 | Cost Volatility | stable / uncertain |
+| D8 | Detectability | obvious / hidden |
+| D9 | Decision Complexity | simple / requires_judgement |
+
+### Finding-level Signals (first derivation — not shown in report)
+
+```ts
+type FindingSignals = {
+  has_immediate_safety_risk: boolean;
+  has_sudden_failure_risk: boolean;
+  causes_tenant_disruption: boolean;
+  deferrable: boolean;
+  benefits_from_planning: boolean;
+};
+```
+
+**Rule logic (plain language):**
+
+- **Immediate Safety Risk:** D1 = high AND D4 = now
+- **Sudden Failure Risk:** D3 = high AND D8 = hidden
+- **Tenant Disruption Risk:** D6 ≥ medium AND D3 ≥ medium
+- **Deferrable:** D4 ≠ now AND D5 ≠ worsening
+- **Planning Benefit:** D5 = worsening OR D7 = uncertain OR D9 = requires_judgement
+
+**YAML rules file:** `rules/derive.yml` — interpretable, tunable, AI-friendly.
+
+### Finding → Property (second derivation — critical)
+
+**Aggregation:** take `FindingSignals[]` and produce property-level signals. `maxRisk` maps booleans to risk level: any true → HIGH, else LOW (LOW < MEDIUM < HIGH).
+
+```ts
+function maxRisk(flags: boolean[]): "LOW" | "MEDIUM" | "HIGH" {
+  const anyTrue = flags.some(Boolean);
+  return anyTrue ? "HIGH" : "LOW";
+}
+
+function aggregateFindings(findingsSignals: FindingSignals[]) {
+  return {
+    immediate_safety_risk:
+      findingsSignals.some(f => f.has_immediate_safety_risk)
+        ? "PRESENT"
+        : "NONE",
+
+    sudden_failure_risk:
+      maxRisk(findingsSignals.map(f => f.has_sudden_failure_risk)),
+
+    tenant_disruption_risk:
+      maxRisk(findingsSignals.map(f => f.causes_tenant_disruption)),
+
+    can_this_wait:
+      findingsSignals.some(f => !f.deferrable)
+        ? "NO"
+        : findingsSignals.some(f => f.deferrable)
+          ? "CONDITIONALLY"
+          : "YES",
+
+    planning_value:
+      findingsSignals.some(f => f.benefits_from_planning)
+        ? "HIGH"
+        : "LOW",
+  };
+}
+```
+
+### Overall health derivation — product-level judgment
+
+⚠️ This is a **product-level** judgment, not an engineering judgment.
+
+```ts
+function deriveOverallHealth(signals: PropertyDecisionSignals) {
+  if (signals.immediate_safety_risk === "PRESENT") {
+    return "HIGH_RISK";
+  }
+
+  if (
+    signals.sudden_failure_risk === "HIGH" ||
+    signals.tenant_disruption_risk === "HIGH"
+  ) {
+    return "ATTENTION";
+  }
+
+  if (signals.planning_value === "HIGH") {
+    return "STABLE";
+  }
+
+  return "GOOD";
+}
+```
+
+---
+
 ## 1) Pipeline (authoritative)
 Canonical data → Decision model (Risk × Priority × Budget) → **Structured Report JSON** → Markdown (layout only) → HTML → DOCX
 

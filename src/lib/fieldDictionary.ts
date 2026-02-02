@@ -11,8 +11,10 @@ export type FieldDef = {
   enum_values?: string[];
   min?: number;
   max?: number;
-  item_schema?: Record<string, { type: string; enum?: string; enum_values?: string[]; required?: boolean; min?: number; max?: number }>;
+  item_schema?: Record<string, { type: string; enum?: string; enum_values?: string[]; required?: boolean; min?: number; max?: number; label?: string }>;
   ui: string;
+  /** Helper text shown below label (e.g. for GPO exceptions: "When pass count < total tested...") */
+  helper_text?: string;
   /** When true/yes is selected, expand sub-form to capture location, photo, notes */
   on_issue_capture?: boolean;
 };

@@ -2,6 +2,8 @@ import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { save, getNextInspectionNumber } from "./lib/store";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
+import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
+import { getBaseUrl } from "./lib/baseUrl";
 
 async function genId(event: HandlerEvent): Promise<string> {
   const now = new Date();
@@ -67,9 +69,27 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("Facts flattened, keys:", Object.keys(facts).length);
     
     console.log("Evaluating findings...");
-    const findings = await evaluateFindings(facts, event);
-    console.log("Findings evaluated, count:", findings.length);
-    
+    let findings = await evaluateFindings(facts, event);
+
+    const isBase64 = (s: string) => typeof s === "string" && s.startsWith("data:image");
+    const toUpload: Array<{ finding_id: string; image: string; caption: string }> = [];
+    for (const f of findings) {
+      const pids = f.photo_ids ?? [];
+      const base64List = pids.filter(isBase64) as string[];
+      const realIds = pids.filter((x) => !isBase64(x));
+      if (base64List.length > 0) {
+        (f as any).photo_ids = realIds;
+        const loc = f.location || "";
+        for (let i = 0; i < Math.min(base64List.length, 2); i++) {
+          toUpload.push({
+            finding_id: f.id,
+            image: base64List[i],
+            caption: loc ? `${loc} - Photo ${i + 1}` : `Photo ${i + 1}`,
+          });
+        }
+      }
+    }
+
     console.log("Collecting limitations...");
     const limitations = collectLimitations(raw);
     console.log("Limitations collected, count:", limitations.length);
@@ -87,6 +107,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       limitations,
     }, event);
     console.log("Inspection saved successfully");
+
+    if (toUpload.length > 0) {
+      console.log("Uploading room photos (base64)...", toUpload.length);
+      for (const { finding_id, image, caption } of toUpload) {
+        try {
+          await uploadPhotoToFinding(inspection_id, finding_id, image, caption, event);
+        } catch (uploadErr) {
+          console.error("Room photo upload failed:", finding_id, uploadErr);
+        }
+      }
+    }
     
     // Extract address and technician name for email
     // Helper function to extract value from Answer object (handles nested Answer objects)
@@ -111,12 +142,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const technicianNameValue = extractValue(technicianName) as string | undefined;
     
     // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
-    // Ensure review URL uses the correct format (without /api prefix for frontend route)
-    // Use URL (production) or DEPLOY_PRIME_URL (preview), fallback to actual site domain
-    const baseUrl = process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspetionreport.netlify.app";
-    // Remove trailing slash if present, ensure clean URL
-    const cleanBaseUrl = baseUrl.replace(/\/$/, "");
-    const reviewUrl = `${cleanBaseUrl}/review/${inspection_id}`;
+    // Review URL uses unified getBaseUrl (http for localhost / NETLIFY_DEV)
+    const baseUrl = getBaseUrl(event);
+    const reviewUrl = `${baseUrl}/review/${inspection_id}`;
     console.log("Generated review URL:", reviewUrl, "from baseUrl:", baseUrl);
     console.log("Preparing to send email notification...");
     try {

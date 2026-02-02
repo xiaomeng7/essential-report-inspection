@@ -148,6 +148,47 @@
       "halogen",
       "incandescent"
     ],
+    "room_type": [
+      "bedroom_1",
+      "bedroom_2",
+      "bedroom_3",
+      "bedroom_4",
+      "living_room",
+      "dining_room",
+      "kitchen",
+      "bathroom_1",
+      "bathroom_2",
+      "laundry",
+      "garage",
+      "shed",
+      "veranda",
+      "balcony",
+      "hallway",
+      "office",
+      "storeroom",
+      "external_area",
+      "other"
+    ],
+    "room_access": [
+      "accessible",
+      "not_accessible"
+    ],
+    "room_not_accessible_reason": [
+      "no_key",
+      "privacy",
+      "religious",
+      "other"
+    ],
+    "lighting_switch_issue": [
+      "none",
+      "fitting_overheat",
+      "fitting_not_working",
+      "switch_loose",
+      "switch_arcing",
+      "switch_unresponsive",
+      "dimmer_not_working",
+      "other"
+    ],
     "smoke_alarm_type": [
       "photoelectric",
       "ionisation",
@@ -200,6 +241,14 @@
       "heat_damage",
       "other"
     ],
+    "light_fitting_type": [
+      "downlight",
+      "batten",
+      "pendant",
+      "led_panel",
+      "strip",
+      "other"
+    ],
     "rcd_exception_result": [
       "pass",
       "fail"
@@ -210,6 +259,16 @@
       "damage",
       "overheating",
       "loose",
+      "other"
+    ],
+    "gpo_room_issue": [
+      "none",
+      "missing_earth",
+      "polarity_reversed",
+      "no_power",
+      "loose",
+      "damage",
+      "overheating",
       "other"
     ],
     "bonding": [
@@ -1155,8 +1214,8 @@
       ]
     },
     {
-      "id": "S7_GPO_LIGHTING_SUMMARY",
-      "title": "GPO & Lighting: Summary",
+      "id": "S7A_GPO_BY_ROOM",
+      "title": "GPO Testing by Room",
       "fields": [
         {
           "key": "gpo_tests.performed",
@@ -1167,44 +1226,27 @@
           "ui": "radio_yes_no"
         },
         {
-          "key": "gpo_tests.summary.total_gpo_tested",
-          "label": "Total outlets tested",
-          "type": "integer",
-          "min": 0,
-          "max": 999,
+          "key": "gpo_tests.rooms",
+          "label": "GPO by room – add room, then submit to add row",
+          "type": "array_object",
           "required_when": "gpo_tests.performed==true",
           "skippable": true,
-          "ui": "number"
-        },
-        {
-          "key": "gpo_tests.summary.polarity_pass",
-          "label": "Polarity pass count",
-          "type": "integer",
-          "min": 0,
-          "max": 999,
-          "required_when": "gpo_tests.performed==true",
-          "skippable": true,
-          "ui": "number"
-        },
-        {
-          "key": "gpo_tests.summary.earth_present_pass",
-          "label": "Earth present pass count",
-          "type": "integer",
-          "min": 0,
-          "max": 999,
-          "required_when": "gpo_tests.performed==true",
-          "skippable": true,
-          "ui": "number"
-        },
-        {
-          "key": "gpo_tests.summary.rcd_protection_confirmed",
-          "label": "RCD protection confirmed count",
-          "type": "integer",
-          "min": 0,
-          "max": 999,
-          "required_when": "gpo_tests.performed==true",
-          "skippable": true,
-          "ui": "number"
+          "helper_text": "Select Access: 可进入 (default) or 不可进入. If 不可进入, no test data required. When 可进入: tested ≤ total; when tested < total write reason in Note; when pass < tested, Issue required and photo evidence required.",
+          "item_schema": {
+            "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
+            "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
+            "room_access": { "type": "enum", "enum": "room_access", "required": false, "label": "Access (default: accessible)" },
+            "room_not_accessible_reason": { "type": "enum", "enum": "room_not_accessible_reason", "required": false, "label": "Reason (when not accessible)" },
+            "room_not_accessible_reason_other": { "type": "string", "required": false, "label": "Reason (when Other)" },
+            "gpo_count": { "type": "integer", "required": true, "label": "GPO count", "min": 0, "max": 999 },
+            "tested_count": { "type": "integer", "required": true, "label": "Tested count", "min": 0, "max": 999 },
+            "pass_count": { "type": "integer", "required": true, "label": "Pass count", "min": 0, "max": 999 },
+            "issue": { "type": "enum", "enum": "gpo_room_issue", "required": false, "label": "Issue" },
+            "issue_other": { "type": "string", "required": false, "label": "Describe issue (when Other)" },
+            "note": { "type": "string", "required": false, "label": "Note" },
+            "photo_ids": { "type": "array_string", "required": false, "label": "Photo evidence (required when Issue is not None)" }
+          },
+          "ui": "gpo_room_table"
         },
         {
           "key": "gpo_tests.any_warm_loose_damaged",
@@ -1214,15 +1256,6 @@
           "skippable": true,
           "ui": "radio_yes_no",
           "on_issue_capture": true
-        },
-        {
-          "key": "lighting.issues_observed",
-          "label": "Lighting issues observed",
-          "type": "enum",
-          "enum": "lighting_issue",
-          "required": true,
-          "skippable": false,
-          "ui": "radio"
         },
         {
           "key": "gpo_tests.notes",
@@ -1239,6 +1272,7 @@
           "from": true,
           "to": false,
           "clear_paths": [
+            "gpo_tests.rooms",
             "gpo_tests.summary",
             "gpo_tests.exceptions"
           ]
@@ -1273,23 +1307,28 @@
           "type": "array_object",
           "required_when": "gpo_tests.no_exceptions==false",
           "skippable": true,
+          "helper_text": "When pass count < total tested, failures exist. Add one exception per failed outlet with: Location (e.g. Kitchen, Bedroom 2), Issue type, and Photos (required for each).",
           "item_schema": {
             "location": {
               "type": "string",
-              "required": true
+              "required": true,
+              "label": "Location / Room"
             },
             "issue": {
               "type": "enum",
               "enum": "gpo_exception_issue",
-              "required": true
+              "required": true,
+              "label": "Issue type"
             },
             "notes": {
               "type": "string",
-              "required": false
+              "required": false,
+              "label": "Notes (optional)"
             },
             "photo_ids": {
               "type": "array_string",
-              "required": false
+              "required": false,
+              "label": "Photos (required when failures detected)"
             }
           },
           "ui": "repeatable_card"
@@ -1309,6 +1348,32 @@
           "required": false,
           "skippable": true,
           "ui": "textarea"
+        }
+      ]
+    },
+    {
+      "id": "S7B_LIGHTING_BY_ROOM",
+      "title": "Lighting by Room",
+      "fields": [
+        {
+          "key": "lighting.rooms",
+          "label": "Lighting by room – add room, then submit to add row",
+          "type": "array_object",
+          "required": false,
+          "skippable": true,
+          "helper_text": "Select Access: 可进入 or 不可进入. If 不可进入, select reason. When 可进入: select room, then check issues (灯具过热, 灯具不工作, 开关松动, etc.). If issues present, add photo evidence. Click «Add to table» to add a row.",
+          "item_schema": {
+            "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
+            "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
+            "room_access": { "type": "enum", "enum": "room_access", "required": false, "label": "Access (default: accessible)" },
+            "room_not_accessible_reason": { "type": "enum", "enum": "room_not_accessible_reason", "required": false, "label": "Reason (when not accessible)" },
+            "room_not_accessible_reason_other": { "type": "string", "required": false, "label": "Reason (when Other)" },
+            "issues": { "type": "array_string", "required": false, "label": "Issues (lighting/switch)" },
+            "issue_other": { "type": "string", "required": false, "label": "Describe issue (when Other)" },
+            "photo_ids": { "type": "array_string", "required": false, "label": "Photo evidence (required when issues present)" },
+            "note": { "type": "string", "required": false, "label": "Note" }
+          },
+          "ui": "lighting_room_table"
         }
       ]
     },

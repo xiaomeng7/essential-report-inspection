@@ -29,8 +29,9 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S4_CABLES_LEGACY",
   "S5_RCD_TESTS_SUMMARY",
   "S6_RCD_TESTS_EXCEPTIONS",
-  "S7_GPO_LIGHTING_SUMMARY",
+  "S7A_GPO_BY_ROOM",
   "S8_GPO_LIGHTING_EXCEPTIONS",
+  "S7B_LIGHTING_BY_ROOM",
   "S3A_POWER_POINTS",
   "S3B_LIGHTING_SWITCHES",
   "S3C_KITCHEN",
@@ -120,7 +121,7 @@ export function Wizard({ onSubmitted }: Props) {
     const payload = {
       created_at: new Date().toISOString(),
       ...rest,
-      _issue_details_meta: issueDetailsForPayload, // Store location/notes, photos uploaded separately
+      _issue_details_meta: issueDetailsForPayload,
     };
     try {
       const res = await fetch("/api/submitInspection", {

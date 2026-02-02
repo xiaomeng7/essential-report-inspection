@@ -1831,6 +1831,7 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+  # Internal fallback for unmapped finding IDs. Messaging must be client-safe (never show developer notes).
   UNKNOWN_FINDING_FALLBACK:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1840,8 +1841,8 @@ finding_profiles:
       escalation: LOW
     budget: horizon
     messaging:
-      title: UNKNOWN FINDING FALLBACK
-      why_it_matters: Fallback profile for unmapped IDs. Ensure new IDs are added to profiles.
+      title: General Observation
+      why_it_matters: This condition may affect electrical safety, reliability, or compliance depending on severity and location.
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""

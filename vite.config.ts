@@ -12,5 +12,8 @@ export default defineConfig({
       "/api": "http://localhost:8888",
       "/.netlify": "http://localhost:8888",
     },
+    watch: {
+      ignored: ["**/.netlify/**"],
+    },
   },
 });

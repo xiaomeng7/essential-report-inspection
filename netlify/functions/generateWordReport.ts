@@ -20,6 +20,7 @@ import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./l
 import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring";
 import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals";
 import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
+import { getBaseUrl } from "./lib/baseUrl";
 import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
 import { 
   ensureAllPlaceholders, 
@@ -51,17 +52,40 @@ const docOptions = {
 // Cache for responses.yml
 let responsesCache: any = null;
 
-/** Derive baseUrl from event headers (proto + host), fallback to env. Do NOT hardcode netlify.app */
-function getBaseUrl(event?: HandlerEvent): string {
-  if (event?.headers) {
-    const proto = event.headers["x-forwarded-proto"] || event.headers["x-forwarded-protocol"] || "https";
-    const host = event.headers["host"] || event.headers["x-forwarded-host"];
-    if (host) {
-      const url = `${String(proto).replace(/,.*$/, "").trim() || "https"}://${String(host).replace(/,.*$/, "").trim()}`;
-      return url.replace(/\/$/, "");
-    }
+const DOCX_BODY_MIN_LENGTH = 20000;
+
+/** Detect if a placeholder tag (e.g. "REPORT_BODY_HTML") is split across Word XML w:t runs. */
+function detectSplitTag(documentXml: string, tagName: string): boolean {
+  // If doesn't contain the tag name at all, not split (just missing)
+  if (!documentXml.includes(tagName)) return false;
+  // If contains full placeholder "{{TAG}}", it's continuous (not split)
+  const fullTag = "{{" + tagName + "}}";
+  if (documentXml.includes(fullTag)) return false;
+  // If contains tag name but not full placeholder, likely split across nodes
+  return true;
+}
+
+/** Verify generated docx has body content (not ASTEXT / merge failure). Reads word/document.xml inside zip. */
+function verifyDocxBody(
+  zip: { files: Record<string, { asText?: () => string }> },
+  opts?: { minLength?: number }
+): { ok: boolean; reason?: string; documentXmlLength?: number } {
+  const docEntry = zip.files["word/document.xml"];
+  const xml = docEntry ? (docEntry.asText?.() ?? "") : "";
+  const minLen = opts?.minLength ?? DOCX_BODY_MIN_LENGTH;
+  if (xml.length < minLen) {
+    return { ok: false, reason: "body content missing, likely ASTEXT or merge failed. document.xml length=" + xml.length + " (min " + minLen + ")" };
   }
-  return (process.env.URL || process.env.DEPLOY_PRIME_URL || "https://inspetionreport.netlify.app").replace(/\/$/, "");
+  const hasBodyMarker =
+    xml.includes("Executive Summary") ||
+    xml.includes("Executive") ||
+    xml.includes("Evidence") ||
+    xml.includes("Observed Condition") ||
+    xml.includes("Observed");
+  if (!hasBodyMarker) {
+    return { ok: false, reason: "body content missing, likely ASTEXT or merge failed. document.xml length=" + xml.length + ", hasBodyMarker=false" };
+  }
+  return { ok: true, documentXmlLength: xml.length };
 }
 
 /**
@@ -487,21 +511,32 @@ function buildTestDataAndNotes(
     }
   }
   
-  // Extract GPO test summary
+  // Extract GPO test summary (support gpo_tests.rooms → summary when summary missing; exclude not_accessible rooms)
   const gpoTests = testData.gpo_tests as Record<string, unknown> | undefined;
   if (gpoTests) {
     const performed = gpoTests.performed;
     if (performed === true || performed === "true" || performed === "yes") {
-      const summary = gpoTests.summary as Record<string, unknown> | undefined;
+      let summary = gpoTests.summary as Record<string, unknown> | undefined;
+      const rooms = gpoTests.rooms as Array<Record<string, unknown>> | undefined;
+      const accessibleRooms = Array.isArray(rooms) ? rooms.filter((r: Record<string, unknown>) => r?.room_access !== "not_accessible") : [];
+      const notAccessibleCount = Array.isArray(rooms) ? rooms.filter((r: Record<string, unknown>) => r?.room_access === "not_accessible").length : 0;
+      if (!summary && accessibleRooms.length > 0) {
+        const totalTested = accessibleRooms.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.tested_count) || 0), 0);
+        const passSum = accessibleRooms.reduce((s: number, r: Record<string, unknown>) => s + (Number(r.pass_count) || 0), 0);
+        summary = { total_gpo_tested: totalTested, polarity_pass: passSum, earth_present_pass: passSum };
+      }
       if (summary) {
-        const totalTested = Number(summary.total_tested ?? summary.total_outlets_tested ?? 0);
+        const totalTested = Number(summary.total_tested ?? summary.total_outlets_tested ?? summary.total_gpo_tested ?? 0);
         if (totalTested > 0) {
-          const polarityPass = summary.polarity_pass_count || 0;
-          const earthPass = summary.earth_present_pass_count || 0;
+          const polarityPass = summary.polarity_pass_count ?? summary.polarity_pass ?? 0;
+          const earthPass = summary.earth_present_pass_count ?? summary.earth_present_pass ?? 0;
           testSummaryParts.push(`GPO Testing: ${totalTested} outlet(s) tested. Polarity: ${polarityPass} passed, Earth: ${earthPass} passed.`);
         }
       } else {
         testSummaryParts.push("GPO Testing: Performed (details not available).");
+      }
+      if (notAccessibleCount > 0) {
+        testSummaryParts.push(`Potential risk: ${notAccessibleCount} room(s) not accessible – GPO testing could not be performed in those areas.`);
       }
     }
   }
@@ -1352,9 +1387,7 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   
   const photoBaseUrl = getBaseUrl(event);
   const photoSigningSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
-  if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
-    console.log("[report] photo baseUrl:", photoBaseUrl);
-  }
+  console.log("[report] photo baseUrl:", photoBaseUrl);
   const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspection, event, photoBaseUrl, photoSigningSecret);
   
   // Load default text for additional fields
@@ -2015,9 +2048,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     console.log("Generating Word report for inspection_id:", inspection_id);
     
-    // Get inspection data from store
+    // Get inspection data from store (try strong consistency to avoid stale photo_ids)
     console.log("Fetching inspection data...");
-    const inspection = await get(inspection_id, event);
+    let inspection = await get(inspection_id, event, true);
+    if (!inspection) {
+      inspection = await get(inspection_id, event);
+    }
     
     if (!inspection) {
       return {
@@ -2032,6 +2068,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     for (const f of inspection.findings || []) {
       photosByFinding[f.id] = Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
     }
+    console.log("[photo-fp] inspection.findings photo summary: " + (inspection.findings || []).map((f) => `${f.id}=${photosByFinding[f.id] ?? 0}`).join(", "));
     console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos + " photos_by_finding=" + JSON.stringify(photosByFinding));
     console.log("[report][RUN_ID]", RUN_ID, "after load inspection", {
       inspection_id: inspection.inspection_id,
@@ -2311,25 +2348,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // Check if template contains REPORT_BODY_HTML placeholder
     // This is a required protection: throw error if placeholder is missing
     // Note: Word may split placeholders across XML nodes, so we check for the text content
-    const zip = new PizZip(templateBuffer);
-    const documentXml = zip.files["word/document.xml"]?.asText() || "";
+    const templateZip = new PizZip(templateBuffer);
+    const templateDocumentXml = templateZip.files["word/document.xml"]?.asText() || "";
+    console.log("[docx-diag][RUN_ID=" + RUN_ID + "] templateDocumentXmlLength=" + templateDocumentXml.length);
     
     // P0: REPORT_BODY_HTML is REQUIRED - template must contain continuous placeholder
     const templatePathForError = foundMdTemplate ? templatePathHit : possibleMdPaths[0];
-    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") ||
-      documentXml.includes("report_body_html") ||
-      documentXml.includes("Report_Body_Html");
+    const hasPlaceholder = templateDocumentXml.includes("REPORT_BODY_HTML") ||
+      templateDocumentXml.includes("report_body_html") ||
+      templateDocumentXml.includes("Report_Body_Html");
 
     if (!hasPlaceholder) {
-      const sampleXml = documentXml.substring(0, 2000);
-      const templateSize = templateBuffer!.length;
-      const splitHint = " If Word split the placeholder across runs, re-enter {{REPORT_BODY_HTML}} without line breaks.";
-      const errMsg = `Template missing required placeholder: REPORT_BODY_HTML. path=${templatePathForError} buffer.length=${templateSize} document.xml[0:2000]=${JSON.stringify(sampleXml)}${splitHint}`;
-      console.error("[report-fp] ❌", errMsg);
-      throw new Error(errMsg);
+      // Detect split placeholder: tag name exists but full {{TAG}} doesn't
+      const isSplit = detectSplitTag(templateDocumentXml, "REPORT_BODY_HTML");
+      if (isSplit) {
+        throw new Error("TEMPLATE_TAG_SPLIT: REPORT_BODY_HTML is split across Word XML runs. Re-enter {{REPORT_BODY_HTML}} as continuous text in template.");
+      }
+      throw new Error("TEMPLATE_MISSING_TAG: REPORT_BODY_HTML not found in template. path=" + templatePathForError);
     }
 
-    console.log("[report-fp] placeholder: required ok (REPORT_BODY_HTML present)");
+    console.log("[docx-diag][RUN_ID=" + RUN_ID + "] template placeholder check: REPORT_BODY_HTML present (continuous)");
     
     // Hard assertions before renderDocx
     const undefKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
@@ -2343,9 +2381,68 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       throw new Error("[report] reportHtml has Photo P but missing <a href=; Evidence links broken");
     }
 
+    // [report-fp] Fingerprint block (all logs prefixed [report-fp])
+    const undefKeysFp = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+    const sfFp = getSanitizeFingerprint();
+    console.log("[report-fp] BUILD COMMIT_REF:", process.env.COMMIT_REF ?? "?", "CONTEXT:", process.env.CONTEXT ?? "?", "BRANCH:", process.env.BRANCH ?? "?");
+    console.log("[report-fp] responses: (see loadResponses log above)");
+    console.log("[report-fp] reportStyles.css: (see markdownToHtml log above)");
+    console.log("[report-fp] report-template-md.docx path:", templatePathHit || "?", "buffer.length:", templateBuffer?.length ?? 0, "sha1:", foundMdTemplate ? sha1(templateBuffer) : "?");
+    console.log("[report-fp] sanitize callCount:", sfFp.count, "preserveEmoji:", sfFp.preserveEmoji);
+    console.log("[report-fp] templateData undefined keys:", undefKeysFp.length === 0 ? "[] (OK)" : undefKeysFp.join(", "));
+    if (undefKeysFp.length > 0) {
+      console.warn("[report-fp] WARN: templateData has undefined keys, must be empty for production");
+    }
+
+    // [photo-fp] Verify REPORT_BODY_HTML contains links before renderDocx
+    const html = String(templateData.REPORT_BODY_HTML ?? "");
+    const reportHtmlLength = html.length;
+    if (reportHtmlLength < 5000) {
+      throw new Error("REPORT_BODY_HTML_EMPTY_OR_TOO_SMALL: length=" + reportHtmlLength + " (min 5000). Report body cannot be empty.");
+    }
+    console.log("[docx-diag][RUN_ID=" + RUN_ID + "] reportHtmlLength=" + reportHtmlLength);
+    const hasA = html.includes("<a ");
+    const hasViewPhoto = html.includes("View photo");
+    const linkMatches = html.match(/<a\s+href=/g);
+    const linkCount = linkMatches ? linkMatches.length : 0;
+    console.log("[photo-fp] html link check: hasA=" + hasA + " count=" + linkCount + " hasViewPhoto=" + hasViewPhoto);
+
+    // debug=1 or DEBUG_DOCX=1: save reportHtml to file for inspection (转换前的 HTML)
+    const wantDebugSave = process.env.DEBUG_DOCX === "1" ||
+      (event.httpMethod === "GET" && new URLSearchParams(event.rawQuery || "").get("debug") === "1");
+    if (wantDebugSave) {
+      const debugPath = path.join(process.cwd(), "output", "debug-report-html.html");
+      try {
+        fs.mkdirSync(path.dirname(debugPath), { recursive: true });
+        fs.writeFileSync(debugPath, reportHtml, "utf8");
+        console.log("[docx-diag] DEBUG_DOCX=1: saved reportHtml to " + debugPath);
+      } catch (e) {
+        console.warn("[docx-diag] DEBUG_DOCX=1: failed to save:", e);
+      }
+    }
+
     console.log("[report][RUN_ID]", RUN_ID, "before renderDocx");
-    const outBuffer = await renderDocx(templateBuffer, templateData);
+    
+    // USE NEW RENDERING PATH: merge cover + body without placeholder injection
+    // Old path (renderDocx with HTML_MERGE) failed because placeholder injection didn't work
+    // New path: render cover separately, convert HTML to DOCX, then merge
+    const { renderDocxByMergingCoverAndBody } = await import("./lib/renderDocx");
+    const outBuffer = await renderDocxByMergingCoverAndBody(
+      templateBuffer,
+      templateData,
+      reportHtml,
+      RUN_ID
+    );
+    
     console.log("[report][RUN_ID]", RUN_ID, "after renderDocx, size:", outBuffer.length, "bytes");
+
+    // Structure visibility validation: ensure docx body is present (not ASTEXT / merge failure)
+    const docZip = new PizZip(outBuffer);
+    const bodyCheck = verifyDocxBody(docZip, { minLength: DOCX_BODY_MIN_LENGTH });
+    if (!bodyCheck.ok) {
+      throw new Error("DOCX_RENDER_FAILED: " + bodyCheck.reason);
+    }
+    console.log("[docx-diag][RUN_ID=" + RUN_ID + "] docx body validation OK (document.xml length=" + bodyCheck.documentXmlLength + ", contains body markers)");
 
     // Dev-only: verify DOCX contains hyperlinks when input had <a href>
     if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
