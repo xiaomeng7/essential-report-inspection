@@ -34,7 +34,6 @@ export const INSPECTION_BLOCKS: BlockDef[] = [
     title: "室内安装",
     titleEn: "Internal Installation",
     sectionIds: [
-      "S3A_POWER_POINTS",
       "S3B_LIGHTING_SWITCHES",
       "S3C_KITCHEN",
       "S3D_BATHROOMS",
