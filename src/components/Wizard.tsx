@@ -18,7 +18,7 @@ const GATE_KEYS = new Set([
   "assets.has_ev_charger",
 ]);
 
-/** Sections that have a photo evidence block (fill + photo in one place). */
+/** Sections that have a photo evidence block below the form. S7A/S7B omit it: photos are captured in the room table. */
 const SECTIONS_WITH_PHOTOS = new Set([
   "S1_ACCESS_LIMITATIONS",
   "S2_SUPPLY_OVERVIEW",
@@ -31,7 +31,6 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S6_RCD_TESTS_EXCEPTIONS",
   "S7A_GPO_BY_ROOM",
   "S8_GPO_LIGHTING_EXCEPTIONS",
-  "S7B_LIGHTING_BY_ROOM",
   "S3A_POWER_POINTS",
   "S3B_LIGHTING_SWITCHES",
   "S3C_KITCHEN",
