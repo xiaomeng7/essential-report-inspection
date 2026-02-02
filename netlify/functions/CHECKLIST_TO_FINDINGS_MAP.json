@@ -329,6 +329,30 @@
       }
     },
     {
+      "finding": "GREASE_FIRE_RISK",
+      "condition": {
+        "field": "internal.kitchen.cooktop_grease_oil",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "COOKTOP_GLASS_CRACKED",
+      "condition": {
+        "field": "internal.kitchen.cooktop_glass_damage",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
+      "finding": "DISHWASHER_LEAK_RISK",
+      "condition": {
+        "field": "internal.kitchen.dishwasher_leak",
+        "operator": "eq",
+        "value": true
+      }
+    },
+    {
       "_comment": "========== INTERNAL - BATHROOM Section S3D ==========",
       "finding": "MOISTURE_DAMAGE",
       "condition": {

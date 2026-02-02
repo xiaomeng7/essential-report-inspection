@@ -581,7 +581,9 @@ const NOT_ACCESSIBLE_REASON_LABELS: Record<string, string> = {
   other: "其他",
 };
 
-/** GPO by room: form (room, Access, [GPO count, tested, pass, Issue, Note, Photo when accessible]) → Add to table → table rows */
+const ROOMS_WITH_SINK = ["kitchen", "laundry", "bathroom_1", "bathroom_2"];
+
+/** GPO by room: form (room, Access, [GPO count, tested, pass, Issue, Note, Photo when accessible]; for kitchen/laundry/bathroom: distance to sink + photo) → Add to table */
 function GpoRoomTable({
   rows,
   onChange,
@@ -602,6 +604,8 @@ function GpoRoomTable({
   const [issue, setIssue] = useState("none");
   const [issueOther, setIssueOther] = useState("");
   const [note, setNote] = useState("");
+  const [distanceToSinkMm, setDistanceToSinkMm] = useState<number | "">("");
+  const [sinkPositionNotes, setSinkPositionNotes] = useState("");
   const [photoInput, setPhotoInput] = useState("");
   const [photoIds, setPhotoIds] = useState<string[]>([]);
 
@@ -619,7 +623,10 @@ function GpoRoomTable({
   const hasIssue = issue && issue !== "none";
   const isIssueOther = issue === "other";
   const needIssueOther = isIssueOther && !issueOther.trim();
-  const needPhotos = hasIssue && photoIds.length === 0;
+  const isSinkRoom = ROOMS_WITH_SINK.includes(roomType);
+  const needSinkPosition = isAccessible && isSinkRoom && (distanceToSinkMm === "" && !sinkPositionNotes.trim());
+  const needSinkPhoto = isAccessible && isSinkRoom && photoIds.length === 0;
+  const needPhotos = (hasIssue && photoIds.length === 0) || needSinkPhoto;
   const testedExceedsTotal = t > g;
   const needReason = t < g && !note.trim();
   const passLessThanTested = p < t;
@@ -637,7 +644,11 @@ function GpoRoomTable({
       if (needIssueWhenFail) return;
       if (needIssueOther) return;
       if (hasIssue && photoIds.length === 0) return;
+      if (needSinkPosition || needSinkPhoto) return;
     }
+
+    const sinkMm = typeof distanceToSinkMm === "number" ? distanceToSinkMm : undefined;
+    const sinkNotes = sinkPositionNotes.trim() || undefined;
 
     onChange([
       ...rows,
@@ -653,7 +664,9 @@ function GpoRoomTable({
         issue: isAccessible ? (issue || "none") : "none",
         issue_other: isAccessible && isIssueOther ? issueOther.trim() : "",
         note: isAccessible ? note.trim() : "",
-        photo_ids: isAccessible && hasIssue ? [...photoIds] : [],
+        distance_to_sink_mm: isAccessible && isSinkRoom ? sinkMm : undefined,
+        sink_position_notes: isAccessible && isSinkRoom ? sinkNotes : undefined,
+        photo_ids: isAccessible && (hasIssue || isSinkRoom) ? [...photoIds] : [],
       },
     ]);
     setRoomType("");
@@ -667,6 +680,8 @@ function GpoRoomTable({
     setIssue("none");
     setIssueOther("");
     setNote("");
+    setDistanceToSinkMm("");
+    setSinkPositionNotes("");
     setPhotoInput("");
     setPhotoIds([]);
   };
@@ -737,6 +752,17 @@ function GpoRoomTable({
     const ids = row.photo_ids as string[] | undefined;
     if (!Array.isArray(ids) || ids.length === 0) return "—";
     return ids.length === 1 ? ids[0] : `${ids.length} photos`;
+  };
+
+  const displaySinkPosition = (row: Record<string, unknown>) => {
+    if (!isRowAccessible(row)) return "—";
+    const rt = row.room_type as string;
+    if (!ROOMS_WITH_SINK.includes(rt)) return "—";
+    const mm = row.distance_to_sink_mm;
+    const notes = (row.sink_position_notes as string)?.trim();
+    if (mm != null && mm !== "") return String(mm) + " mm";
+    if (notes) return notes;
+    return "—";
   };
 
   return (
@@ -861,9 +887,35 @@ function GpoRoomTable({
               disabled={disabled}
             />
           </div>
-          {hasIssue && (
+          {isSinkRoom && (
+            <>
+              <div className="field" style={{ minWidth: 100 }}>
+                <label>Distance to sink/tap (mm)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={2000}
+                  value={distanceToSinkMm}
+                  onChange={(e) => setDistanceToSinkMm(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="e.g. 300"
+                  disabled={disabled}
+                />
+              </div>
+              <div className="field" style={{ minWidth: 160 }}>
+                <label>Position relative to sink (if not measured)</label>
+                <input
+                  type="text"
+                  value={sinkPositionNotes}
+                  onChange={(e) => setSinkPositionNotes(e.target.value)}
+                  placeholder="e.g. Left of tap, above basin"
+                  disabled={disabled}
+                />
+              </div>
+            </>
+          )}
+          {(hasIssue || isSinkRoom) && (
             <div className="field" style={{ minWidth: 180 }}>
-              <label>Photo evidence (required)</label>
+              <label>Photo evidence {isSinkRoom ? "(required for sink zone)" : "(required)"}</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                 <input
                   ref={photoFileRef}
@@ -908,13 +960,13 @@ function GpoRoomTable({
               !roomType ||
               (roomType === "other" && !roomNameCustom.trim()) ||
               (!isAccessible && (needNotAccessibleReason || needNotAccessibleReasonOther)) ||
-              (isAccessible && (testedExceedsTotal || needReason || needIssueWhenFail || needIssueOther || needPhotos))
+              (isAccessible && (testedExceedsTotal || needReason || needIssueWhenFail || needIssueOther || needPhotos || needSinkPosition || needSinkPhoto))
             )}
           >
             Add to table
           </button>
         </div>
-        {(needNotAccessibleReason || needNotAccessibleReasonOther || testedExceedsTotal || needReason || needIssueWhenFail || needIssueOther || needPhotos) && (
+        {(needNotAccessibleReason || needNotAccessibleReasonOther || testedExceedsTotal || needReason || needIssueWhenFail || needIssueOther || needPhotos || needSinkPosition || needSinkPhoto) && (
           <p className="validation-msg" style={{ marginTop: 8, marginBottom: 0 }}>
             {needNotAccessibleReason && "不可进入时请选择原因。"}
             {needNotAccessibleReasonOther && !needNotAccessibleReason && "选择「其他」时请填写原因。"}
@@ -922,7 +974,9 @@ function GpoRoomTable({
             {needReason && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && "Reason required when tested count is less than total (use Note)."}
             {needIssueWhenFail && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && !needReason && "When pass &lt; tested, Issue cannot be None."}
             {needIssueOther && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && !needReason && !needIssueWhenFail && "When Issue is Other, describe the issue."}
-            {needPhotos && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && !needReason && !needIssueWhenFail && !needIssueOther && "When Issue is not None, at least one photo evidence is required."}
+            {needSinkPosition && "Kitchen/Laundry/Bathroom: fill distance to sink (mm) or position description."}
+            {needSinkPhoto && !needSinkPosition && "Kitchen/Laundry/Bathroom: at least one photo of GPO/sink zone required."}
+            {needPhotos && !needSinkPosition && !needSinkPhoto && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && !needReason && !needIssueWhenFail && !needIssueOther && "When Issue is not None, at least one photo evidence is required."}
           </p>
         )}
       </div>
@@ -938,6 +992,7 @@ function GpoRoomTable({
               <th style={{ textAlign: "right", padding: 6 }}>Pass</th>
               <th style={{ textAlign: "left", padding: 6 }}>Issue</th>
               <th style={{ textAlign: "left", padding: 6 }}>Note</th>
+              <th style={{ textAlign: "left", padding: 6 }}>To sink (mm / notes)</th>
               <th style={{ textAlign: "left", padding: 6 }}>Photos</th>
               <th style={{ width: 80 }} />
             </tr>
@@ -953,6 +1008,7 @@ function GpoRoomTable({
                 <td style={{ padding: 6, textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.pass_count) ?? 0) : "—"}</td>
                 <td style={{ padding: 6 }}>{displayIssue(row)}</td>
                 <td style={{ padding: 6 }}>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
+                <td style={{ padding: 6 }}>{displaySinkPosition(row)}</td>
                 <td style={{ padding: 6 }}>{displayPhotos(row)}</td>
                 <td style={{ padding: 6 }}>
                   <button type="button" onClick={() => removeRow(i)} className="btn-secondary" disabled={disabled} aria-label="Remove row">×</button>

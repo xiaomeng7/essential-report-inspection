@@ -6,8 +6,12 @@
     "polarity_reversed": "POLARITY_ISSUE_DETECTED",
     "no_power": "GPO_MECHANICAL_LOOSE",
     "loose": "GPO_MECHANICAL_LOOSE",
+    "plug_disengages": "GPO_MECHANICAL_LOOSE",
+    "cracks_visible": "DAMAGED_OUTLET_OR_SWITCH",
+    "burn_marks": "GPO_OVERHEATING",
     "damage": "DAMAGED_OUTLET_OR_SWITCH",
     "overheating": "GPO_OVERHEATING",
+    "surface_warm": "GPO_OVERHEATING",
     "other": null
   },
   "lighting_switch_issue": {

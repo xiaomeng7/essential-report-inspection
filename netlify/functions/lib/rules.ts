@@ -444,7 +444,7 @@ function loadIssueToFinding(): typeof issueToFindingCache {
     }
   }
   issueToFindingCache = {
-    gpo_room_issue: { missing_earth: "GPO_EARTH_FAULT", polarity_reversed: "POLARITY_ISSUE_DETECTED", no_power: "GPO_MECHANICAL_LOOSE", loose: "GPO_MECHANICAL_LOOSE", damage: "DAMAGED_OUTLET_OR_SWITCH", overheating: "GPO_OVERHEATING", other: null },
+    gpo_room_issue: { missing_earth: "GPO_EARTH_FAULT", polarity_reversed: "POLARITY_ISSUE_DETECTED", no_power: "GPO_MECHANICAL_LOOSE", loose: "GPO_MECHANICAL_LOOSE", plug_disengages: "GPO_MECHANICAL_LOOSE", cracks_visible: "DAMAGED_OUTLET_OR_SWITCH", burn_marks: "GPO_OVERHEATING", damage: "DAMAGED_OUTLET_OR_SWITCH", overheating: "GPO_OVERHEATING", surface_warm: "GPO_OVERHEATING", other: null },
     lighting_switch_issue: { fitting_overheat: "FITTING_OVERHEAT", fitting_not_working: "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE", switch_loose: "SWITCH_LOOSE_MOUNTING", switch_arcing: "SWITCH_ARCING", switch_unresponsive: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", dimmer_not_working: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", other: null },
   };
   return issueToFindingCache;

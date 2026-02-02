@@ -34,11 +34,21 @@ button {
   background: none;
 }
 
+/* 自适应：手机单栏适中宽度，平板/桌面加宽，避免两侧空白过多 */
 .app {
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 768px) {
+  .app { max-width: 640px; }
+}
+
+@media (min-width: 1024px) {
+  .app { max-width: 720px; }
 }
 
 .progress-wrap {

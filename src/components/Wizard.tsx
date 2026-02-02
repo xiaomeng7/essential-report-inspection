@@ -18,6 +18,10 @@ const GATE_KEYS = new Set([
   "assets.has_ev_charger",
 ]);
 
+/** S8 and S7B shown on one page; S7B is not a separate step when S8 is present. */
+const S8_COMBINED_WITH_S7B = "S8_GPO_LIGHTING_EXCEPTIONS";
+const S7B_LIGHTING_BY_ROOM = "S7B_LIGHTING_BY_ROOM";
+
 /** Sections that have a photo evidence block below the form. S7A/S7B omit it: photos are captured in the room table. */
 const SECTIONS_WITH_PHOTOS = new Set([
   "S1_ACCESS_LIMITATIONS",
@@ -65,7 +69,12 @@ export function Wizard({ onSubmitted }: Props) {
 
   const sections = useMemo(() => getSections(), []);
   const visibleSections = useMemo(() => {
-    return sections.filter((s) => !isSectionGatedOut(s.id, state) && !isSectionAutoSkipped(s.id, state));
+    const filtered = sections.filter((s) => !isSectionGatedOut(s.id, state) && !isSectionAutoSkipped(s.id, state));
+    // Merge S8 + S7B into one step: when S8 is present, do not show S7B as a separate step (it is rendered with S8).
+    return filtered.filter((s, i, arr) => {
+      if (s.id === S7B_LIGHTING_BY_ROOM && arr[i - 1]?.id === S8_COMBINED_WITH_S7B) return false;
+      return true;
+    });
   }, [sections, state]);
 
   const current = visibleSections[step];
@@ -75,20 +84,25 @@ export function Wizard({ onSubmitted }: Props) {
 
   const goNext = () => {
     if (!current) return;
-    const { valid, errors } = validateSection(current.id, state);
-    if (!valid) {
-      // Debug: log validation errors
-      console.log("Validation errors:", errors);
-      console.log("Current state:", JSON.stringify(state, null, 2));
-      console.log("Current section:", current.id);
-      setSectionErrors((prev) => ({ ...prev, [current.id]: errors }));
-      // Scroll to top to show validation errors
+    const sectionsToValidate =
+      current.id === S8_COMBINED_WITH_S7B ? [S8_COMBINED_WITH_S7B, S7B_LIGHTING_BY_ROOM] : [current.id];
+    let allValid = true;
+    const mergedErrors: Record<string, Record<string, string>> = {};
+    for (const sectionId of sectionsToValidate) {
+      const { valid, errors } = validateSection(sectionId, state);
+      if (!valid) {
+        allValid = false;
+        mergedErrors[sectionId] = errors;
+      }
+    }
+    if (!allValid) {
+      setSectionErrors((prev) => ({ ...prev, ...mergedErrors }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setSectionErrors((prev) => {
       const next = { ...prev };
-      delete next[current.id];
+      sectionsToValidate.forEach((id) => delete next[id]);
       return next;
     });
     if (isLast) {
@@ -96,7 +110,6 @@ export function Wizard({ onSubmitted }: Props) {
       return;
     }
     setStep((s) => Math.min(s + 1, visibleSections.length - 1));
-    // Scroll to top when navigating to next section
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -233,7 +246,27 @@ export function Wizard({ onSubmitted }: Props) {
           {/* Block title when section belongs to a logical block */}
           {getBlockForSection(current.id) && (
             <div style={{ margin: "12px 12px 0", fontSize: 12, color: "var(--text-muted)" }}>
-              {getBlockForSection(current.id)?.title} → {current.title}
+              {getBlockForSection(current.id)?.title} → {current.id === S8_COMBINED_WITH_S7B ? "GPO/Lighting 例外与灯具按房" : current.title}
+            </div>
+          )}
+          {/* Combined S8 + S7B: inspector checklist reminder */}
+          {current.id === S8_COMBINED_WITH_S7B && (
+            <div
+              className="section"
+              style={{
+                margin: 12,
+                padding: 12,
+                background: "var(--surface, #f5f8fa)",
+                borderRadius: 8,
+                border: "1px solid var(--border, #e0e6ed)",
+              }}
+            >
+              <p style={{ margin: "0 0 8px", fontWeight: 600 }}>检查要点 (Checklist)</p>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                <li>逐房确认灯具与开关：过热、不工作、松动、打火、调光异常等</li>
+                <li>有问题的房间在下方「灯具按房」表中填写并附照片</li>
+                <li>GPO 失败项：若已在上一页「GPO 按房」表中逐条填写，可勾选「No exceptions」；否则在下方「GPO/Lighting 例外」中逐条填写位置、问题类型并附照片</li>
+              </ul>
             </div>
           )}
           {(sectionErrors[current.id]?._submit) && (
@@ -241,27 +274,70 @@ export function Wizard({ onSubmitted }: Props) {
               <p className="validation-msg">{sectionErrors[current.id]._submit}</p>
             </div>
           )}
-          <SectionForm
-            section={current}
-            state={state}
-            setAnswer={setAnswer}
-            setAnswerWithGateCheck={setAnswerWithGateCheck}
-            getValue={getValue}
-            getAnswer={getAnswer}
-            errors={sectionErrors[current.id] ?? {}}
-            gateKeys={GATE_KEYS}
-            getIssueDetail={getIssueDetail}
-            setIssueDetail={setIssueDetail}
-          />
-          {SECTIONS_WITH_PHOTOS.has(current.id) && (
-            <SectionPhotoEvidence
-              sectionId={current.id}
-              sectionTitle={current.title}
-              photos={getStagedPhotos()[current.id] ?? []}
-              onAddPhoto={addStagedPhoto}
-              onRemovePhoto={removeStagedPhoto}
-              onUpdateCaption={updateStagedPhotoCaption}
-            />
+          {current.id === S8_COMBINED_WITH_S7B && sectionErrors[S7B_LIGHTING_BY_ROOM] && Object.keys(sectionErrors[S7B_LIGHTING_BY_ROOM]).length > 0 && !sectionErrors[S7B_LIGHTING_BY_ROOM]._submit && (
+            <div className="section" style={{ margin: 12 }}>
+              <p className="validation-msg">灯具按房：{Object.values(sectionErrors[S7B_LIGHTING_BY_ROOM])[0]}</p>
+            </div>
+          )}
+          {current.id === S8_COMBINED_WITH_S7B ? (
+            <>
+              {sections
+                .filter((s) => s.id === S8_COMBINED_WITH_S7B || s.id === S7B_LIGHTING_BY_ROOM)
+                .map((section) => (
+                  <div key={section.id}>
+                    <div style={{ margin: "12px 12px 0", fontSize: 14, fontWeight: 600 }}>
+                      {section.title}
+                    </div>
+                    <SectionForm
+                      section={section}
+                      state={state}
+                      setAnswer={setAnswer}
+                      setAnswerWithGateCheck={setAnswerWithGateCheck}
+                      getValue={getValue}
+                      getAnswer={getAnswer}
+                      errors={sectionErrors[section.id] ?? {}}
+                      gateKeys={GATE_KEYS}
+                      getIssueDetail={getIssueDetail}
+                      setIssueDetail={setIssueDetail}
+                    />
+                    {SECTIONS_WITH_PHOTOS.has(section.id) && (
+                      <SectionPhotoEvidence
+                        sectionId={section.id}
+                        sectionTitle={section.title}
+                        photos={getStagedPhotos()[section.id] ?? []}
+                        onAddPhoto={addStagedPhoto}
+                        onRemovePhoto={removeStagedPhoto}
+                        onUpdateCaption={updateStagedPhotoCaption}
+                      />
+                    )}
+                  </div>
+                ))}
+            </>
+          ) : (
+            <>
+              <SectionForm
+                section={current}
+                state={state}
+                setAnswer={setAnswer}
+                setAnswerWithGateCheck={setAnswerWithGateCheck}
+                getValue={getValue}
+                getAnswer={getAnswer}
+                errors={sectionErrors[current.id] ?? {}}
+                gateKeys={GATE_KEYS}
+                getIssueDetail={getIssueDetail}
+                setIssueDetail={setIssueDetail}
+              />
+              {SECTIONS_WITH_PHOTOS.has(current.id) && (
+                <SectionPhotoEvidence
+                  sectionId={current.id}
+                  sectionTitle={current.title}
+                  photos={getStagedPhotos()[current.id] ?? []}
+                  onAddPhoto={addStagedPhoto}
+                  onRemovePhoto={removeStagedPhoto}
+                  onUpdateCaption={updateStagedPhotoCaption}
+                />
+              )}
+            </>
           )}
         </>
       )}

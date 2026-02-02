@@ -207,6 +207,20 @@
       "storage",
       "instantaneous"
     ],
+    "cooktop_type": [
+      "electric_hotplate",
+      "induction",
+      "gas"
+    ],
+    "dishwasher_heat_type": [
+      "electric",
+      "gas"
+    ],
+    "oven_condition": [
+      "ok",
+      "fault",
+      "not_tested"
+    ],
     "ac_type": [
       "split",
       "ducted"
@@ -267,8 +281,12 @@
       "polarity_reversed",
       "no_power",
       "loose",
+      "plug_disengages",
+      "cracks_visible",
+      "burn_marks",
       "damage",
       "overheating",
+      "surface_warm",
       "other"
     ],
     "bonding": [
@@ -1231,7 +1249,7 @@
           "type": "array_object",
           "required_when": "gpo_tests.performed==true",
           "skippable": true,
-          "helper_text": "Select Access: 可进入 (default) or 不可进入. If 不可进入, no test data required. When 可进入: tested ≤ total; when tested < total write reason in Note; when pass < tested, Issue required and photo evidence required.",
+          "helper_text": "Select Access: 可进入 (default) or 不可进入. If 可进入: tested ≤ total; when pass < tested, Issue + photo required. For Kitchen/Laundry/Bathroom: fill distance to sink and add photo of GPO/sink zone.",
           "item_schema": {
             "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
             "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
@@ -1244,7 +1262,9 @@
             "issue": { "type": "enum", "enum": "gpo_room_issue", "required": false, "label": "Issue" },
             "issue_other": { "type": "string", "required": false, "label": "Describe issue (when Other)" },
             "note": { "type": "string", "required": false, "label": "Note" },
-            "photo_ids": { "type": "array_string", "required": false, "label": "Photo evidence (required when Issue is not None)" }
+            "distance_to_sink_mm": { "type": "integer", "required": false, "label": "Distance from GPO to sink/tap edge (mm)", "min": 0, "max": 2000 },
+            "sink_position_notes": { "type": "string", "required": false, "label": "Position relative to sink (if not measured)" },
+            "photo_ids": { "type": "array_string", "required": false, "label": "Photo evidence (required when Issue not None; for kitchen/laundry/bathroom also require sink zone photo)" }
           },
           "ui": "gpo_room_table"
         },
@@ -1272,7 +1292,7 @@
     },
     {
       "id": "S8_GPO_LIGHTING_EXCEPTIONS",
-      "title": "GPO & Lighting: Exceptions",
+      "title": "GPO/Lighting 例外 (Exceptions)",
       "gates": [
         {
           "depends_on": "gpo_tests.performed",
@@ -1344,15 +1364,15 @@
     },
     {
       "id": "S7B_LIGHTING_BY_ROOM",
-      "title": "Lighting by Room",
+      "title": "灯具按房 (Lighting by Room)",
       "fields": [
         {
           "key": "lighting.rooms",
-          "label": "Lighting by room – add room, then submit to add row",
+          "label": "灯具按房 – 选房间、可进入性、问题与照片后点击「Add to table」",
           "type": "array_object",
           "required": false,
           "skippable": true,
-          "helper_text": "Select Access: 可进入 or 不可进入. If 不可进入, select reason. When 可进入: select room, then check issues (灯具过热, 灯具不工作, 开关松动, etc.). If issues present, add photo evidence. Click «Add to table» to add a row.",
+          "helper_text": "可进入：选房间 → 勾选问题（灯具过热、不工作、开关松动、打火、调光异常等）→ 有问题时必附照片。不可进入：选原因。",
           "item_schema": {
             "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
             "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
@@ -1438,6 +1458,27 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "helper_text": "厨房固定设备：先填有无，有则继续填下方追问。",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.oven_condition",
+          "label": "Oven function / condition?",
+          "type": "enum",
+          "enum": "oven_condition",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.oven_present==true",
+          "helper_text": "OK / fault / not tested",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.kitchen.oven_dedicated_circuit",
+          "label": "Oven on dedicated circuit (visible)?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.oven_present==true",
           "ui": "radio_yes_no"
         },
         {
@@ -1449,6 +1490,77 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "internal.kitchen.cooktop_type",
+          "label": "Cooktop type?",
+          "type": "enum",
+          "enum": "cooktop_type",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "helper_text": "Electric hotplate / Induction / Gas",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.kitchen.cooktop_controls_ok",
+          "label": "Buttons / knobs / controls working?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.cooktop_glass_damage",
+          "label": "Glass cracked or damaged?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
+        },
+        {
+          "key": "internal.kitchen.cooktop_ignition_ok",
+          "label": "Gas ignition / knobs working? (if gas)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.cooktop_grease_oil",
+          "label": "Grease / oil residue on cooktop?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
+        },
+        {
+          "key": "internal.kitchen.cooktop_cable_mm2",
+          "label": "Supply cable size (mm²) – if electric/induction",
+          "type": "number",
+          "min": 0,
+          "max": 25,
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "helper_text": "电热盘/电磁炉时填写；e.g. 4, 6",
+          "ui": "number"
+        },
+        {
+          "key": "internal.kitchen.cooktop_isolator_visible",
+          "label": "Isolating switch visible for cooktop?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "helper_text": "电热盘/电磁炉时确认",
+          "ui": "radio_yes_no"
+        },
+        {
           "key": "internal.kitchen.dishwasher_present",
           "label": "Dishwasher present?",
           "type": "boolean",
@@ -1457,8 +1569,28 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "internal.kitchen.dishwasher_leak",
+          "label": "Dishwasher leakage (visible / reported)?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.dishwasher_present==true",
+          "ui": "radio_yes_no",
+          "on_issue_capture": true
+        },
+        {
+          "key": "internal.kitchen.dishwasher_heat_type",
+          "label": "Dishwasher heating: electric or gas?",
+          "type": "enum",
+          "enum": "dishwasher_heat_type",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.dishwasher_present==true",
+          "ui": "radio"
+        },
+        {
           "key": "internal.kitchen.dedicated_outlet_visible",
-          "label": "Dedicated outlet or isolator visible?",
+          "label": "Dedicated outlet or isolator visible (kitchen)?",
           "type": "boolean",
           "required": false,
           "skippable": true,
