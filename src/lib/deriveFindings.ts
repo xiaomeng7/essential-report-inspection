@@ -213,8 +213,7 @@ const FINDING_RULES: FindingRule[] = [
   { finding_id: "RCD_TEST_FAIL_OR_UNSTABLE", priority: "IMMEDIATE", when: { field: "rcd_tests.exceptions[].result", condition: "equals", value: "fail" } },
   { finding_id: "RCD_TRIP_TIME_SLOW", priority: "IMMEDIATE", when: { field: "rcd_tests.exceptions[].trip_time_ms", condition: "greater_than", value: 300 } },
   
-  // GPO Tests
-  { finding_id: "GPO_MECHANICAL_LOOSE", priority: "RECOMMENDED_0_3_MONTHS", when: { field: "gpo_tests.any_warm_loose_damaged", condition: "equals", value: true } },
+  // GPO Tests (GPO_MECHANICAL_LOOSE is derived from per-room table when room has issue loose/no_power etc.; no separate checkbox)
   { finding_id: "DAMAGED_OUTLET_OR_SWITCH", priority: "RECOMMENDED_0_3_MONTHS", when: { field: "gpo_tests.exceptions[].issue_type", condition: "equals", value: "damaged" } },
   { finding_id: "GPO_EARTH_FAULT", priority: "IMMEDIATE", when: { field: "gpo_tests.exceptions[].issue_type", condition: "equals", value: "no_earth" } },
   { finding_id: "POLARITY_ISSUE_DETECTED", priority: "IMMEDIATE", when: { field: "gpo_tests.summary.polarity_pass", condition: "less_than", compare_field: "gpo_tests.summary.total_gpo_tested" } },

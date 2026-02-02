@@ -112,12 +112,7 @@ finding_rules:
   # GPO TESTS 相关
   # ======================================
   
-  - finding_id: "GPO_MECHANICAL_LOOSE"
-    priority: "RECOMMENDED_0_3_MONTHS"
-    when:
-      field: "gpo_tests.any_warm_loose_damaged"
-      condition: "equals"
-      value: true
+  # GPO_MECHANICAL_LOOSE: derived from per-room table (issue loose/no_power etc.), not any_warm_loose_damaged
   
   - finding_id: "DAMAGED_OUTLET_OR_SWITCH"
     priority: "RECOMMENDED_0_3_MONTHS"

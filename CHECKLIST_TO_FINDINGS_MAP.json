@@ -218,15 +218,6 @@
       }
     },
     {
-      "_comment": "========== GPO & LIGHTING - Section S7/S8 ==========",
-      "finding": "GPO_MECHANICAL_LOOSE",
-      "condition": {
-        "field": "gpo_tests.any_warm_loose_damaged",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
       "finding": "FITTING_OVERHEAT",
       "condition": {
         "field": "lighting.issues_observed",

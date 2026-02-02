@@ -27,7 +27,6 @@ export const FIELD_TO_FINDING: Record<string, string> = {
   "earthing.earth_neutral_mixed_downstream": "EARTH_DEGRADED",
 
   // GPO issues
-  "gpo_tests.any_warm_loose_damaged": "GPO_MECHANICAL_LOOSE",
 
   // Internal installation - count fields (number > 0 = issue)
   "internal.power_point_moves_count": "GPO_MECHANICAL_LOOSE",

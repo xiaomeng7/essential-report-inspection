@@ -1249,15 +1249,6 @@
           "ui": "gpo_room_table"
         },
         {
-          "key": "gpo_tests.any_warm_loose_damaged",
-          "label": "Any warm/loose/damaged outlets noticed?",
-          "type": "boolean",
-          "required": false,
-          "skippable": true,
-          "ui": "radio_yes_no",
-          "on_issue_capture": true
-        },
-        {
           "key": "gpo_tests.notes",
           "label": "Notes",
           "type": "string",
