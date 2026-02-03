@@ -249,8 +249,17 @@ export function Wizard({ onSubmitted }: Props) {
   const hasPreparedFor =
     preparedFor !== undefined && preparedFor !== null && String(preparedFor).trim() !== "";
 
+  const saveDraftToStorage = () => {
+    try {
+      localStorage.setItem("inspection-draft", JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <div className="app">
+      <div className="wizard-content">
       <div className="progress-wrap">
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
@@ -448,15 +457,29 @@ export function Wizard({ onSubmitted }: Props) {
       )}
 
       {!isStartScreen && (
-        <div className="actions">
-          <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
-            Back
-          </button>
-          <button type="button" className="btn-primary" onClick={goNext}>
-            {isLast ? "Submit Inspection" : "Next"}
-          </button>
-        </div>
+        <>
+          <div className="actions actions--mobile">
+            <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
+              Back
+            </button>
+            <button type="button" className="btn-primary" onClick={goNext}>
+              {isLast ? "Submit Inspection" : "Next"}
+            </button>
+          </div>
+          <div className="wizard-nav-fixed">
+            <button type="button" className="wizard-nav-fixed__btn btn-secondary" onClick={goBack} disabled={isFirst}>
+              Back
+            </button>
+            <button type="button" className="wizard-nav-fixed__btn btn-secondary" onClick={saveDraftToStorage}>
+              Save Draft
+            </button>
+            <button type="button" className="wizard-nav-fixed__btn btn-primary" onClick={goNext}>
+              {isLast ? "Submit Inspection" : "Next"}
+            </button>
+          </div>
+        </>
       )}
+      </div>
     </div>
   );
 }

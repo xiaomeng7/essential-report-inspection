@@ -181,6 +181,16 @@ export function SectionForm({
     return out;
   }, [section.fields, flat]);
 
+  /** Group fields into blocks of 3–6 for layout; no change to validation or inputs. */
+  const fieldBlocks = useMemo(() => {
+    const BLOCK_SIZE = 5;
+    const blocks: FieldDef[][] = [];
+    for (let i = 0; i < visibleFields.length; i += BLOCK_SIZE) {
+      blocks.push(visibleFields.slice(i, i + BLOCK_SIZE));
+    }
+    return blocks;
+  }, [visibleFields]);
+
   if (gatedOut || autoSkipped) {
     return (
       <div className="section">
@@ -195,40 +205,42 @@ export function SectionForm({
   return (
     <div className="section">
       <h2>{section.title}</h2>
-      {visibleFields.map((f) => {
-        const answer = getAnswer(f.key);
-        // Always use getValue to get the actual value, not the Answer object
-        const value = getValue(f.key);
-        // Debug: log field value
-        if (f.required) {
-          console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
-        }
-        const showIssueCapture = isIssueTriggered(f, value);
-        const issueDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
-        const isAddressField = f.key === "job.address" && f.ui === "address_autocomplete";
-        return (
-          <div key={f.key}>
-            <FieldRenderer
-              field={f}
-              value={answer ?? value}
-              onChange={setAnswer}
-              error={errors[f.key]}
-              isGate={gateKeys.has(f.key)}
-              onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
-              addressValue={isAddressField ? getAddressValue() : undefined}
-              onAddressChange={isAddressField ? handleAddressChange : undefined}
-            />
-            {showIssueCapture && setIssueDetail && (
-              <IssueDetailCapture
-                fieldKey={f.key}
-                fieldLabel={f.label}
-                detail={issueDetail ?? createEmptyIssueDetail()}
-                onDetailChange={handleIssueDetailChange}
-              />
-            )}
-          </div>
-        );
-      })}
+      {fieldBlocks.map((block, blockIndex) => (
+        <div key={blockIndex} className="form-question-block">
+          {block.map((f) => {
+            const answer = getAnswer(f.key);
+            const value = getValue(f.key);
+            if (f.required) {
+              console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
+            }
+            const showIssueCapture = isIssueTriggered(f, value);
+            const issueDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
+            const isAddressField = f.key === "job.address" && f.ui === "address_autocomplete";
+            return (
+              <div key={f.key}>
+                <FieldRenderer
+                  field={f}
+                  value={answer ?? value}
+                  onChange={setAnswer}
+                  error={errors[f.key]}
+                  isGate={gateKeys.has(f.key)}
+                  onGateChange={(key, newVal, prevVal) => setAnswerWithGateCheck(key, newVal as import("../hooks/useInspection").AnswerValue, prevVal)}
+                  addressValue={isAddressField ? getAddressValue() : undefined}
+                  onAddressChange={isAddressField ? handleAddressChange : undefined}
+                />
+                {showIssueCapture && setIssueDetail && (
+                  <IssueDetailCapture
+                    fieldKey={f.key}
+                    fieldLabel={f.label}
+                    detail={issueDetail ?? createEmptyIssueDetail()}
+                    onDetailChange={handleIssueDetailChange}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
