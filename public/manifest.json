@@ -1,0 +1,22 @@
+{
+  "name": "Essential Electrical Inspection",
+  "short_name": "Inspection",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0d47a1",
+  "background_color": "#f5f5f5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
