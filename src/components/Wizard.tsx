@@ -46,6 +46,36 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S9B_POOL_HIGH_LOAD",
 ]);
 
+/** Static technician guidance at top of each section (no form changes). */
+const SECTION_GUIDANCE: Record<string, string> = {
+  S0_START_CONTEXT: "Enter property and job details to begin.",
+  S1_ACCESS_LIMITATIONS: "Record which areas are accessible and any limitations.",
+  S2_SUPPLY_OVERVIEW: "Check supply type, voltage, meter and consumer main.",
+  S2_MAIN_SWITCH: "Check main switch presence, rating and type.",
+  S2_SWITCHBOARD_OVERVIEW: "Check enclosure, labelling, access, heat marks, and overall condition.",
+  S3_SWITCHBOARD_CAPACITY_LABELS: "Check capacity, circuit schedule, labelling quality and any non-standard work.",
+  S4_EARTHING_MEN: "Confirm MEN/earthing integrity and record test readings if present.",
+  S4_CABLES_LEGACY: "Check supply cable condition, insulation and any legacy or unsafe cabling.",
+  S5_RCD_TESTS_SUMMARY: "Confirm presence, test operation, record pass/fail, note any exceptions.",
+  S6_RCD_TESTS_EXCEPTIONS: "List any RCD test failures or exceptions with location and details.",
+  S7A_GPO_BY_ROOM: "Check physical condition, looseness, overheating marks, and test results where applicable.",
+  S8_GPO_LIGHTING_EXCEPTIONS: "Record any GPO or lighting issues not already listed by room.",
+  S7B_LIGHTING_BY_ROOM: "Inspect visible fittings, signs of heat damage, loose switches, and correct operation.",
+  S3B_LIGHTING_SWITCHES: "Inspect visible fittings, signs of heat damage, loose switches, and correct operation.",
+  S3C_KITCHEN: "Inspect GPOs, lighting and switches; note any heat damage or compliance issues.",
+  S3D_BATHROOMS: "Check IP rating, zoning, GPOs and fans; note any moisture or safety issues.",
+  S3E_LAUNDRY: "Check GPOs, lighting and switch condition; note load and isolation.",
+  S3F_ROOF_SPACE: "Inspect cable condition, junctions, clearances, and note access limitations.",
+  S3G_EXTERIOR_GARAGE: "Check exterior and garage circuits, enclosures and weatherproofing.",
+  S3H_SMOKE_ALARMS: "Confirm presence, location and operation of smoke alarms.",
+  S3I_GENERAL_OBSERVATIONS: "Note any other observations not covered above.",
+  S9_SOLAR_BATTERY_EV: "Record solar, battery or EV installation details and condition.",
+  S9B_POOL_HIGH_LOAD: "Check pool and high-load circuits, RCD and isolation.",
+  S5A_MEASURED_DATA: "Record measured values where applicable.",
+  S6_EXCEPTIONS_COMPLETION: "Summarise client statements and any exceptions to the inspection.",
+  S10_SIGNOFF: "Confirm completion and sign off.",
+};
+
 type VisibleStep = { pageId: string; pageTitle: string; sectionIds: string[] };
 
 type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
@@ -427,6 +457,9 @@ export function Wizard({ onSubmitted }: Props) {
               return (
                 <div key={section.id} className="wizard-page__section-card">
                   <h2 className="wizard-page__section-title">{section.title}</h2>
+                  {SECTION_GUIDANCE[section.id] && (
+                    <p className="section-guidance">{SECTION_GUIDANCE[section.id]}</p>
+                  )}
                   <SectionForm
                     section={section}
                     state={state}
