@@ -239,6 +239,15 @@ export function validateSection(
     }
   }
 
+  // S0: when Reported issues includes "other", require job.reported_issues_other
+  if (sectionId === "S0_START_CONTEXT") {
+    const reported = getValue(flat, "job.reported_issues") as string[] | undefined;
+    if (Array.isArray(reported) && reported.includes("other")) {
+      const otherText = (getValue(flat, "job.reported_issues_other") as string)?.trim() ?? "";
+      if (!otherText) errors["job.reported_issues_other"] = "勾选 Other 时请填写具体问题。";
+    }
+  }
+
   // GPO by room: tested <= gpo_count; when tested < gpo_count require note (reason); pass <= tested; when pass < tested require issue !== "none"; when issue !== "none" require photos
   if (sectionId === "S7A_GPO_BY_ROOM") {
     const rooms = getValue(flat, "gpo_tests.rooms") as Array<Record<string, unknown>> | undefined;

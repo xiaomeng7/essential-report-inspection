@@ -31,27 +31,26 @@ try {
 }
 
 const FALLBACK_CSS = `
-/* Report styles (docx-safe) - fallback */
-body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.35; color: #111; padding: 18pt 20pt; }
+body { font-family: Calibri, Segoe UI, Arial, sans-serif; font-size: 11pt; line-height: 1.4; color: #1a1a1a; padding: 18pt 22pt; }
 p { margin: 0 0 8pt 0; }
 strong { font-weight: 700; }
-h1 { font-size: 20pt; margin: 0 0 10pt 0; font-weight: 700; }
-h2 { font-size: 15pt; margin: 14pt 0 8pt 0; font-weight: 700; }
-h2.page-title { page-break-before: always; margin-top: 0; }
-h3 { font-size: 12.5pt; margin: 10pt 0 6pt 0; font-weight: 700; }
-h4 { font-size: 11.5pt; margin: 8pt 0 4pt 0; font-weight: 700; }
+h1 { font-size: 18pt; font-weight: 700; margin: 0 0 10pt 0; }
+h2 { font-size: 14pt; font-weight: 700; margin: 14pt 0 8pt 0; }
+h2.page-title { page-break-before: always; margin-top: 0; margin-bottom: 12pt; }
+h3 { font-size: 12pt; font-weight: 700; margin: 10pt 0 6pt 0; }
+h4 { font-size: 11pt; font-weight: 700; margin: 8pt 0 4pt 0; }
 ul, ol { margin: 0 0 10pt 18pt; padding: 0; }
 li { margin: 0 0 4pt 0; }
-table { width: 100%; border-collapse: collapse; margin: 8pt 0 10pt 0; table-layout: fixed; }
-th, td { border: 1px solid #cfcfcf; padding: 6pt; vertical-align: top; word-wrap: break-word; }
-th { font-weight: 700; background: #f2f2f2; }
-.table-compact th, .table-compact td { padding: 4pt 5pt; }
+table { width: 100%; border-collapse: collapse; margin: 10pt 0 12pt 0; table-layout: fixed; font-size: 11pt; }
+th, td { border: 1px solid #c8c8c8; padding: 6pt 8pt; vertical-align: top; word-wrap: break-word; }
+th { font-weight: 700; background-color: #f5f5f5; }
+.table-compact th, .table-compact td { padding: 4pt 6pt; }
 .kv { width: 100%; border: 0; }
-.kv td { border: 0; padding: 2pt 0; }
+.kv td { border: 0; padding: 3pt 0; }
 .kv td.k { width: 140pt; font-weight: 700; }
-.small { font-size: 9.5pt; color: #444; }
+.small { font-size: 9.5pt; color: #555; }
 .note { font-size: 10pt; color: #333; margin: 8pt 0 10pt 0; }
-.disclaimer { font-size: 9.5pt; color: #444; margin: 8pt 0 0 0; }
+.disclaimer { font-size: 9.5pt; color: #555; }
 .badge { font-weight: 700; }
 .page-break, div[style*="page-break-after"] { page-break-after: always; }
 h2, h3, h4, table, tr { page-break-inside: avoid; }

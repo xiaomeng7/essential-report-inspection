@@ -42,6 +42,10 @@ export type ExecutiveSignalsInput = {
   topFindings: TopFinding[];
   dominantRisk?: DominantRisk | string[];  // Support both old format and new array format
   capex_incomplete?: boolean;  // From scoring model
+  /** Pre-formatted CAPEX_RANGE (e.g. "AUD $700 – $2,600") to avoid duplicate currency in bullets */
+  capex_formatted?: string;
+  /** Time horizon for CapEx statement (default "0–5 years") */
+  time_horizon?: string;
 };
 
 /**
@@ -52,7 +56,7 @@ export type ExecutiveSignalsInput = {
  * investor-facing decision support language.
  */
 export function generateExecutiveSignals(params: ExecutiveSignalsInput): ExecutiveSignalsOutput {
-  const { overall_level, counts, capex, topFindings, dominantRisk, capex_incomplete } = params;
+  const { overall_level, counts, capex, topFindings, dominantRisk, capex_incomplete, capex_formatted, time_horizon } = params;
   
   // Ensure counts are non-negative
   const immediate = Math.max(0, counts.immediate || 0);
@@ -65,7 +69,7 @@ export function generateExecutiveSignals(params: ExecutiveSignalsInput): Executi
   // Ensure capex is non-negative
   const capexLow = Math.max(0, capex.low || 0);
   const capexHigh = Math.max(0, capex.high || 0);
-  const hasCapEx = capexLow > 0 || capexHigh > 0;
+  const hasCapEx = capexLow > 0 || capexHigh > 0 || (capex_formatted != null && capex_formatted.trim() !== "" && capex_formatted !== "To be confirmed");
   
   // Normalize dominantRisk (support both old format and new array format)
   const normalizedDominantRisk = normalizeDominantRisk(dominantRisk);
@@ -75,7 +79,7 @@ export function generateExecutiveSignals(params: ExecutiveSignalsInput): Executi
     .sort((a, b) => b.score - a.score)
     .slice(0, 2);
   
-  // Generate bullets using deterministic template
+  // Generate bullets using deterministic template (pass pre-formatted CAPEX to avoid duplicate currency)
   const bullets = generateExecutiveDecisionSignals({
     overall_level,
     immediate,
@@ -90,6 +94,8 @@ export function generateExecutiveSignals(params: ExecutiveSignalsInput): Executi
     capex_incomplete: capex_incomplete || false,
     representativeFindings,
     normalizedDominantRisk,
+    capex_formatted: capex_formatted?.trim() || undefined,
+    time_horizon: time_horizon?.trim() || "0–5 years",
   });
   
   // Validate and fix if needed (with deterministic fallback)
@@ -120,7 +126,7 @@ export function generateExecutiveSignals(params: ExecutiveSignalsInput): Executi
   ) || generateFallbackManageableRisk(overall_level);
   
   return {
-    bullets: validatedBullets.slice(0, 5),  // Limit to 5 bullets
+    bullets: validatedBullets.slice(0, 4),  // Max 4 bullets (investor-facing, no repetition)
     if_not_addressed: ifNotAddressed,
     why_not_immediate: whyNotImmediate,
     manageable_risk: manageableRisk,
@@ -166,47 +172,41 @@ function generateExecutiveDecisionSignals(params: {
   capex_incomplete: boolean;
   representativeFindings: TopFinding[];
   normalizedDominantRisk?: DominantRisk;
+  capex_formatted?: string;
+  time_horizon?: string;
 }): string[] {
   const bullets: string[] = [];
-  const { overall_level, immediate, urgent, recommended, totalFindings, hasImmediateFindings, 
-          capexLow, capexHigh, hasCapEx, capex_incomplete, representativeFindings, normalizedDominantRisk } = params;
-  
-  const totalUrgent = immediate + urgent;
-  
+  const { overall_level, immediate, urgent, recommended, totalFindings, hasImmediateFindings,
+          capexLow, capexHigh, hasCapEx, capex_incomplete, representativeFindings, normalizedDominantRisk,
+          capex_formatted, time_horizon } = params;
+  const horizon = time_horizon || "0–5 years";
+
   // 1. "If not addressed" statement (REQUIRED) - must include consequence phrase
   const ifNotAddressed = generateIfNotAddressed(
     overall_level, immediate, urgent, recommended, totalFindings, normalizedDominantRisk
   );
   bullets.push(ifNotAddressed);
-  
+
   // 2. "Why not immediate" statement (REQUIRED) - especially if no IMMEDIATE findings
   const whyNotImmediate = generateWhyNotImmediate(
     overall_level, immediate, urgent, recommended, hasImmediateFindings, normalizedDominantRisk
   );
   bullets.push(whyNotImmediate);
-  
+
   // 3. "Manageable risk" statement (REQUIRED) - frame as manageable, not urgent
   const manageableRisk = generateManageableRisk(
     overall_level, immediate, urgent, recommended, normalizedDominantRisk
   );
   bullets.push(manageableRisk);
-  
-  // 4. CapEx provisioning statement (REQUIRED)
+
+  // 4. CapEx provisioning: use pre-formatted string when provided (no duplicate currency)
   const capexStatement = generateCapExStatement(
-    capexLow, capexHigh, hasCapEx, capex_incomplete, totalFindings
+    capexLow, capexHigh, hasCapEx, capex_incomplete, totalFindings, capex_formatted, horizon
   );
   bullets.push(capexStatement);
-  
-  // 5. Optional: Additional context based on representative findings (max 1-2)
-  if (representativeFindings.length > 0 && bullets.length < 5) {
-    const additionalContext = generateRepresentativeFindingContext(
-      representativeFindings, overall_level, normalizedDominantRisk
-    );
-    if (additionalContext) {
-      bullets.push(additionalContext);
-    }
-  }
-  
+
+  // No 5th bullet so we stay within 2–4 bullets (slice(0, 4) in caller)
+
   return bullets;
 }
 
@@ -318,16 +318,22 @@ function generateCapExStatement(
   capexHigh: number,
   hasCapEx: boolean,
   capex_incomplete: boolean,
-  totalFindings: number
+  totalFindings: number,
+  capex_formatted?: string,
+  time_horizon?: string
 ): string {
+  const horizon = time_horizon || "0–5 years";
+  if (capex_formatted && capex_formatted !== "To be confirmed") {
+    return `Indicative CapEx provision (${horizon}): ${capex_formatted.replace(/\.$/, "")}.`;
+  }
   if (hasCapEx) {
     if (capexLow === capexHigh) {
-      const note = capex_incomplete 
+      const note = capex_incomplete
         ? " (Note: Some findings may require detailed quotations for accurate budgeting)"
         : "";
       return `Capital expenditure provision of approximately $${capexLow.toLocaleString()} should be allocated for addressing the identified conditions within the next 12-24 months${note}.`;
     } else {
-      const note = capex_incomplete 
+      const note = capex_incomplete
         ? " (Note: Some findings may require detailed quotations for accurate budgeting)"
         : "";
       return `Capital expenditure provision of $${capexLow.toLocaleString()} to $${capexHigh.toLocaleString()} should be allocated for addressing the identified conditions within the next 12-24 months${note}.`;

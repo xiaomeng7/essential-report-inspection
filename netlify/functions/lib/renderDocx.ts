@@ -54,6 +54,7 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import HTMLtoDOCX from "html-to-docx";
 import DocxMerger from "docx-merger";
+import juice from "juice";
 import { sanitizeText } from "./sanitizeText";
 
 /**
@@ -100,20 +101,30 @@ function extractBodyFragment(html: string): string {
 }
 
 /**
+ * Extract style attribute from a tag's attribute string; return empty string if none.
+ */
+function getStyleAttr(attrs: string): string {
+  const m = /style\s*=\s*["']([^"']*)["']/i.exec(attrs);
+  return m ? m[1].trim() : "";
+}
+
+/**
  * Preprocess HTML to avoid html-to-docx bugs (e.g. Invalid XML name: @w in buildTableCellWidth).
- * Strips complex attributes from table/td/th/tr/colgroup that trigger xmlbuilder2 namespace errors.
+ * Strips attributes from table elements except style (so inlined CSS is preserved for Word).
  */
 function cleanHtmlForDocx(html: string): string {
   if (!html || typeof html !== "string") return html;
   let out = html;
-  // Strip all attributes from table elements - keep only tag names
-  out = out.replace(/<table[^>]*>/gi, "<table>");
-  out = out.replace(/<thead[^>]*>/gi, "<thead>");
-  out = out.replace(/<tbody[^>]*>/gi, "<tbody>");
-  out = out.replace(/<tfoot[^>]*>/gi, "<tfoot>");
-  out = out.replace(/<tr[^>]*>/gi, "<tr>");
-  out = out.replace(/<th[^>]*>/gi, "<th>");
-  out = out.replace(/<td[^>]*>/gi, "<td>");
+  const tableTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td"];
+  for (const tag of tableTags) {
+    const re = new RegExp(`<${tag}([^>]*)>`, "gi");
+    out = out.replace(re, (_, attrs) => {
+      const style = getStyleAttr(attrs);
+      if (!style) return `<${tag}>`;
+      const safe = style.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+      return `<${tag} style="${safe}">`;
+    });
+  }
   out = out.replace(/<colgroup[^>]*>/gi, "<colgroup>");
   out = out.replace(/<col[^>]*\/?>/gi, "<col/>");
   return out;
@@ -182,10 +193,18 @@ export async function renderDocxByMergingCoverAndBody(
   const coverDocXmlLength = coverDocXml.length;
   console.log("[docx-diag][RUN_ID=" + RID + "] coverDocumentXmlLength=" + coverDocXmlLength);
   
-  // 2. Extract body inner HTML (remove html/head/style wrapper)
-  let bodyInner = reportHtml;
-  if (reportHtml.includes("<body")) {
-    bodyInner = extractBodyFragment(reportHtml);
+  // 2. Inline CSS so html-to-docx gets style on each element (Word formatting)
+  let htmlWithInlineStyles = reportHtml;
+  try {
+    htmlWithInlineStyles = juice(reportHtml);
+    console.log("[docx-diag][RUN_ID=" + RID + "] juice inlined CSS, length=" + htmlWithInlineStyles.length);
+  } catch (juiceErr) {
+    console.warn("[docx-diag][RUN_ID=" + RID + "] juice inlining failed, using original HTML:", juiceErr);
+  }
+  // Extract body inner HTML (remove html/head/style wrapper)
+  let bodyInner = htmlWithInlineStyles;
+  if (htmlWithInlineStyles.includes("<body")) {
+    bodyInner = extractBodyFragment(htmlWithInlineStyles);
   }
   
   const rawHtmlLength = reportHtml.length;
@@ -570,6 +589,32 @@ function htmlToFormattedText(html: string): string {
 }
 
 /**
+ * Gold 模板专用：仅用 docxtemplater 填充占位符，无 HTML 注入
+ * 用于 Gold_Report_Template.docx（45 个占位符，无 REPORT_BODY_HTML）
+ */
+export function renderDocxGoldTemplate(
+  templateBuffer: Buffer,
+  data: Record<string, string>
+): Buffer {
+  const zip = new PizZip(templateBuffer);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: "{{", end: "}}" },
+  });
+  doc.setData(data);
+  try {
+    doc.render();
+  } catch (e: any) {
+    const msg = e?.properties?.errors?.map((err: any) => `${err.id}: ${err.message}`).join("; ") || e?.message || String(e);
+    throw new Error("Gold template render failed: " + msg);
+  }
+  let out = doc.getZip().generate({ type: "nodebuffer" });
+  if (Buffer.isBuffer(out)) return out;
+  return Buffer.from(out as ArrayBuffer);
+}
+
+/**
  * 主函数：仅允许 HTML_MERGE(A)。禁止使用 HTML_ASTEXT(B) —— B 会把 HTML 当纯文本塞进 docx，
  * 导致 Word 无法渲染结构，正文全部不可见（只有封面）。
  * 
@@ -590,14 +635,11 @@ export async function renderDocx(
     return renderDocxWithHtmlAsText(templateBuffer, data);
   }
 
-  if (forcedRenderer === "A") {
-    console.log("[report-fp] renderer forced: A (HTML_MERGE)");
-  } else {
-    console.log("[report-fp] renderer selected: A (forced) — HTML_MERGE only, ASTEXT disabled");
-  }
-  const buf = await renderDocxWithHtmlMerge(templateBuffer, data);
+  // Use renderDocxByMergingCoverAndBody (HTMLtoDOCX) — no asBlob dependency
+  const reportHtml = data.REPORT_BODY_HTML || "";
+  const buf = await renderDocxByMergingCoverAndBody(templateBuffer, data, reportHtml);
   if (!buf || !Buffer.isBuffer(buf) || buf.length === 0) {
-    throw new Error("renderDocxWithHtmlMerge returned empty or invalid buffer");
+    throw new Error("renderDocxByMergingCoverAndBody returned empty or invalid buffer");
   }
   return buf;
 }

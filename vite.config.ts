@@ -9,8 +9,16 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://localhost:8888",
-      "/.netlify": "http://localhost:8888",
+      "/api": {
+        target: "http://localhost:8888",
+        changeOrigin: true,
+        timeout: 60_000,
+      },
+      "/.netlify": {
+        target: "http://localhost:8888",
+        changeOrigin: true,
+        timeout: 60_000,
+      },
     },
     watch: {
       ignored: ["**/.netlify/**"],

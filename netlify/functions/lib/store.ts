@@ -1,12 +1,28 @@
 import { connectLambda, getStore } from "@netlify/blobs";
 import type { HandlerEvent } from "@netlify/functions";
 
+/**
+ * Stored finding (non-breaking extended fields for 9-dimension compression).
+ * - priority: legacy engineer-selected priority (kept for backward compatibility).
+ * - priority_selected: engineer choice; only used when override is explicit and auditable (override_reason present). Never trusted as default.
+ * - priority_calculated: from deterministic engine (Step 2); this is the default.
+ * - priority_final: effective priority (resolved by resolvePriorityFinal).
+ * - override_reason: required when engineer overrides priority_calculated; makes override auditable.
+ * - budget_low / budget_high: optional CapEx range (AUD).
+ */
 export type StoredFinding = {
   id: string;
   priority: string;
   title?: string;
   location?: string;
   photo_ids?: string[];
+  // Optional fields for priority + CapEx compression (backward compatible)
+  priority_selected?: string;
+  priority_calculated?: string;
+  priority_final?: string;
+  override_reason?: string;
+  budget_low?: number;
+  budget_high?: number;
 };
 
 export type StoredInspection = {

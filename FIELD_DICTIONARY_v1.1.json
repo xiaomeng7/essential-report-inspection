@@ -1,0 +1,359 @@
+{
+  "version": "1.1",
+  "placeholders": [
+    {
+      "key": "INSPECTION_ID",
+      "placeholder": "{{INSPECTION_ID}}",
+      "type": "string",
+      "required": true,
+      "source": "system.inspection_id",
+      "section": "Front Matter",
+      "description": "Unique inspection identifier (e.g., EH-2026-01-003)",
+      "example": "EH-2026-01-003"
+    },
+    {
+      "key": "PROPERTY_ADDRESS",
+      "placeholder": "{{PROPERTY_ADDRESS}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.property_address",
+      "section": "Front Matter",
+      "description": "Property address",
+      "example": "1 Example St, Adelaide SA 5000"
+    },
+    {
+      "key": "PROPERTY_TYPE",
+      "placeholder": "{{PROPERTY_TYPE}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.property_type",
+      "section": "Front Matter",
+      "description": "Property type (House/Unit/Townhouse/etc.)",
+      "example": "House"
+    },
+    {
+      "key": "ASSESSMENT_PURPOSE",
+      "placeholder": "{{ASSESSMENT_PURPOSE}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.assessment_purpose",
+      "section": "Front Matter",
+      "description": "Assessment purpose (Investment / Pre-purchase / Safety)",
+      "example": "Investment decision support"
+    },
+    {
+      "key": "PREPARED_FOR",
+      "placeholder": "{{PREPARED_FOR}}",
+      "type": "string",
+      "required": false,
+      "source": "snapshot.client_name",
+      "section": "Front Matter",
+      "description": "Client / landlord name",
+      "example": "John Smith"
+    },
+    {
+      "key": "PREPARED_BY",
+      "placeholder": "{{PREPARED_BY}}",
+      "type": "string",
+      "required": false,
+      "source": "system.prepared_by",
+      "section": "Front Matter",
+      "description": "Company or assessor name",
+      "example": "Better Home Technology Pty Ltd"
+    },
+    {
+      "key": "ASSESSMENT_DATE",
+      "placeholder": "{{ASSESSMENT_DATE}}",
+      "type": "date",
+      "required": false,
+      "source": "system.assessment_date",
+      "section": "Front Matter",
+      "description": "Inspection/assessment date",
+      "example": "2026-01-27"
+    },
+    {
+      "key": "REPORT_VERSION",
+      "placeholder": "{{REPORT_VERSION}}",
+      "type": "string",
+      "required": false,
+      "source": "system.report_version",
+      "section": "Front Matter",
+      "description": "Template/report version",
+      "example": "v1.0"
+    },
+    {
+      "key": "OVERALL_STATUS_BADGE",
+      "placeholder": "{{OVERALL_STATUS_BADGE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.overall_status_badge",
+      "section": "Executive Summary",
+      "description": "Overall status badge text",
+      "example": "🟡 Moderate – Acceptable with planned attention"
+    },
+    {
+      "key": "EXECUTIVE_SUMMARY_PARAGRAPH",
+      "placeholder": "{{EXECUTIVE_SUMMARY_PARAGRAPH}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.executive_summary_paragraph",
+      "section": "Executive Summary",
+      "description": "Executive summary paragraph (may be AI-polished)",
+      "example": "Overall condition is acceptable; no immediate safety hazards observed..."
+    },
+    {
+      "key": "RISK_RATING_BADGE",
+      "placeholder": "{{RISK_RATING_BADGE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.risk_rating_badge",
+      "section": "Risk Rating",
+      "description": "Risk rating label (Low/Moderate/High)",
+      "example": "Moderate"
+    },
+    {
+      "key": "RISK_RATING_FACTORS",
+      "placeholder": "{{RISK_RATING_FACTORS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.risk_rating_factors",
+      "section": "Risk Rating",
+      "description": "Bullet list of key factors supporting the rating",
+      "example": "• Legacy switchboard components\n• Limited access to roof space"
+    },
+    {
+      "key": "IMMEDIATE_FINDINGS",
+      "placeholder": "{{IMMEDIATE_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.immediate",
+      "section": "Findings",
+      "description": "Immediate findings list (each line bullet)",
+      "example": "• Exposed live parts in switchboard\n• No RCD protection on power circuits"
+    },
+    {
+      "key": "RECOMMENDED_FINDINGS",
+      "placeholder": "{{RECOMMENDED_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.recommended",
+      "section": "Findings",
+      "description": "Recommended (0–3 months) findings list",
+      "example": "• Upgrade aging RCDs\n• Address high earth resistance"
+    },
+    {
+      "key": "PLAN_MONITOR_FINDINGS",
+      "placeholder": "{{PLAN_MONITOR_FINDINGS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.findings.plan_monitor",
+      "section": "Findings",
+      "description": "Plan/monitor findings list",
+      "example": "• Re-test insulation resistance in 12 months"
+    },
+    {
+      "key": "LIMITATIONS_SECTION",
+      "placeholder": "{{LIMITATIONS_SECTION}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.limitations",
+      "section": "Scope & Limitations",
+      "description": "Limitations and skipped items with reasons",
+      "example": "Roof space inaccessible due to stored items..."
+    },
+    {
+      "key": "GENERAL_OBSERVATIONS_NOTES",
+      "placeholder": "{{GENERAL_OBSERVATIONS_NOTES}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.general_notes",
+      "section": "Observations",
+      "description": "General observations/notes paragraph",
+      "example": "Installation appears consistent with property age..."
+    },
+    {
+      "key": "TEST_RESULTS_SUMMARY",
+      "placeholder": "{{TEST_RESULTS_SUMMARY}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.test_results_summary",
+      "section": "Appendix",
+      "description": "Summary of test results (table or bullets)",
+      "example": "RCD trip time: ..."
+    },
+    {
+      "key": "TECHNICAL_NOTES",
+      "placeholder": "{{TECHNICAL_NOTES}}",
+      "type": "string",
+      "required": false,
+      "source": "inspection.technical_notes",
+      "section": "Appendix",
+      "description": "Additional technical notes",
+      "example": "MEN link confirmed at main switchboard..."
+    },
+    {
+      "key": "CAPITAL_PLANNING_TABLE",
+      "placeholder": "{{CAPITAL_PLANNING_TABLE}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.capital_planning_table",
+      "section": "Capital Planning",
+      "description": "Budget planning block (text or table)",
+      "example": "0–3 months: ..."
+    },
+    {
+      "key": "NEXT_STEPS",
+      "placeholder": "{{NEXT_STEPS}}",
+      "type": "string",
+      "required": false,
+      "source": "engine.next_steps",
+      "section": "Next Steps",
+      "description": "Next steps / options block",
+      "example": "Retain this report as baseline..."
+    },
+    {
+      "key": "TEST_DATA_SECTION_HTML",
+      "placeholder": "{{TEST_DATA_SECTION_HTML}}",
+      "type": "string",
+      "required": false,
+      "source": "computed.test_data_section_html",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "HTML block for test data table/paragraph rendered from canonical.test_data (RCD, GPO, earthing, insulation, etc.). Used when injecting full HTML body.",
+      "example": "<h3>Test Data</h3><table>...</table>"
+    },
+    {
+      "key": "RCD_TESTS_PERFORMED",
+      "placeholder": "{{RCD_TESTS_PERFORMED}}",
+      "type": "string",
+      "required": false,
+      "source": "canonical.test_data.rcd_tests.performed",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Whether RCD tests were performed (yes/no).",
+      "example": "yes"
+    },
+    {
+      "key": "RCD_TOTAL_TESTED",
+      "placeholder": "{{RCD_TOTAL_TESTED}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.rcd_tests.summary.total_tested",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of RCD devices tested.",
+      "example": "6"
+    },
+    {
+      "key": "RCD_TOTAL_PASS",
+      "placeholder": "{{RCD_TOTAL_PASS}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.rcd_tests.summary.total_pass",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of RCD devices passed.",
+      "example": "6"
+    },
+    {
+      "key": "RCD_TOTAL_FAIL",
+      "placeholder": "{{RCD_TOTAL_FAIL}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.rcd_tests.summary.total_fail",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of RCD devices failed.",
+      "example": "0"
+    },
+    {
+      "key": "RCD_EXCEPTIONS_TABLE",
+      "placeholder": "{{RCD_EXCEPTIONS_TABLE}}",
+      "type": "string",
+      "required": false,
+      "source": "computed.rcd_exceptions_table",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Table/list of any RCD exceptions (location, test current, trip time, result).",
+      "example": "Kitchen RCD – 30mA – 295ms – borderline"
+    },
+    {
+      "key": "GPO_TESTS_PERFORMED",
+      "placeholder": "{{GPO_TESTS_PERFORMED}}",
+      "type": "string",
+      "required": false,
+      "source": "canonical.test_data.gpo_tests.performed",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Whether GPO tests were performed (yes/no).",
+      "example": "yes"
+    },
+    {
+      "key": "GPO_TOTAL_TESTED",
+      "placeholder": "{{GPO_TOTAL_TESTED}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.gpo_tests.summary.total_tested",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of outlets tested.",
+      "example": "18"
+    },
+    {
+      "key": "GPO_POLARITY_PASS_COUNT",
+      "placeholder": "{{GPO_POLARITY_PASS_COUNT}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.gpo_tests.summary.polarity_pass_count",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of polarity checks passed.",
+      "example": "18"
+    },
+    {
+      "key": "GPO_EARTH_PRESENT_PASS_COUNT",
+      "placeholder": "{{GPO_EARTH_PRESENT_PASS_COUNT}}",
+      "type": "number",
+      "required": false,
+      "source": "canonical.test_data.gpo_tests.summary.earth_present_pass_count",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Count of earth-present checks passed.",
+      "example": "18"
+    },
+    {
+      "key": "EARTH_RESISTANCE_OHMS",
+      "placeholder": "{{EARTH_RESISTANCE_OHMS}}",
+      "type": "string",
+      "required": false,
+      "source": "canonical.test_data.earthing.resistance",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Measured earth resistance (Ohms) if captured.",
+      "example": "0.42"
+    },
+    {
+      "key": "INSULATION_RESISTANCE_MOHM",
+      "placeholder": "{{INSULATION_RESISTANCE_MOHM}}",
+      "type": "string",
+      "required": false,
+      "source": "canonical.test_data.insulation_resistance",
+      "section": "Appendix – Test Data & Technical Notes",
+      "description": "Measured insulation resistance (MΩ) if captured.",
+      "example": "1.2"
+    },
+    {
+      "key": "PHOTO_EVIDENCE_ENABLED",
+      "placeholder": "{{PHOTO_EVIDENCE_ENABLED}}",
+      "type": "string",
+      "required": false,
+      "source": "system.photo_evidence_enabled",
+      "section": "Observed Conditions & Risk Interpretation",
+      "description": "Whether photo evidence links are enabled in findings pages.",
+      "example": "true"
+    },
+    {
+      "key": "PHOTO_LINK_TTL_SECONDS",
+      "placeholder": "{{PHOTO_LINK_TTL_SECONDS}}",
+      "type": "number",
+      "required": false,
+      "source": "system.photo_link_ttl_seconds",
+      "section": "Observed Conditions & Risk Interpretation",
+      "description": "Signed photo link TTL in seconds (if signing secret enabled).",
+      "example": "86400"
+    }
+  ],
+  "updated_at": "2026-01-31",
+  "notes": [
+    "v1.1: add appendix/test-data placeholders + photo evidence placeholders; keep existing keys for backward compatibility."
+  ]
+}

@@ -949,8 +949,9 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 
 /**
  * Section 12: Appendix – Test Data & Technical Notes
+ * Exported for use in Gold template APPENDIX_CONTENT (full test details).
  */
-function buildAppendixSection(canonical: CanonicalInspection, defaultText: any): string {
+export function buildAppendixSection(canonical: CanonicalInspection, defaultText: any): string {
   const md: string[] = [];
   
   md.push('<h2 class="page-title">Page 9 | Test Data & Technical Notes</h2>');

@@ -21,6 +21,11 @@ import { computeOverall, convertProfileForScoring, findingScore, type FindingFor
 import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals";
 import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
 import { getBaseUrl } from "./lib/baseUrl";
+import { enrichFindingsWithCalculatedPriority } from "./lib/customFindingPriority";
+import { derivePropertySignals } from "./lib/derivePropertySignals";
+import { customDimensionsToFindingDimensions, profileToFindingDimensions, overallHealthToRiskLabel } from "./lib/dimensionsToPropertySignals";
+import type { CustomFindingDimensions } from "./lib/customFindingPriority";
+import type { FindingDimensions } from "./lib/derivePropertySignals";
 import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
 import { 
   ensureAllPlaceholders, 
@@ -350,18 +355,14 @@ function sanitizeObject<T extends Record<string, any>>(obj: T): T {
  * Groups findings by timeline and generates a 5-year roadmap table
  */
 function buildCapExTableRows(
-  findings: Array<{ id: string; priority: string }>,
+  findings: Array<{ id: string; priority: string; title?: string; budget_low?: number; budget_high?: number }>,
   profilesForScoring: Record<string, any>,
   findingsMap: Record<string, any>
 ): string {
-  // Filter findings that should appear in CapEx roadmap
-  // Include IMMEDIATE, URGENT, RECOMMENDED_0_3_MONTHS, PLAN_MONITOR
+  // Only Urgent + Budgetary (exclude Acceptable / PLAN_MONITOR)
   const relevantFindings = findings.filter(f => {
     const priority = f.priority || "";
-    return priority === "IMMEDIATE" || 
-           priority === "URGENT" || 
-           priority === "RECOMMENDED_0_3_MONTHS" || 
-           priority === "PLAN_MONITOR";
+    return priority === "IMMEDIATE" || priority === "URGENT" || priority === "RECOMMENDED_0_3_MONTHS";
   });
   
   if (relevantFindings.length === 0) {
@@ -385,30 +386,28 @@ function buildCapExTableRows(
     const profile = profilesForScoring[finding.id] || {};
     const response = findingsMap[finding.id];
     
-    // Get title from response or profile
-    const title = response?.title || 
-                  profile.messaging?.title || 
-                  finding.id.replace(/_/g, " ");
-    
-    // Get budget range from response, profile, or generate default
+    const title = response?.title || profile.messaging?.title || finding.title || finding.id.replace(/_/g, " ");
+
+    // Prefer custom budget_low/budget_high when present; else response/profile/band
     let budgetRange = "To be confirmed";
-    if (response?.budget_range_text) {
+    if (typeof finding.budget_low === "number" && typeof finding.budget_high === "number") {
+      budgetRange = formatCapExRangeWithCommas(finding.budget_low, finding.budget_high);
+    } else if (response?.budget_range_text) {
       budgetRange = response.budget_range_text;
     } else if (response?.budget_range_low !== undefined && response?.budget_range_high !== undefined) {
-      budgetRange = `AUD $${response.budget_range_low}–$${response.budget_range_high}`;
+      budgetRange = formatCapExRangeWithCommas(response.budget_range_low, response.budget_range_high);
     } else if (profile.budget_range) {
       budgetRange = profile.budget_range;
-    } else if (profile.budget) {
-      // Generate from budget band if available
+    } else if (profile.budget_band) {
       const band = profile.budget_band || "LOW";
       const ranges: Record<string, string> = {
-        LOW: "AUD $500–$2,000",
-        MED: "AUD $2,000–$5,000",
-        HIGH: "AUD $5,000–$15,000",
+        LOW: "AUD $500 – $2,000",
+        MED: "AUD $2,000 – $5,000",
+        HIGH: "AUD $5,000 – $15,000",
       };
       budgetRange = ranges[band] || "To be confirmed";
     }
-    
+
     // Get timeline from profile
     const timeline = profile.timeline || "6–18 months";
     const priority = finding.priority || "PLAN_MONITOR";
@@ -1115,59 +1114,68 @@ export type WordTemplateData = {
   DYNAMIC_FINDING_PAGES: string;
 };
 
+/** Finding with optional custom budget (for CapEx aggregation). */
+type FindingForCapEx = { id: string; priority: string; budget_low?: number; budget_high?: number };
+
 /**
- * Calculate CapEx summary from findings
- * Sums up all budgetary_range for findings where priority != "PLAN_MONITOR" (ACCEPTABLE)
- * 
- * @param findings Array of findings
- * @param findingsMap Responses map from responses.yml
- * @returns CapEx summary with low_total, high_total, currency, and note
+ * Format CapEx range as "AUD $X – $Y" with comma-separated thousands (no duplicated currency).
+ */
+function formatCapExRangeWithCommas(low: number, high: number, currency = "AUD"): string {
+  const lo = Number.isFinite(low) ? low : 0;
+  const hi = Number.isFinite(high) ? high : 0;
+  return `${currency} $${lo.toLocaleString("en-US")} – $${hi.toLocaleString("en-US")}`;
+}
+
+/**
+ * Calculate CapEx summary from findings (0–5 year horizon).
+ * Only includes items with priority in {Urgent, Budgetary}; excludes Acceptable (PLAN_MONITOR).
+ * For custom findings, prefers budget_low/budget_high when provided; else uses responses.yml budgetary_range.
  */
 function calculateCapExSummary(
-  findings: Array<{ id: string; priority: string }>,
+  findings: FindingForCapEx[],
   findingsMap: Record<string, any>
 ): { low_total: number; high_total: number; currency: string; note: string } {
   let lowTotal = 0;
   let highTotal = 0;
-  let currency = "AUD"; // Default currency
+  let currency = "AUD";
   const notes: string[] = [];
   let hasAnyRange = false;
-  
-  // Filter findings where priority != "PLAN_MONITOR" (ACCEPTABLE)
-  const relevantFindings = findings.filter(f => f.priority !== "PLAN_MONITOR");
-  
+
+  const relevantFindings = findings.filter(
+    f => f.priority === "IMMEDIATE" || f.priority === "URGENT" || f.priority === "RECOMMENDED_0_3_MONTHS"
+  );
+
   relevantFindings.forEach((finding) => {
-    const response = findingsMap[finding.id];
-    if (!response || !response.budgetary_range) {
-      return;
-    }
-    
-    const range = response.budgetary_range;
-    
-    // Handle object format {low, high, currency, note}
-    if (typeof range === "object" && range !== null) {
-      const low = typeof range.low === "number" ? range.low : 0;
-      const high = typeof range.high === "number" ? range.high : 0;
-      
-      if (low > 0 || high > 0) {
-        lowTotal += low;
-        highTotal += high;
-        hasAnyRange = true;
-        
-        // Use first currency found (assume all are same)
-        if (range.currency && !currency || currency === "AUD") {
-          currency = range.currency || "AUD";
-        }
-        
-        // Collect notes (optional)
-        if (range.note && typeof range.note === "string") {
-          notes.push(range.note);
-        }
+    const hasCustom = typeof finding.budget_low === "number" && typeof finding.budget_high === "number";
+    let low = 0;
+    let high = 0;
+    let rangeCurrency: string | undefined;
+    let rangeNote: string | undefined;
+
+    if (hasCustom) {
+      low = finding.budget_low!;
+      high = finding.budget_high!;
+      rangeCurrency = "AUD";
+    } else {
+      const response = findingsMap[finding.id];
+      const range = response?.budgetary_range;
+      if (typeof range === "object" && range !== null) {
+        low = typeof range.low === "number" ? range.low : 0;
+        high = typeof range.high === "number" ? range.high : 0;
+        rangeCurrency = range.currency;
+        rangeNote = range.note;
       }
     }
+
+    if (low > 0 || high > 0) {
+      lowTotal += low;
+      highTotal += high;
+      hasAnyRange = true;
+      if (rangeCurrency) currency = rangeCurrency;
+      if (rangeNote) notes.push(rangeNote);
+    }
   });
-  
-  // If no budgetary ranges found, return $0 – $0 with explanatory note
+
   if (!hasAnyRange || (lowTotal === 0 && highTotal === 0)) {
     return {
       low_total: 0,
@@ -1176,12 +1184,11 @@ function calculateCapExSummary(
       note: "No budgetary estimates available. Detailed quotations required from licensed electrical contractors."
     };
   }
-  
-  // Combine notes if multiple
-  const combinedNote = notes.length > 0 
+
+  const combinedNote = notes.length > 0
     ? `Indicative ranges based on ${relevantFindings.length} finding(s). ${notes.slice(0, 2).join("; ")}`
     : `Indicative ranges based on ${relevantFindings.length} finding(s).`;
-  
+
   return {
     low_total: lowTotal,
     high_total: highTotal,
@@ -1190,15 +1197,26 @@ function calculateCapExSummary(
   };
 }
 
+export type BuildReportDataOptions = {
+  /** When true, skip REPORT_BODY_HTML / placeholder validation logs (used when building for Gold template) */
+  forGoldTemplate?: boolean;
+};
+
 /**
  * Build complete Word template placeholder data from inspection
  * Returns all placeholders used in Gold_Sample_Ideal_Report_Template.docx
  * All fields are guaranteed to be strings (never undefined)
  */
-export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent): Promise<PlaceholderReportData> {
+export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent, options?: BuildReportDataOptions): Promise<PlaceholderReportData> {
   const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
   
+  // Enrich findings with priority_calculated (custom) and priority_final (all); use for report
+  const findings = await enrichFindingsWithCalculatedPriority(inspection, event);
+  const effectivePriority = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
+  /** Findings with .priority set to effective (for functions that only read .priority) */
+  const findingsWithEffectivePriority = findings.map(f => ({ ...f, priority: effectivePriority(f) }));
+
   // Load finding profiles
   const profiles = loadFindingProfiles();
   
@@ -1212,8 +1230,9 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   const urgentFindings: ExtendedFinding[] = [];
   const recommendedFindings: ExtendedFinding[] = [];
   
-  inspection.findings.forEach((finding) => {
+  findings.forEach((finding) => {
     const findingCode = finding.id;
+    const priority = effectivePriority(finding);
     const findingResponse = findingsMap[findingCode];
     
     // Use standardized text from responses.yml if available, otherwise fallback to title or id
@@ -1230,10 +1249,10 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     // Use profile.messaging.title if available
     const findingTitle = profile.messaging?.title || findingText;
     
-    // Create extended finding
+    // Create extended finding (use priority_final for report)
     const extendedFinding: ExtendedFinding = {
       id: findingCode,
-      priority: finding.priority,
+      priority,
       title: findingTitle,
       risk_safety: profile.risk?.safety || "LOW",
       risk_compliance: profile.risk?.compliance || "LOW",
@@ -1244,35 +1263,34 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     
     extendedFindings.push(extendedFinding);
     
-    // Group by priority for text lists
-    if (finding.priority === "IMMEDIATE") {
+    // Group by priority for text lists (use priority_final)
+    if (priority === "IMMEDIATE" || priority === "URGENT") {
       immediate.push(findingText);
       urgentFindings.push(extendedFinding);
-    } else if (finding.priority === "RECOMMENDED_0_3_MONTHS") {
+    } else if (priority === "RECOMMENDED_0_3_MONTHS") {
       recommended.push(findingText);
       recommendedFindings.push(extendedFinding);
-    } else if (finding.priority === "PLAN_MONITOR") {
+    } else if (priority === "PLAN_MONITOR") {
       plan.push(findingText);
     }
   });
   
-  // Use new Priority × Risk × Budget scoring model
-  const findingsForScoring: FindingForScoring[] = inspection.findings.map(f => ({
+  // Use new Priority × Risk × Budget scoring model (priority_final)
+  const findingsForScoring: FindingForScoring[] = findings.map(f => ({
     id: f.id,
-    priority: f.priority || "PLAN_MONITOR",
+    priority: effectivePriority(f),
   }));
   
-  // Convert profiles to scoring format, merging budgetary_range from responses.yml
+  // Convert profiles to scoring format; prefer custom budget_low/high, else responses.yml
   const profilesForScoring: Record<string, any> = {};
-  for (const finding of inspection.findings) {
+  for (const finding of findings) {
     const profile = getFindingProfile(finding.id);
     const response = findingsMap[finding.id];
-    
-    // Convert profile to scoring format
     const scoringProfile = convertProfileForScoring(profile);
-    
-    // Merge budgetary_range from responses.yml if available
-    if (response && response.budgetary_range && typeof response.budgetary_range === "object") {
+
+    if (typeof finding.budget_low === "number" && typeof finding.budget_high === "number") {
+      scoringProfile.budget = { low: finding.budget_low, high: finding.budget_high };
+    } else if (response?.budgetary_range && typeof response.budgetary_range === "object") {
       const range = response.budgetary_range;
       if (range.low !== undefined || range.high !== undefined) {
         scoringProfile.budget = {
@@ -1281,7 +1299,7 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
         };
       }
     }
-    
+
     profilesForScoring[finding.id] = scoringProfile;
   }
   
@@ -1289,11 +1307,11 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   const overallScore = computeOverall(findingsForScoring, profilesForScoring);
   
   // Calculate top findings: compute score for each finding and sort by score (descending), take top 3
-  const findingsWithScores: Array<{ finding: typeof inspection.findings[0], score: number, title: string }> = [];
-  for (const finding of inspection.findings) {
+  const findingsWithScores: Array<{ finding: typeof findings[0], score: number, title: string }> = [];
+  for (const finding of findings) {
     const profile = profilesForScoring[finding.id];
-    const effectivePriority = finding.priority || profile?.default_priority || "PLAN_MONITOR";
-    const score = findingScore(profile || {}, effectivePriority);
+    const pri = effectivePriority(finding);
+    const score = findingScore(profile || {}, pri);
     
     // Get title from response or profile or finding
     const response = findingsMap[finding.id];
@@ -1310,21 +1328,37 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     .map(item => ({
       id: item.finding.id,
       title: item.title,
-      priority: item.finding.priority || "PLAN_MONITOR",
+      priority: effectivePriority(item.finding),
       score: item.score,
     }));
   
-  // Count findings by priority
+  // Count findings by priority (use priority_final)
   const counts = {
-    immediate: inspection.findings.filter(f => f.priority === "IMMEDIATE").length,
-    urgent: inspection.findings.filter(f => f.priority === "URGENT").length,
-    recommended: inspection.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length,
-    plan: inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length,
+    immediate: findings.filter(f => effectivePriority(f) === "IMMEDIATE").length,
+    urgent: findings.filter(f => effectivePriority(f) === "URGENT").length,
+    recommended: findings.filter(f => effectivePriority(f) === "RECOMMENDED_0_3_MONTHS").length,
+    plan: findings.filter(f => effectivePriority(f) === "PLAN_MONITOR").length,
   };
   
   // Generate Executive Decision Signals
   // Convert dominant_risk array to single value for compatibility
   // Use first element if available, or map category to old format
+  // CapEx summary and formatted range (before executive signals so we pass capex_formatted, no duplicate currency)
+  const CAPEX_SNAPSHOT_EARLY = overallScore.CAPEX_SNAPSHOT;
+  const capexSummaryEarly =
+    overallScore.CAPEX_LOW != null || overallScore.CAPEX_HIGH != null
+      ? {
+          low_total: overallScore.CAPEX_LOW ?? overallScore.capex_low,
+          high_total: overallScore.CAPEX_HIGH ?? overallScore.capex_high,
+          currency: "AUD",
+          note: `Indicative ranges based on ${findingsForScoring.length} finding(s).`,
+        }
+      : calculateCapExSummary(findingsWithEffectivePriority, findingsMap);
+  const CAPEX_RANGE_STRING =
+    (capexSummaryEarly.low_total > 0 || capexSummaryEarly.high_total > 0)
+      ? formatCapExRangeWithCommas(capexSummaryEarly.low_total, capexSummaryEarly.high_total, capexSummaryEarly.currency || "AUD")
+      : "To be confirmed";
+
   let dominantRiskForSignals: "safety" | "compliance" | "escalation" | undefined = undefined;
   if (overallScore.dominant_risk && overallScore.dominant_risk.length > 0) {
     const firstRisk = overallScore.dominant_risk[0].toUpperCase();
@@ -1336,7 +1370,7 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
       dominantRiskForSignals = "escalation";
     }
   }
-  
+
   const executiveSignals = generateExecutiveSignals({
     overall_level: overallScore.overall_level,
     counts,
@@ -1347,51 +1381,74 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     capex_incomplete: overallScore.capex_incomplete,
     topFindings,
     dominantRisk: overallScore.dominant_risk.length > 0 ? overallScore.dominant_risk : dominantRiskForSignals,
+    capex_formatted: CAPEX_RANGE_STRING,
+    time_horizon: "0–5 years",
   });
-  
-  // Format EXECUTIVE_DECISION_SIGNALS: bullets with "• " prefix, joined by newlines
+
+  // Format EXECUTIVE_DECISION_SIGNALS: bullets with "• " prefix, joined by newlines (max 4 bullets)
   const EXECUTIVE_DECISION_SIGNALS = executiveSignals.bullets
     .map(bullet => `• ${bullet}`)
     .join("\n") || "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
   
-  // Map overall_level to old format for compatibility
-  let overallRiskLevel: "Low" | "Moderate" | "Elevated";
+  // Map overall_level to old format for compatibility (used when property signals not applied)
+  let overallRiskLevelFromScoring: "Low" | "Moderate" | "Elevated";
   switch (overallScore.overall_level) {
     case "ELEVATED":
-      overallRiskLevel = "Elevated";
+      overallRiskLevelFromScoring = "Elevated";
       break;
     case "MODERATE":
-      overallRiskLevel = "Moderate";
+      overallRiskLevelFromScoring = "Moderate";
       break;
     case "LOW":
-      overallRiskLevel = "Low";
+      overallRiskLevelFromScoring = "Low";
       break;
+    default:
+      overallRiskLevelFromScoring = "Moderate";
   }
-  
+
+  // Property signals: D1–D9 from standard + custom → OVERALL_RISK_LABEL (deterministic)
+  const completedById = new Map<string, CustomFindingDimensions & { id?: string }>();
+  const completedList = (inspection.raw?.custom_findings_completed as Array<CustomFindingDimensions & { id?: string }>) ?? [];
+  for (const c of completedList) {
+    if (c?.id) completedById.set(String(c.id), c);
+  }
+  const dimensionsList: FindingDimensions[] = [];
+  for (const f of findings) {
+    const customDims = completedById.get(f.id);
+    if (customDims) {
+      dimensionsList.push(customDimensionsToFindingDimensions(customDims));
+    } else {
+      dimensionsList.push(profileToFindingDimensions(getFindingProfile(f.id)));
+    }
+  }
+  let OVERALL_RISK_LABEL: "Low" | "Moderate" | "Elevated";
+  if (dimensionsList.length > 0) {
+    const propertySignals = derivePropertySignals(dimensionsList);
+    OVERALL_RISK_LABEL = overallHealthToRiskLabel(propertySignals.overall_health);
+    const hasUrgentLiability = findings.some(
+      (f) => effectivePriority(f) === "IMMEDIATE" || effectivePriority(f) === "URGENT"
+    );
+    if (hasUrgentLiability && OVERALL_RISK_LABEL === "Low") OVERALL_RISK_LABEL = "Moderate";
+  } else {
+    OVERALL_RISK_LABEL = overallRiskLevelFromScoring;
+  }
+
   // Generate RISK_RATING / OVERALL_STATUS / OVERALL_STATUS_BADGE from scoring model
   const RISK_RATING = overallScore.badge || "🟡 Moderate";
   const OVERALL_STATUS = overallScore.badge || "🟡 Moderate";
   const OVERALL_STATUS_BADGE = overallScore.badge || "🟡 Moderate";
-  
-  // Use CapEx from scoring model (CAPEX_SNAPSHOT is stable string from scoring; never empty)
-  const CAPEX_SNAPSHOT = overallScore.CAPEX_SNAPSHOT;
-  const capexSummary =
-    overallScore.CAPEX_LOW != null || overallScore.CAPEX_HIGH != null
-      ? {
-          low_total: overallScore.CAPEX_LOW ?? overallScore.capex_low,
-          high_total: overallScore.CAPEX_HIGH ?? overallScore.capex_high,
-          currency: "AUD",
-          note: `Indicative ranges based on ${findingsForScoring.length} finding(s).`,
-        }
-      : calculateCapExSummary(inspection.findings || [], findingsMap);
-  
+
+  const CAPEX_SNAPSHOT = CAPEX_SNAPSHOT_EARLY;
+  const capexSummary = capexSummaryEarly;
+
   // Load Terms and Conditions
   const TERMS_AND_CONDITIONS = await loadTermsAndConditions();
   
   const photoBaseUrl = getBaseUrl(event);
   const photoSigningSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
   console.log("[report] photo baseUrl:", photoBaseUrl);
-  const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspection, event, photoBaseUrl, photoSigningSecret);
+  const inspectionWithEffectivePriority = { ...inspection, findings: findingsWithEffectivePriority };
+  const DYNAMIC_FINDING_PAGES = await generateDynamicFindingPages(inspectionWithEffectivePriority, event, photoBaseUrl, photoSigningSecret);
   
   // Load default text for additional fields
   const defaultText = await loadDefaultText(event);
@@ -1438,17 +1495,14 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     ? inspection.limitations.join("; ")
     : "Areas that are concealed, locked, or otherwise inaccessible were not inspected.";
   
-  // Build CapEx table rows from findings and profiles
+  // Build CapEx table rows from findings and profiles (use enriched findings with priority_final)
   const CAPEX_TABLE_ROWS = buildCapExTableRows(
-    inspection.findings || [],
+    findingsWithEffectivePriority,
     profilesForScoring,
     findingsMap
   );
   
-  // Format CAPEX_RANGE (guard against null/undefined to avoid "AUD $undefined – $undefined")
-  const CAPEX_RANGE = (capexSummary.low_total > 0 || capexSummary.high_total > 0)
-    ? `${capexSummary.currency || "AUD"} $${capexSummary.low_total ?? 0} – $${capexSummary.high_total ?? 0}`
-    : "To be confirmed";
+  const CAPEX_RANGE = CAPEX_RANGE_STRING;
   
   // Build executive summary
   const EXECUTIVE_SUMMARY = executiveSignals.bullets.join(" ") || "This property presents a moderate electrical risk profile at the time of inspection.";
@@ -1521,7 +1575,8 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     TEST_SUMMARY: testSummary || defaultText.TEST_SUMMARY || PLACEHOLDER_DEFAULTS.TEST_SUMMARY,
     TECHNICAL_NOTES: technicalNotes || defaultText.TECHNICAL_NOTES || PLACEHOLDER_DEFAULTS.TECHNICAL_NOTES,
     
-    // Additional metadata
+    // Additional metadata (OVERALL_RISK_LABEL from property signals + urgent floor)
+    OVERALL_RISK_LABEL: OVERALL_RISK_LABEL,
     OVERALL_STATUS: OVERALL_STATUS,
     RISK_RATING: RISK_RATING,
     CAPEX_RANGE: CAPEX_RANGE,
@@ -1529,20 +1584,21 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   };
   
   // Use ensureAllPlaceholders to guarantee all fields are present and non-empty
-  const completeData = ensureAllPlaceholders(placeholderData);
+  const completeData = ensureAllPlaceholders(placeholderData, { skipValidationLog: options?.forGoldTemplate });
   
-  // Validate against placeholder map and log warnings
+  // Validate against placeholder map and log warnings (skip when building for Gold template)
   const validation = validateReportDataAgainstPlaceholderMap(completeData);
   
   if (validation.missingRequired.length > 0) {
-    console.warn("⚠️ CRITICAL: Missing required placeholders after ensureAllPlaceholders:", validation.missingRequired.join(", "));
-    // This should never happen if ensureAllPlaceholders works correctly, but log it anyway
+    if (!options?.forGoldTemplate) {
+      console.warn("⚠️ CRITICAL: Missing required placeholders after ensureAllPlaceholders:", validation.missingRequired.join(", "));
+    }
     for (const key of validation.missingRequired) {
       (completeData as any)[key] = PLACEHOLDER_DEFAULTS[key] || "-";
     }
   }
   
-  if (validation.missingOptional.length > 0) {
+  if (validation.missingOptional.length > 0 && !options?.forGoldTemplate) {
     console.log("ℹ️ Optional placeholders not populated:", validation.missingOptional.join(", "));
   }
   
@@ -1575,7 +1631,7 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
  * @param event Optional HandlerEvent for loading configs
  * @returns Cover data with 6 basic fields
  */
-async function buildCoverData(
+export async function buildCoverData(
   inspection: StoredInspection,
   event?: HandlerEvent
 ): Promise<Record<string, string>> {
@@ -1792,19 +1848,20 @@ export async function buildWordTemplateData(
     return parts.join("");
   }
   
-  // Format findings by priority
+  const effectiveP = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
   const immediateFindings: string[] = [];
   const recommendedFindings: string[] = [];
   const planFindings: string[] = [];
-  
+
   inspection.findings.forEach((finding) => {
-    const formattedFinding = formatFindingWithDetails(finding);
-    
-    if (finding.priority === "IMMEDIATE") {
+    const pri = effectiveP(finding);
+    const findingWithPriority = { ...finding, priority: pri };
+    const formattedFinding = formatFindingWithDetails(findingWithPriority);
+    if (pri === "IMMEDIATE" || pri === "URGENT") {
       immediateFindings.push(formattedFinding);
-    } else if (finding.priority === "RECOMMENDED_0_3_MONTHS") {
+    } else if (pri === "RECOMMENDED_0_3_MONTHS") {
       recommendedFindings.push(formattedFinding);
-    } else if (finding.priority === "PLAN_MONITOR") {
+    } else if (pri === "PLAN_MONITOR") {
       planFindings.push(formattedFinding);
     }
   });
@@ -2082,25 +2139,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // Load responses for Markdown generation
     const responses = await loadResponses(event);
     
-    // Build computed fields (for Markdown generation)
+    // Build computed fields (for Markdown generation); use enriched findings for consistency with reportData
     const reportData = await buildReportData(inspection, event);
-    // Use RISK_RATING from reportData (calculated from finding profiles)
+    const enrichedFindings = await enrichFindingsWithCalculatedPriority(inspection, event);
+    const handlerEffectivePriority = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
+    const handlerFindingsWithPriority = enrichedFindings.map(f => ({ ...f, priority: handlerEffectivePriority(f) }));
+
     const riskRating = reportData.RISK_RATING;
     const overallStatus = reportData.OVERALL_STATUS;
-    
-    // Calculate overallScore to get CAPEX low/high values
+
     const findingsMap = responses.findings || {};
-    const profiles = loadFindingProfiles();
-    const findingsForScoring: FindingForScoring[] = inspection.findings.map(f => ({
+    const findingsForScoring: FindingForScoring[] = handlerFindingsWithPriority.map(f => ({
       id: f.id,
       priority: f.priority || "PLAN_MONITOR",
     }));
     const profilesForScoring: Record<string, any> = {};
-    for (const finding of inspection.findings) {
+    for (const finding of handlerFindingsWithPriority) {
       const profile = getFindingProfile(finding.id);
       const response = findingsMap[finding.id];
       const scoringProfile = convertProfileForScoring(profile);
-      if (response && response.budgetary_range && typeof response.budgetary_range === "object") {
+      if (typeof (finding as any).budget_low === "number" && typeof (finding as any).budget_high === "number") {
+        scoringProfile.budget = { low: (finding as any).budget_low, high: (finding as any).budget_high };
+      } else if (response?.budgetary_range && typeof response.budgetary_range === "object") {
         const range = response.budgetary_range;
         if (range.low !== undefined || range.high !== undefined) {
           scoringProfile.budget = {
@@ -2112,13 +2172,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       profilesForScoring[finding.id] = scoringProfile;
     }
     const overallScore = computeOverall(findingsForScoring, profilesForScoring);
-    
-    // Load executive summary templates
+
     const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
     let executiveSummary: string;
-    
-    // Count findings by priority
-    const planCount = inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length;
+
+    const planCount = handlerFindingsWithPriority.filter(f => f.priority === "PLAN_MONITOR").length;
     
     if (riskRating === "HIGH") {
       executiveSummary = executiveSummaryTemplates.HIGH || "This property presents a high electrical risk profile.";
@@ -2172,9 +2230,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const baseUrl = getBaseUrl(event);
       const signingSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
       const structuredReport = await buildStructuredReport({
-        inspection,
+        inspection: { ...inspection, findings: handlerFindingsWithPriority },
         canonical,
-        findings: inspection.findings,
+        findings: handlerFindingsWithPriority,
         responses,
         computed,
         event,
@@ -2478,13 +2536,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
     }
     
-    // Log debug info (only in dev environment)
     if (process.env.NETLIFY_DEV === "true" || process.env.NODE_ENV === "development") {
-      const immediateCount = inspection.findings.filter(f => f.priority === "IMMEDIATE").length;
-      const recommendedCount = inspection.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
-      const planCount = inspection.findings.filter(f => f.priority === "PLAN_MONITOR").length;
+      const immediateCount = handlerFindingsWithPriority.filter(f => f.priority === "IMMEDIATE" || f.priority === "URGENT").length;
+      const recommendedCount = handlerFindingsWithPriority.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS").length;
+      const planCount = handlerFindingsWithPriority.filter(f => f.priority === "PLAN_MONITOR").length;
       console.log("=== Debug Info ===");
-      console.log("Findings counts:", {
+      console.log("Findings counts (priority_final):", {
         immediate: immediateCount,
         recommended: recommendedCount,
         plan: planCount,

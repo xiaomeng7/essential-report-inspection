@@ -47,9 +47,13 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S9B_POOL_HIGH_LOAD",
 ]);
 
+const S0_START_CONTEXT = "S0_START_CONTEXT";
+
 type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
 
 export function Wizard({ onSubmitted }: Props) {
+  const [oneClickTestLoading, setOneClickTestLoading] = useState(false);
+  const [oneClickTestError, setOneClickTestError] = useState<string | null>(null);
   const {
     state,
     setAnswer,
@@ -267,6 +271,43 @@ export function Wizard({ onSubmitted }: Props) {
                 <li>有问题的房间在下方「灯具按房」表中填写并附照片</li>
                 <li>GPO 失败项：若已在上一页「GPO 按房」表中逐条填写，可勾选「No exceptions」；否则在下方「GPO/Lighting 例外」中逐条填写位置、问题类型并附照片</li>
               </ul>
+            </div>
+          )}
+          {/* S0: 一键测试（加载示例 payload 并提交，跳转 Review 页生成报告） */}
+          {current.id === S0_START_CONTEXT && (
+            <div className="section" style={{ margin: 12, padding: 12, background: "var(--surface)", borderRadius: 8, border: "1px solid #e0e0e0" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={oneClickTestLoading}
+                onClick={async () => {
+                  setOneClickTestError(null);
+                  setOneClickTestLoading(true);
+                  try {
+                    const r = await fetch("/sample-inspection-payload.json");
+                    if (!r.ok) throw new Error("测试数据未生成。请先运行: npm run write-sample-payload");
+                    const payload = await r.json();
+                    const res = await fetch("/api/submitInspection", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) {
+                      const text = await res.text();
+                      throw new Error(text || `HTTP ${res.status}`);
+                    }
+                    const data = (await res.json()) as { inspection_id: string };
+                    onSubmitted(data.inspection_id);
+                  } catch (e) {
+                    setOneClickTestError((e as Error).message);
+                  } finally {
+                    setOneClickTestLoading(false);
+                  }
+                }}
+              >
+                {oneClickTestLoading ? "提交中…" : "一键测试（填充并提交 → 生成报告）"}
+              </button>
+              {oneClickTestError && <p className="validation-msg" style={{ marginTop: 8 }}>{oneClickTestError}</p>}
             </div>
           )}
           {(sectionErrors[current.id]?._submit) && (

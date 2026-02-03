@@ -1,0 +1,314 @@
+{
+  "created_at": "2026-02-02T09:58:13.433Z",
+  "job": {
+    "address": {
+      "value": "123 Example St, Sydney NSW 2000",
+      "status": "answered"
+    },
+    "address_place_id": {
+      "value": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+      "status": "answered"
+    },
+    "address_components": {
+      "value": {
+        "suburb": "Sydney",
+        "state": "NSW",
+        "postcode": "2000",
+        "country": "Australia"
+      },
+      "status": "answered"
+    },
+    "client_type": {
+      "value": "owner",
+      "status": "answered"
+    },
+    "occupancy": {
+      "value": "owner_occupied",
+      "status": "answered"
+    },
+    "property_type": {
+      "value": "house",
+      "status": "answered"
+    },
+    "vulnerable_occupants": {
+      "value": [
+        "none"
+      ],
+      "status": "answered"
+    },
+    "reported_issues": {
+      "value": [
+        "none"
+      ],
+      "status": "answered"
+    }
+  },
+  "access": {
+    "switchboard_accessible": {
+      "value": true,
+      "status": "answered"
+    },
+    "roof_accessible": {
+      "value": true,
+      "status": "answered"
+    },
+    "underfloor_accessible": {
+      "value": false,
+      "status": "answered"
+    },
+    "mains_power_available": {
+      "value": true,
+      "status": "answered"
+    },
+    "photos_allowed": {
+      "value": true,
+      "status": "answered"
+    },
+    "notes": {
+      "value": "",
+      "status": "answered"
+    }
+  },
+  "switchboard": {
+    "overall_condition": {
+      "value": "fair",
+      "status": "answered"
+    },
+    "signs_of_overheating": {
+      "value": "no",
+      "status": "answered"
+    },
+    "burn_marks_or_carbon": {
+      "value": "no",
+      "status": "answered"
+    },
+    "water_ingress": {
+      "value": "no",
+      "status": "answered"
+    },
+    "asbestos_suspected": {
+      "value": "no",
+      "status": "answered"
+    },
+    "protection_types_present": {
+      "value": [
+        "rcd",
+        "rcbo"
+      ],
+      "status": "answered"
+    },
+    "board_at_capacity": {
+      "value": false,
+      "status": "answered"
+    },
+    "spare_ways_available": {
+      "value": "yes",
+      "status": "answered"
+    },
+    "labelling_quality": {
+      "value": "good",
+      "status": "answered"
+    },
+    "non_standard_or_diy_observed": {
+      "value": false,
+      "status": "answered"
+    },
+    "photo_ids": {
+      "value": [],
+      "status": "answered"
+    }
+  },
+  "rcd_tests": {
+    "performed": {
+      "value": true,
+      "status": "answered"
+    },
+    "summary": {
+      "total_tested": {
+        "value": 4,
+        "status": "answered"
+      },
+      "total_pass": {
+        "value": 3,
+        "status": "answered"
+      },
+      "total_fail": {
+        "value": 1,
+        "status": "answered"
+      }
+    },
+    "no_exceptions": {
+      "value": false,
+      "status": "answered"
+    },
+    "exceptions": {
+      "value": [
+        {
+          "location": "Kitchen",
+          "test_current_ma": 30,
+          "trip_time_ms": 350,
+          "result": "fail",
+          "notes": "Trip >300ms",
+          "photo_ids": []
+        }
+      ],
+      "status": "answered"
+    },
+    "notes": {
+      "value": "",
+      "status": "answered"
+    }
+  },
+  "gpo_tests": {
+    "performed": {
+      "value": true,
+      "status": "answered"
+    },
+    "summary": {
+      "total_gpo_tested": {
+        "value": 12,
+        "status": "answered"
+      },
+      "polarity_pass": {
+        "value": 12,
+        "status": "answered"
+      },
+      "earth_present_pass": {
+        "value": 11,
+        "status": "answered"
+      },
+      "rcd_protection_confirmed": {
+        "value": 12,
+        "status": "answered"
+      }
+    },
+    "any_warm_loose_damaged": {
+      "value": false,
+      "status": "answered"
+    },
+    "rooms": {
+      "value": [
+        {
+          "room_type": "kitchen",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 4,
+          "tested_count": 4,
+          "pass_count": 3,
+          "issue": "loose",
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "bedroom_1",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 2,
+          "tested_count": 2,
+          "pass_count": 1,
+          "issue": "other",
+          "issue_other": "插座发热、有烧焦味",
+          "note": "需更换",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        }
+      ],
+      "status": "answered"
+    },
+    "notes": {
+      "value": "",
+      "status": "answered"
+    }
+  },
+  "earthing": {
+    "men_link_confirmed": {
+      "value": "yes",
+      "status": "answered"
+    },
+    "main_earth_conductor_intact": {
+      "value": "yes",
+      "status": "answered"
+    },
+    "earthing_resistance_measured": {
+      "value": 0.5,
+      "status": "answered"
+    },
+    "bonding_water_gas_verified": {
+      "value": "yes",
+      "status": "answered"
+    },
+    "photo_ids": {
+      "value": [],
+      "status": "answered"
+    }
+  },
+  "lighting": {
+    "rooms": {
+      "value": [
+        {
+          "room_type": "living_room",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "issues": [
+            "fitting_overheat",
+            "other"
+          ],
+          "issue_other": "灯罩松动",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        }
+      ],
+      "status": "answered"
+    }
+  },
+  "assets": {
+    "has_solar_pv": {
+      "value": false,
+      "status": "answered"
+    },
+    "has_battery": {
+      "value": false,
+      "status": "answered"
+    },
+    "has_ev_charger": {
+      "value": false,
+      "status": "answered"
+    }
+  },
+  "signoff": {
+    "technician_name": {
+      "value": "模拟技师 Test Tech",
+      "status": "answered"
+    },
+    "licence_no": {
+      "value": "L99999",
+      "status": "answered"
+    },
+    "inspection_completed": {
+      "value": true,
+      "status": "answered"
+    },
+    "customer_informed_immediate": {
+      "value": true,
+      "status": "answered"
+    },
+    "office_notes_internal": {
+      "value": "模拟测试数据",
+      "status": "answered"
+    },
+    "ready_for_report_generation": {
+      "value": true,
+      "status": "answered"
+    },
+    "submit_confirm": {
+      "value": true,
+      "status": "answered"
+    }
+  }
+}

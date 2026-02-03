@@ -3,8 +3,14 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Netlify Dev: 主站固定 8888（port=浏览器访问端口），Vite 用 5173（targetPort），与 vite.config 代理目标一致
+[dev]
+  port = 8888
+  targetPort = 5173
+
 [functions]
   included_files = [
+    "./Gold_Report_Template.docx",
     "./profiles/finding_profiles.yml",
     "./mappings/issue_to_finding.json",
     "./mappings/raw_to_canonical.yml",

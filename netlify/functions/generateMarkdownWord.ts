@@ -1,8 +1,9 @@
 /**
  * 生成基于 Markdown 的 Word 报告
- * 
+ *
  * 使用 buildMarkdownReport 生成完整的 Markdown 报告，
- * 然后转换为 Word 文档并返回供下载
+ * 然后转换为 Word 文档并返回供下载。
+ * 不使用 OpenAI 或任何 AI API，仅基于模板与规则（测试阶段保持无 AI）。
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
@@ -10,7 +11,8 @@ import { get } from "./lib/store";
 import { buildMarkdownReport } from "./lib/generateReport";
 import { loadResponses } from "./generateWordReport";
 import { markdownToHtml } from "./lib/markdownToHtml";
-import { renderDocx } from "./lib/renderDocx";
+import { renderDocx, renderDocxGoldTemplate } from "./lib/renderDocx";
+import { buildGoldTemplateData } from "./lib/goldTemplateData";
 import { sha1 } from "./lib/fingerprint";
 import PizZip from "pizzip";
 import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
@@ -66,9 +68,25 @@ try {
   __dirname = process.cwd();
 }
 
-/**
- * 加载 Word 模板（用于封面页）
- */
+/** 优先使用 Gold_Report_Template.docx */
+function loadGoldTemplate(): Buffer | null {
+  const possiblePaths = [
+    path.join(process.cwd(), "Gold_Report_Template.docx"),
+    path.join(__dirname, "..", "..", "Gold_Report_Template.docx"),
+    path.join(process.cwd(), "netlify", "functions", "Gold_Report_Template.docx"),
+    "/opt/build/repo/Gold_Report_Template.docx",
+  ];
+  for (const templatePath of possiblePaths) {
+    if (fs.existsSync(templatePath)) {
+      const buf = fs.readFileSync(templatePath);
+      console.log("[report-fp] Gold template path:", templatePath, "buffer.length:", buf.length);
+      return buf;
+    }
+  }
+  return null;
+}
+
+/** 回退：report-template-md.docx（封面 + REPORT_BODY_HTML） */
 function loadWordTemplate(): Buffer {
   const possiblePaths = [
     path.join(__dirname, "report-template-md.docx"),
@@ -78,7 +96,6 @@ function loadWordTemplate(): Buffer {
     "/opt/build/repo/report-template-md.docx",
     "/opt/build/repo/netlify/functions/report-template-md.docx",
   ];
-  
   for (const templatePath of possiblePaths) {
     if (fs.existsSync(templatePath)) {
       const buf = fs.readFileSync(templatePath);
@@ -86,7 +103,6 @@ function loadWordTemplate(): Buffer {
       return buf;
     }
   }
-  
   throw new Error("Could not find report-template-md.docx");
 }
 
@@ -145,83 +161,67 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const responses = await loadResponses(event);
     console.log("✅ Loaded responses.yml");
 
-    // 4. 生成 Markdown 报告
-    console.log("📝 Generating Markdown report...");
-    const markdown = await buildMarkdownReport({
-      inspection,
-      findings: inspection.findings || [],
-      responses,
-      event
-    });
-    console.log(`✅ Markdown report generated: ${markdown.length} characters`);
+    // 4. 优先使用 Gold_Report_Template.docx（占位符填充）
+    const goldTemplateBuffer = loadGoldTemplate();
+    let wordBuffer: Buffer;
 
-    // 5. 将 Markdown 转换为 HTML
-    console.log("🔄 Converting Markdown to HTML...");
-    const html = markdownToHtml(markdown);
-    console.log(`✅ HTML generated: ${html.length} characters`);
+    if (goldTemplateBuffer) {
+      console.log("📄 Using Gold_Report_Template.docx (placeholder fill)");
+      const templateData = await buildGoldTemplateData(inspection, event);
+      const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+      if (undefinedKeys.length > 0) {
+        console.warn("[report-fp] Gold templateData undefined keys:", undefinedKeys.slice(0, 10).join(", "), "(total", undefinedKeys.length, ")");
+      }
+      wordBuffer = renderDocxGoldTemplate(goldTemplateBuffer, templateData);
+      console.log(`✅ Word document generated (Gold template): ${wordBuffer.length} bytes`);
+    } else {
+      // 回退：Markdown → HTML → report-template-md.docx + REPORT_BODY_HTML
+      console.log("📝 Generating Markdown report (fallback)...");
+      const markdown = await buildMarkdownReport({
+        inspection,
+        findings: inspection.findings || [],
+        responses,
+        event
+      });
+      console.log(`✅ Markdown report generated: ${markdown.length} characters`);
 
-    // 6. 加载 Word 模板
-    console.log("📄 Loading Word template...");
-    const templateBuffer = loadWordTemplate();
+      console.log("🔄 Converting Markdown to HTML...");
+      const html = markdownToHtml(markdown);
+      console.log(`✅ HTML generated: ${html.length} characters`);
 
-    // P0: 验证模板包含 REPORT_BODY_HTML 占位符
-    const zip = new PizZip(templateBuffer);
-    const documentXml = zip.files["word/document.xml"]?.asText() || "";
-    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || documentXml.includes("report_body_html") || documentXml.includes("Report_Body_Html");
-    if (!hasPlaceholder) {
-      const sampleXml = documentXml.substring(0, 2000);
-      throw new Error(`Template missing required placeholder: REPORT_BODY_HTML. buffer.length=${templateBuffer.length} document.xml[0:2000]=${JSON.stringify(sampleXml)}`);
-    }
-    console.log("[report-fp] placeholder: required ok (REPORT_BODY_HTML present)");
-
-    // 7. 准备模板数据（封面页数据，使用 canonical）
-    const defaultText = await loadDefaultText(event);
-    
-    // Format assessment_date
-    let assessmentDate = canonical.assessment_date || new Date().toISOString();
-    let formattedDate = defaultText.ASSESSMENT_DATE;
-    try {
-      const date = new Date(assessmentDate);
-      if (!isNaN(date.getTime())) {
-        formattedDate = date.toLocaleDateString("en-AU", {
-          year: "numeric",
-          month: "long",
-          day: "numeric"
-        });
-      } else {
+      const templateBuffer = loadWordTemplate();
+      const zip = new PizZip(templateBuffer);
+      const documentXml = zip.files["word/document.xml"]?.asText() || "";
+      const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || documentXml.includes("report_body_html") || documentXml.includes("Report_Body_Html");
+      if (!hasPlaceholder) {
+        const sampleXml = documentXml.substring(0, 2000);
+        throw new Error(`Template missing required placeholder: REPORT_BODY_HTML. buffer.length=${templateBuffer.length} document.xml[0:2000]=${JSON.stringify(sampleXml)}`);
+      }
+      const defaultText = await loadDefaultText(event);
+      let assessmentDate = canonical.assessment_date || new Date().toISOString();
+      let formattedDate = defaultText.ASSESSMENT_DATE;
+      try {
+        const date = new Date(assessmentDate);
+        if (!isNaN(date.getTime())) {
+          formattedDate = date.toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" });
+        } else {
+          formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
+        }
+      } catch (e) {
         formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
       }
-    } catch (e) {
-      formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
+      const coverData = {
+        INSPECTION_ID: canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID,
+        ASSESSMENT_DATE: formattedDate,
+        PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR,
+        PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY,
+        PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS,
+        PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
+      };
+      const templateData = { ...coverData, REPORT_BODY_HTML: html };
+      wordBuffer = await renderDocx(templateBuffer, templateData);
+      console.log(`✅ Word document generated (fallback): ${wordBuffer.length} bytes`);
     }
-    
-    const coverData = {
-      INSPECTION_ID: canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID,
-      ASSESSMENT_DATE: formattedDate,
-      PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR,
-      PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY,
-      PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS,
-      PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
-    };
-
-    const templateData = { ...coverData, REPORT_BODY_HTML: html };
-    const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
-    if (undefinedKeys.length > 0) {
-      console.log("[report-fp] placeholder undefined keys:", undefinedKeys.join(", "));
-    } else {
-      console.log("[report-fp] placeholder: no undefined keys");
-    }
-    const sf = getSanitizeFingerprint();
-    console.log("[report-fp] sanitize callCount:", sf.count, "preserveEmoji:", sf.preserveEmoji);
-    for (const f of inspection.findings || []) {
-      const count = (f as any).photo_ids && Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
-      console.log("[report-fp] photo finding.id:", f.id, "photo_ids:", count);
-    }
-
-    // 8. 渲染 Word 文档
-    console.log("📝 Rendering Word document...");
-    const wordBuffer = await renderDocx(templateBuffer, templateData);
-    console.log(`✅ Word document generated: ${wordBuffer.length} bytes`);
 
     // 9. 返回 Word 文档
     const filename = `${inspectionId}-report.docx`;

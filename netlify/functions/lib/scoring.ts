@@ -202,14 +202,17 @@ export function computeOverall(
       category: profile.category,
     });
     
-    // Accumulate CapEx (sum budget ranges where available)
-    if (profile.budget && typeof profile.budget.low === "number" && typeof profile.budget.high === "number") {
-      capexLow += profile.budget.low;
-      capexHigh += profile.budget.high;
-      hadAnyBudget = true;
-    } else {
-      // Flag incomplete if budget range is missing
-      capexIncomplete = true;
+    // Accumulate CapEx only for Urgent + Budgetary (exclude Acceptable / PLAN_MONITOR)
+    const isUrgentOrBudgetary =
+      effectivePriority === "IMMEDIATE" || effectivePriority === "URGENT" || effectivePriority === "RECOMMENDED_0_3_MONTHS";
+    if (isUrgentOrBudgetary) {
+      if (profile.budget && typeof profile.budget.low === "number" && typeof profile.budget.high === "number") {
+        capexLow += profile.budget.low;
+        capexHigh += profile.budget.high;
+        hadAnyBudget = true;
+      } else {
+        capexIncomplete = true;
+      }
     }
   }
   

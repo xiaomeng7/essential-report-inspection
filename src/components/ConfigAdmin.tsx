@@ -6,7 +6,25 @@ type Props = {
 
 const ADMIN_TOKEN_KEY = "admin_token";
 
-type ConfigType = "rules" | "mapping" | "responses" | "dimensions";
+type ConfigType = "rules" | "mapping" | "responses" | "dimensions" | "customLibrary";
+
+type CustomFindingLibraryEntry = {
+  id: string;
+  title: string;
+  safety: string;
+  urgency: string;
+  liability: string;
+  budget_low?: number;
+  budget_high?: number;
+  priority: string;
+  severity: number;
+  likelihood: number;
+  escalation: string;
+  is_common?: boolean;
+  use_count?: number;
+  created_at?: string;
+  updated_at?: string;
+};
 
 type ConfigData = {
   content: string;
@@ -68,6 +86,10 @@ export function ConfigAdmin({ onBack }: Props) {
     missing: Array<{ id: string; missing: string[] }>;
   } | null>(null);
   const [editedDimensions, setEditedDimensions] = useState<Record<string, Record<string, unknown>>>({});
+  const [libraryEntries, setLibraryEntries] = useState<CustomFindingLibraryEntry[] | null>(null);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [librarySaving, setLibrarySaving] = useState(false);
+  const [libraryEdit, setLibraryEdit] = useState<Partial<CustomFindingLibraryEntry> & { title: string } | null>(null);
 
   const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
     try {
@@ -144,24 +166,27 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   }, []);
 
-  // Check URL tab param (e.g. ?tab=dimensions)
+  // Check URL tab param (e.g. ?tab=dimensions, ?tab=customLibrary)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam && ["rules", "mapping", "responses", "dimensions"].includes(tabParam) && activeTab !== tabParam) {
+    if (tabParam && ["rules", "mapping", "responses", "dimensions", "customLibrary"].includes(tabParam) && activeTab !== tabParam) {
       setActiveTab(tabParam as ConfigType);
-      if (authToken) {
+      if (tabParam === "customLibrary") loadLibrary();
+      else if (authToken) {
         if (tabParam === "dimensions") loadDimensions(authToken);
         else loadConfig(authToken, tabParam as "rules" | "mapping" | "responses");
       }
     }
-  }, []);
+  }, [loadLibrary]);
 
   useEffect(() => {
     const savedToken = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
     if (savedToken) {
       setAuthToken(savedToken);
-      if (activeTab === "dimensions") {
+      if (activeTab === "customLibrary") {
+        loadLibrary();
+      } else if (activeTab === "dimensions") {
         loadDimensions(savedToken);
       } else {
         loadConfig(savedToken, activeTab);
@@ -171,7 +196,7 @@ export function ConfigAdmin({ onBack }: Props) {
       setIsAuthError(true);
       setError("请输入 Admin Token");
     }
-  }, [loadConfig, loadDimensions, activeTab]);
+  }, [loadConfig, loadDimensions, loadLibrary, activeTab]);
 
   const handleRetryWithToken = () => {
     const t = tokenInput.trim();
@@ -352,12 +377,31 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   };
 
+  const loadLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/customFindingLibrary");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { entries: CustomFindingLibraryEntry[] };
+      setLibraryEntries(Array.isArray(data.entries) ? data.entries : []);
+    } catch (e) {
+      setLibraryEntries([]);
+      setError((e as Error).message);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, []);
+
   const handleTabChange = (newTab: ConfigType) => {
     setActiveTab(newTab);
     setEditMode("visual");
     setSearchTerm("");
-    if (authToken) {
-      if (newTab === "dimensions") {
+    setLibraryEdit(null);
+    if (authToken || newTab === "customLibrary") {
+      if (newTab === "customLibrary") {
+        loadLibrary();
+      } else if (newTab === "dimensions") {
         loadDimensions(authToken);
       } else {
         loadConfig(authToken, newTab);
@@ -404,7 +448,7 @@ export function ConfigAdmin({ onBack }: Props) {
     }));
   };
 
-  if (loading && !configData) {
+  if (loading && !configData && activeTab !== "customLibrary") {
     return (
       <div className="app" style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
         <h1>规则 & 文案管理</h1>
@@ -467,6 +511,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "文案 (responses.yml)";
       case "dimensions":
         return "Finding 维度 (7 维度)";
+      case "customLibrary":
+        return "自定义 Finding 库";
     }
   };
 
@@ -480,6 +526,53 @@ export function ConfigAdmin({ onBack }: Props) {
         return "编辑文案模板，定义每个 finding 的标题、说明、建议等文本内容";
       case "dimensions":
         return "可视化编辑 7 维度：Safety、Urgency、Liability、Budget、Priority、Severity、Likelihood、Escalation";
+      case "customLibrary":
+        return "维护自定义问题库：标题与 9 维度。技师选 Other 时可从库中选（二期）；工程师可在此直观编辑 9 个维度。";
+    }
+  };
+
+  const saveLibraryEntry = async () => {
+    if (!libraryEdit || !libraryEdit.title?.trim()) return;
+    setLibrarySaving(true);
+    setError(null);
+    try {
+      const url = "/api/customFindingLibrary";
+      if (libraryEdit.id) {
+        const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(libraryEdit) });
+        if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+        const data = (await res.json()) as { entry: CustomFindingLibraryEntry };
+        setLibraryEntries((prev) => (prev ?? []).map((e) => (e.id === data.entry.id ? data.entry : e)));
+      } else {
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(libraryEdit) });
+        if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+        const data = (await res.json()) as { entry: CustomFindingLibraryEntry };
+        setLibraryEntries((prev) => [...(prev ?? []), data.entry]);
+      }
+      setLibraryEdit(null);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
+  const deleteLibraryEntry = async (id: string) => {
+    if (!window.confirm("确定删除这条库条目？")) return;
+    setLibrarySaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/customFindingLibrary", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+      setLibraryEntries((prev) => (prev ?? []).filter((e) => e.id !== id));
+      setLibraryEdit((prev) => (prev?.id === id ? null : prev));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLibrarySaving(false);
     }
   };
 
@@ -523,13 +616,13 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : "文案"}已保存！
+          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
         </div>
       )}
 
       {/* Tab Navigation */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
-        {(["rules", "mapping", "responses", "dimensions"] as ConfigType[]).map((tab) => (
+        {(["rules", "mapping", "responses", "dimensions", "customLibrary"] as ConfigType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -732,6 +825,95 @@ export function ConfigAdmin({ onBack }: Props) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Custom Finding Library Tab - 9 维度库管理 */}
+      {activeTab === "customLibrary" && (
+        <div style={{ marginBottom: "20px" }}>
+          {libraryLoading && <p>加载库中...</p>}
+          {!libraryLoading && libraryEntries && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span>共 {libraryEntries.length} 条</span>
+                <button type="button" className="btn-primary" onClick={() => setLibraryEdit({ title: "", safety: "LOW", urgency: "LONG_TERM", liability: "LOW", priority: "PLAN_MONITOR", severity: 2, likelihood: 2, escalation: "LOW" })}>新增</button>
+              </div>
+              <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead style={{ background: "#f5f5f5" }}>
+                    <tr><th style={{ padding: 8, textAlign: "left" }}>标题</th><th style={{ padding: 8 }}>Priority</th><th style={{ padding: 8 }}>Safety</th><th style={{ padding: 8 }}>Urgency</th><th style={{ padding: 8 }}>Liability</th><th style={{ padding: 8 }}>使用次数</th><th style={{ padding: 8 }}>操作</th></tr>
+                  </thead>
+                  <tbody>
+                    {libraryEntries.map((e) => (
+                      <tr key={e.id} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: 6 }}>{e.title}</td>
+                        <td style={{ padding: 6 }}>{e.priority}</td>
+                        <td style={{ padding: 6 }}>{e.safety}</td>
+                        <td style={{ padding: 6 }}>{e.urgency}</td>
+                        <td style={{ padding: 6 }}>{e.liability}</td>
+                        <td style={{ padding: 6 }}>{e.use_count ?? 0}</td>
+                        <td style={{ padding: 6 }}>
+                          <button type="button" className="btn-secondary" style={{ marginRight: 8 }} onClick={() => setLibraryEdit({ ...e })}>编辑</button>
+                          <button type="button" className="btn-secondary" onClick={() => deleteLibraryEntry(e.id)}>删除</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          {libraryEdit !== null && (
+            <div style={{ marginTop: 24, padding: 24, background: "#f8f9fa", borderRadius: 12, border: "1px solid #ddd" }}>
+              <h3 style={{ marginTop: 0 }}>{libraryEdit.id ? "编辑库条目" : "新增库条目"}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ fontSize: 12, color: "#666" }}>标题</label>
+                  <input type="text" value={libraryEdit.title} onChange={(e) => setLibraryEdit((p) => p ? { ...p, title: e.target.value } : null)} placeholder="例如：插座发热" style={{ width: "100%", padding: 8, marginTop: 4, boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Safety</label>
+                  <select value={libraryEdit.safety ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, safety: e.target.value } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}><option value="HIGH">HIGH</option><option value="MODERATE">MODERATE</option><option value="LOW">LOW</option></select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Urgency</label>
+                  <select value={libraryEdit.urgency ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, urgency: e.target.value } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}><option value="IMMEDIATE">IMMEDIATE</option><option value="SHORT_TERM">SHORT_TERM</option><option value="LONG_TERM">LONG_TERM</option></select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Liability</label>
+                  <select value={libraryEdit.liability ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, liability: e.target.value } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Budget Low</label>
+                  <input type="number" value={libraryEdit.budget_low ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, budget_low: e.target.value ? Number(e.target.value) : undefined } : null)} style={{ width: "100%", padding: 6, marginTop: 2, boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Budget High</label>
+                  <input type="number" value={libraryEdit.budget_high ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, budget_high: e.target.value ? Number(e.target.value) : undefined } : null)} style={{ width: "100%", padding: 6, marginTop: 2, boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Priority</label>
+                  <select value={libraryEdit.priority ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, priority: e.target.value } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}><option value="IMMEDIATE">IMMEDIATE</option><option value="RECOMMENDED_0_3_MONTHS">RECOMMENDED_0_3_MONTHS</option><option value="PLAN_MONITOR">PLAN_MONITOR</option></select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Severity (1-5)</label>
+                  <select value={libraryEdit.severity ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, severity: e.target.value ? Number(e.target.value) : 2 } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Likelihood (1-5)</label>
+                  <select value={libraryEdit.likelihood ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, likelihood: e.target.value ? Number(e.target.value) : 2 } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: "#666" }}>Escalation</label>
+                  <select value={libraryEdit.escalation ?? ""} onChange={(e) => setLibraryEdit((p) => p ? { ...p, escalation: e.target.value } : null)} style={{ width: "100%", padding: 6, marginTop: 2 }}><option value="HIGH">HIGH</option><option value="MODERATE">MODERATE</option><option value="LOW">LOW</option></select>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button type="button" className="btn-primary" onClick={saveLibraryEntry} disabled={librarySaving || !libraryEdit.title?.trim()}>{librarySaving ? "保存中…" : "保存"}</button>
+                <button type="button" className="btn-secondary" onClick={() => setLibraryEdit(null)}>取消</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

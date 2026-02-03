@@ -590,6 +590,18 @@ async function applyPriority(
   return bucket;
 }
 
+/**
+ * Compute priority from safety/urgency/liability only (for custom findings).
+ * Reuses the same base_priority_matrix and liability_adjustment as standard findings.
+ */
+export async function computePriorityFromMeta(
+  findingId: string,
+  meta: { safety: string; urgency: string; liability: string },
+  event?: HandlerEvent
+): Promise<string> {
+  return applyPriority(findingId, meta, event);
+}
+
 export type EvaluatedFinding = { id: string; priority: string; title?: string; location?: string; photo_ids?: string[] };
 
 export async function evaluateFindings(facts: Record<string, unknown>, event?: HandlerEvent): Promise<EvaluatedFinding[]> {
@@ -607,28 +619,22 @@ export async function evaluateFindings(facts: Record<string, unknown>, event?: H
     byId.set(id, { id, priority, title: id.replace(/_/g, " "), location: loc || undefined });
   }
 
+  // Room findings: one row per (id, location) so same issue in different rooms shows separately with location
+  const roomFindingsList: EvaluatedFinding[] = [];
   for (const rf of roomFindings) {
     const meta = findings[rf.id];
     if (!meta) continue;
     const priority = await applyPriority(rf.id, meta, event);
-    const existing = byId.get(rf.id);
-    if (existing) {
-      const locs = [existing.location, rf.location].filter(Boolean);
-      const pids = [...(existing.photo_ids ?? []), ...rf.photo_ids];
-      existing.location = locs.length ? [...new Set(locs)].join("; ") : undefined;
-      existing.photo_ids = [...new Set(pids)].slice(0, 10);
-    } else {
-      byId.set(rf.id, {
-        id: rf.id,
-        priority,
-        title: rf.id.replace(/_/g, " "),
-        location: rf.location || undefined,
-        photo_ids: rf.photo_ids.length ? rf.photo_ids : undefined,
-      });
-    }
+    roomFindingsList.push({
+      id: rf.id,
+      priority,
+      title: rf.id.replace(/_/g, " "),
+      location: rf.location || undefined,
+      photo_ids: rf.photo_ids.length ? rf.photo_ids : undefined,
+    });
   }
 
-  return Array.from(byId.values());
+  return [...Array.from(byId.values()), ...roomFindingsList];
 }
 
 export function collectLimitations(raw: Record<string, unknown>): string[] {

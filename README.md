@@ -30,8 +30,10 @@ Uses Netlify Dev to serve the Vite app and Netlify Functions together:
 npm run netlify:dev
 ```
 
-- App: http://localhost:8888
+- 在终端里显示的地址打开应用（如 http://localhost:8888 或 http://localhost:51643）。
 - API: `/api/submitInspection`, `/api/review/:id`
+
+**若出现 `http proxy error: socket hang up` 或 `ECONNREFUSED`**：多为 Netlify Dev 在热重载 Functions 时连接被断开。先刷新页面或重试；若仍失败，重启 `npm run netlify:dev` 再试。
 
 ### Frontend only
 

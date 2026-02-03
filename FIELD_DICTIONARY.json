@@ -379,7 +379,7 @@
           "type": "enum",
           "enum": "year_built",
           "required": false,
-          "skippable": true,
+          "skippable": false,
           "ui": "radio"
         },
         {
@@ -412,6 +412,15 @@
           "required": true,
           "skippable": false,
           "ui": "checkboxes"
+        },
+        {
+          "key": "job.reported_issues_other",
+          "label": "Describe (when «Other» selected above)",
+          "type": "string",
+          "required": false,
+          "skippable": true,
+          "helper_text": "若在「Reported issues」中勾选了 Other，请在此填写具体问题。",
+          "ui": "text"
         }
       ]
     },

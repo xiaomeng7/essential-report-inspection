@@ -1,0 +1,36 @@
+You are working on Better Home Technology's report generation pipeline.
+
+GOAL:
+Generate a Word report that matches the formatting of the attached DOCX master template exactly, while safely filling placeholders.
+
+FILES PROVIDED:
+1) Gold_Sample_Final_Master_Template.docx  (master template)
+2) placeholder_spec.md (placeholder rules + full list)
+3) report_md_template.md (content model)
+
+CRITICAL REQUIREMENTS:
+- Placeholders are double-curly: {{PLACEHOLDER_NAME}}.
+- Placeholders MUST remain continuous and unbroken (single run). Do NOT split placeholders into multiple runs.
+- Do NOT introduce custom XML parts that can break Word compatibility.
+- Output DOCX must open in Microsoft Word (Windows/Mac) without errors.
+- Preserve styles from the master template (fonts, spacing, headings, tables).
+
+IMPLEMENTATION (recommended):
+A) Use a DOCX templating library that respects runs (e.g., docxtemplater) OR do low-level XML replacement of whole placeholder strings.
+B) Replace placeholders in:
+   - body paragraphs
+   - table cells
+C) After replacement, validate:
+   - DOCX is a valid ZIP
+   - word/document.xml parses
+   - word/styles.xml is unchanged from master
+   - No placeholder remnants remain (unless intentionally blank)
+
+OUTPUT:
+- A final DOCX saved as: EH-{{REPORT_ID}}.docx
+
+TEST:
+Use 3 test datasets:
+1) minimal (few findings, 1 CapEx row)
+2) medium (typical house, 3 CapEx rows)
+3) heavy (more findings, 5 CapEx rows)

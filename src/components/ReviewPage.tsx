@@ -17,7 +17,7 @@ type CustomFindingPending = {
 type ReviewData = {
   inspection_id: string;
   report_html: string;
-  findings: Array<{ id: string; priority: string; title?: string }>;
+  findings: Array<{ id: string; priority: string; title?: string; location?: string }>;
   limitations?: string[];
   raw_data?: Record<string, unknown>;
   custom_findings_pending?: CustomFindingPending[];
@@ -32,11 +32,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   // const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null); // Temporarily disabled with AI
-  const [isGeneratingWord, setIsGeneratingWord] = useState(false);
-  const [wordError, setWordError] = useState<string | null>(null);
-  const [isGeneratingOfficialWord, setIsGeneratingOfficialWord] = useState(false);
-  const [officialWordReady, setOfficialWordReady] = useState(false);
-  const [officialWordError, setOfficialWordError] = useState<string | null>(null);
   const [isGeneratingMarkdownWord, setIsGeneratingMarkdownWord] = useState(false);
   const [markdownWordError, setMarkdownWordError] = useState<string | null>(null);
   const [customFindingsToFill, setCustomFindingsToFill] = useState<CustomFindingInput[] | null>(null);
@@ -49,6 +44,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as ReviewData;
       setData(json);
+      if (json.report_html) setTemplateHtml(json.report_html);
       const pending = json.custom_findings_pending ?? [];
       if (pending.length > 0) {
         setCustomFindingsToFill(
@@ -89,6 +85,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await loadData();
+      setCustomFindingsToFill(null);
     } catch (e) {
       console.error("Failed to save custom findings:", e);
       alert("保存失败：" + (e instanceof Error ? e.message : String(e)));
@@ -177,210 +174,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       setIsEnhancing(false);
     }
     */
-  };
-
-  const handleGeneratePDF = async () => {
-    if (!reportRef.current) return;
-
-    try {
-      // Create a new window for printing with the report content
-      // This ensures CSS @media print rules are properly applied
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) {
-        alert("无法打开打印窗口，请检查浏览器弹窗设置");
-        return;
-      }
-
-      // Get the report HTML content
-      const reportContent = reportRef.current.innerHTML;
-      
-      // Get all styles from the current document
-      const styles = Array.from(document.styleSheets)
-        .map((sheet) => {
-          try {
-            return Array.from(sheet.cssRules)
-              .map((rule) => rule.cssText)
-              .join("\n");
-          } catch (e) {
-            // Cross-origin stylesheets will throw an error, skip them
-            return "";
-          }
-        })
-      .filter(Boolean)
-      .join("\n");
-      
-      // Create a complete HTML document with all styles and print media rules
-      const printDocument = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Electrical Property Health Assessment – ${data?.inspection_id || inspectionId}</title>
-  <style>
-    ${styles}
-    
-    /* Ensure print styles are applied */
-    @media print {
-      @page {
-        size: A4;
-        margin: 0;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-        background: #fff !important;
-      }
-      .page {
-        margin: 0 !important;
-        max-width: none !important;
-        padding: 0 !important;
-      }
-      .card {
-        box-shadow: none !important;
-        border: none !important;
-      }
-      .cover, .bucket-head, .pill {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      /* Force a new printed page */
-      .page-break {
-        page-break-before: always !important;
-        break-before: page !important;
-      }
-      /* Avoid splitting important blocks across pages */
-      .avoid-break {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      /* Try not to split sections where possible */
-      .section {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      /* Keep headings with the first content line where possible */
-      h2, h3 {
-        page-break-after: avoid !important;
-        break-after: avoid !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  ${reportContent}
-</body>
-</html>`;
-
-      printWindow.document.write(printDocument);
-      printWindow.document.close();
-      
-      // Wait for content to load, then trigger print dialog
-      // The browser's print dialog will respect CSS @media print rules
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          // Note: The window will stay open so user can see the print preview
-          // User can close it manually after printing/saving as PDF
-        }, 250);
-      };
-    } catch (e) {
-      console.error("Error generating PDF:", e);
-      alert("生成 PDF 时出错，请重试");
-    }
-  };
-
-  const handleGenerateWord = async () => {
-    if (!data) {
-      console.error("Cannot generate Word: data is null");
-      return;
-    }
-
-    setIsGeneratingWord(true);
-    setWordError(null);
-
-    try {
-      console.log("Generating Word document for:", data.inspection_id);
-      
-      const res = await fetch("/api/generateWord", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inspection_id: data.inspection_id
-        })
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const result = await res.json();
-      console.log("Word document generated:", result);
-
-      // Download the Word document
-      const downloadUrl = `/api/downloadWord?inspection_id=${data.inspection_id}`;
-      window.open(downloadUrl, "_blank");
-      
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
-      setWordError(errorMessage);
-      console.error("Error generating Word document:", e);
-      alert(`生成 Word 文档时出错: ${errorMessage}`);
-    } finally {
-      setIsGeneratingWord(false);
-    }
-  };
-
-  const handleGenerateOfficialWord = async () => {
-    if (!data?.inspection_id) {
-      alert("无法生成 Word 文档：缺少检查 ID");
-      return;
-    }
-
-    setIsGeneratingOfficialWord(true);
-    setOfficialWordError(null);
-    setOfficialWordReady(false);
-
-    try {
-      console.log("Generating official Word document via generateWordReport for:", data.inspection_id);
-      
-      // Call generateWordReport with inspection_id
-      const res = await fetch(`/.netlify/functions/generateWordReport?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
-        console.error("API error response:", errorData);
-        throw new Error(errorMessage);
-      }
-
-      const result = await res.json();
-      console.log("Official Word document generated:", result);
-
-      if (result.ok && result.inspection_id) {
-        setOfficialWordReady(true);
-      } else {
-        throw new Error("生成失败，未返回有效的 inspection_id");
-      }
-      
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
-      setOfficialWordError(errorMessage);
-      console.error("Error generating official Word document:", e);
-      
-      // Show detailed error message
-      const fullError = e instanceof Error ? e.toString() : String(e);
-      console.error("Full error details:", fullError);
-      
-      // Display error in alert with more details
-      alert(`生成 Word 官方版时出错:\n\n${errorMessage}\n\n请查看浏览器控制台获取更多详细信息。`);
-    } finally {
-      setIsGeneratingOfficialWord(false);
-    }
   };
 
   const handleGenerateMarkdownWord = async () => {
@@ -495,81 +288,19 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       <div style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
           <h1 style={{ margin: 0, flex: 1 }}>
-            {isEnhanced ? "Enhanced Report" : isShowingTemplate ? "Generating Report..." : "Draft Report"} — {data.inspection_id}
+            Report — {data.inspection_id}
           </h1>
-          {!isEnhanced && !isShowingTemplate && (
-            <button 
-              type="button" 
-              className="btn-primary" 
-              onClick={handleEnhanceReport}
-              disabled={isEnhancing}
-            >
-              {isEnhancing ? "AI生成中..." : "AI生成report"}
-            </button>
-          )}
-          {(isEnhanced || isShowingTemplate) && (
-            <>
-              <button 
-                type="button" 
-                className="btn-primary" 
-                onClick={handleGeneratePDF}
-                disabled={isShowingTemplate}
-              >
-                生成PDF
-              </button>
-              <button 
-                type="button" 
-                className="btn-primary" 
-                onClick={handleGenerateWord}
-                disabled={isGeneratingWord || isShowingTemplate}
-              >
-                {isGeneratingWord ? "生成Word中..." : "生成Word报告"}
-              </button>
-            </>
-          )}
-          {/* AI Generate Word button (Markdown-based) */}
+          {/* 生成 Word：基于模板与规则，不使用 OpenAI/任何 AI API（测试阶段） */}
           <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button 
-              type="button" 
-              className="btn-primary" 
+            <button
+              type="button"
+              className="btn-primary"
               onClick={handleGenerateMarkdownWord}
               disabled={isGeneratingMarkdownWord}
-              style={{ 
-                backgroundColor: "#4caf50",
-                minWidth: "180px"
-              }}
+              style={{ backgroundColor: "#4caf50", minWidth: "160px" }}
             >
-              {isGeneratingMarkdownWord ? "AI 生成中..." : "AI 生成 Word"}
+              {isGeneratingMarkdownWord ? "生成中..." : "生成 Word"}
             </button>
-          </div>
-          
-          {/* Official Word generation buttons */}
-          <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
-            {!officialWordReady && (
-              <button 
-                type="button" 
-                className="btn-primary" 
-                onClick={handleGenerateOfficialWord}
-                disabled={isGeneratingOfficialWord}
-              >
-                {isGeneratingOfficialWord ? "生成中..." : "AI 生成（Word 官方版）"}
-              </button>
-            )}
-            {officialWordReady && data?.inspection_id && (
-              <a
-                href={`/.netlify/functions/downloadWord?inspection_id=${encodeURIComponent(data.inspection_id)}`}
-                className="btn-primary"
-                style={{ 
-                  display: "inline-block", 
-                  textDecoration: "none", 
-                  textAlign: "center",
-                  padding: "14px 20px"
-                }}
-                download
-              >
-                下载 Word（官方版）
-              </a>
-            )}
           </div>
         </div>
         {/* Model info temporarily disabled with AI */}
@@ -604,17 +335,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         </div>
       )}
 
-      {wordError && (
-        <div style={{ 
-          padding: "12px", 
-          marginBottom: "16px", 
-          backgroundColor: "#ffebee", 
-          color: "#c62828",
-          borderRadius: "4px"
-        }}>
-          <strong>Word生成错误:</strong> {wordError}
-        </div>
-      )}
       {markdownWordError && (
         <div style={{ 
           padding: "12px", 
@@ -623,40 +343,18 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           color: "#c62828",
           borderRadius: "4px"
         }}>
-          <strong>AI 生成 Word 错误:</strong> {markdownWordError}
+          <strong>生成 Word 错误:</strong> {markdownWordError}
         </div>
       )}
-      {officialWordError && (
-        <div style={{ 
-          padding: "16px", 
-          marginBottom: "16px", 
-          backgroundColor: "#ffebee", 
-          color: "#c62828",
-          borderRadius: "4px",
-          border: "1px solid #ef5350",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontSize: "14px",
-          lineHeight: "1.6"
-        }}>
-          <strong style={{ display: "block", marginBottom: "8px", fontSize: "16px" }}>
-            Word官方版生成错误:
-          </strong>
-          <div style={{ fontFamily: "monospace", fontSize: "13px" }}>
-            {officialWordError}
-          </div>
-        </div>
-      )}
-
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings &amp; Photo Evidence</h2>
           <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
             Add photo evidence for each finding. Max 2 photos per finding. Photos will be included in the final report.
           </p>
-          {data.findings.map((f) => (
+          {data.findings.map((f, idx) => (
             <div
-              key={f.id}
+              key={`${f.id}-${f.location ?? ""}-${idx}`}
               style={{
                 border: "1px solid #e0e0e0",
                 borderRadius: 8,
@@ -687,7 +385,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
                     ? "RECOMMENDED"
                     : "PLAN/MONITOR"}
                 </span>
-                <span style={{ fontWeight: 500 }}>{f.title ?? f.id}</span>
+                <span style={{ fontWeight: 500 }}>
+                  {f.title ?? f.id}
+                  {f.location && <span style={{ color: "#666", fontWeight: 400 }}> — {f.location}</span>}
+                </span>
               </div>
               <PhotoEvidenceSection
                 inspectionId={data.inspection_id}
@@ -706,17 +407,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
               <li key={i}>{s}</li>
             ))}
           </ul>
-        </div>
-      )}
-      {(isEnhancing || isShowingTemplate) && (
-        <div style={{ 
-          padding: "20px", 
-          textAlign: "center", 
-          backgroundColor: "#f5f5f5", 
-          borderRadius: "8px",
-          marginBottom: "20px"
-        }}>
-          <p>{isShowingTemplate ? "正在使用AI增强报告内容..." : "AI正在生成报告，请稍候..."}</p>
         </div>
       )}
       <div 

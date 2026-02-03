@@ -72,7 +72,8 @@ export type ReportData = {
   TEST_SUMMARY: string;
   TECHNICAL_NOTES: string;
   
-  // Additional metadata (for compatibility)
+  // Additional metadata (for compatibility); OVERALL_RISK_LABEL from property signals (Low/Moderate/Elevated)
+  OVERALL_RISK_LABEL: string;
   OVERALL_STATUS: string;
   RISK_RATING: string;
   CAPEX_RANGE: string;
@@ -164,6 +165,7 @@ export const DEFAULT_PLACEHOLDER_VALUES: ReportData = {
   TECHNICAL_NOTES: "Technical notes and limitations are documented throughout this report.",
   
   // Additional metadata
+  OVERALL_RISK_LABEL: "Moderate",
   OVERALL_STATUS: "MODERATE RISK",
   RISK_RATING: "MODERATE",
   CAPEX_RANGE: "To be confirmed",
@@ -258,12 +260,18 @@ export function validateReportDataAgainstPlaceholderMap(
   return { missingRequired, missingOptional };
 }
 
+export type EnsureAllPlaceholdersOptions = {
+  /** When true, skip logging missing required/optional (e.g. when building for Gold template which does not use REPORT_BODY_HTML) */
+  skipValidationLog?: boolean;
+};
+
 /**
  * Ensure all required placeholders are present and non-empty
  * @param data Partial ReportData object
+ * @param options skipValidationLog: do not log missing required/optional (for Gold template path)
  * @returns Complete ReportData with all fields populated
  */
-export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
+export function ensureAllPlaceholders(data: Partial<ReportData>, options?: EnsureAllPlaceholdersOptions): ReportData {
   const result: ReportData = { ...DEFAULT_PLACEHOLDER_VALUES };
   
   // Override with provided data (convert all to strings)
@@ -316,11 +324,13 @@ export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
       .replace(/$/, "</p>");
   }
   
-  // Validate and log warnings
+  // Validate and optionally log warnings
   const validation = validateReportDataAgainstPlaceholderMap(result);
   
   if (validation.missingRequired.length > 0) {
-    console.warn("⚠️ Missing required placeholders:", validation.missingRequired.join(", "));
+    if (!options?.skipValidationLog) {
+      console.warn("⚠️ Missing required placeholders:", validation.missingRequired.join(", "));
+    }
     // Fill missing required fields with defaults
     for (const key of validation.missingRequired) {
       const typedKey = key as keyof ReportData;
@@ -328,7 +338,7 @@ export function ensureAllPlaceholders(data: Partial<ReportData>): ReportData {
     }
   }
   
-  if (validation.missingOptional.length > 0) {
+  if (validation.missingOptional.length > 0 && !options?.skipValidationLog) {
     console.log("ℹ️ Missing optional placeholders:", validation.missingOptional.join(", "));
   }
   

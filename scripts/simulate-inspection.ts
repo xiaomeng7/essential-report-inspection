@@ -169,6 +169,17 @@ function buildPayload() {
 }
 
 async function main() {
+  // --write-payload: 仅生成 public/sample-inspection-payload.json，供前端「一键测试」使用
+  if (process.argv.includes("--write-payload")) {
+    const payload = buildPayload();
+    const outDir = path.join(__dirname, "..", "public");
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+    const outPath = path.join(outDir, "sample-inspection-payload.json");
+    fs.writeFileSync(outPath, JSON.stringify(payload, null, 2), "utf8");
+    console.log("Wrote", outPath);
+    process.exit(0);
+  }
+
   console.log("\n=== 模拟技师上门检查 - 端到端测试 ===\n");
   console.log("Base URL:", BASE_URL);
   console.log("");
