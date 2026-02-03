@@ -1,6 +1,10 @@
 /**
  * Logical blocks for inspection flow: technician fills one block at a time
  * (e.g. Meter Box → main switch, consumer main, earthing, RCD) to avoid running around.
+ *
+ * WIZARD_PAGES defines the field-technician-friendly page order:
+ * Page 1 Internal Rooms (Lighting, Switches, GPO), Page 2 Switchboard & RCD,
+ * Page 3 Roof Space, Page 4 Earthing & External, then other steps.
  */
 
 export type BlockDef = {
@@ -10,50 +14,59 @@ export type BlockDef = {
   sectionIds: string[];
 };
 
-/** Block order and grouping; aligned with PDF On-Site Technical Checklist. */
-export const INSPECTION_BLOCKS: BlockDef[] = [
-  { id: "context", title: "房产信息", titleEn: "Property Information", sectionIds: ["S0_START_CONTEXT"] },
-  { id: "access", title: "进入与限制", titleEn: "Access & Limitations", sectionIds: ["S1_ACCESS_LIMITATIONS"] },
+/** Wizard step order: each step is one "page" (one or more sections). Used for layout only; payload unchanged. */
+export const WIZARD_PAGES: BlockDef[] = [
+  { id: "context", title: "Property Information", titleEn: "Property Information", sectionIds: ["S0_START_CONTEXT"] },
+  { id: "access", title: "Access & Limitations", titleEn: "Access & Limitations", sectionIds: ["S1_ACCESS_LIMITATIONS"] },
   {
-    id: "supply_distribution",
-    title: "供电与配电",
-    titleEn: "Supply & Distribution",
+    id: "internal_rooms",
+    title: "Internal Rooms",
+    titleEn: "Internal Rooms",
+    sectionIds: ["S7B_LIGHTING_BY_ROOM", "S3B_LIGHTING_SWITCHES", "S7A_GPO_BY_ROOM", "S8_GPO_LIGHTING_EXCEPTIONS"],
+  },
+  {
+    id: "switchboard_rcd",
+    title: "Switchboard & RCD",
+    titleEn: "Switchboard & RCD",
     sectionIds: [
       "S2_SUPPLY_OVERVIEW",
       "S2_MAIN_SWITCH",
       "S2_SWITCHBOARD_OVERVIEW",
       "S3_SWITCHBOARD_CAPACITY_LABELS",
-      "S4_EARTHING_MEN",
-      "S4_CABLES_LEGACY",
+      "S5_RCD_TESTS_SUMMARY",
+      "S6_RCD_TESTS_EXCEPTIONS",
     ],
   },
-  { id: "rcd", title: "RCD 测试", titleEn: "RCD Tests", sectionIds: ["S5_RCD_TESTS_SUMMARY", "S6_RCD_TESTS_EXCEPTIONS"] },
-  { id: "gpo_lighting", title: "GPO 与照明", titleEn: "GPO & Lighting", sectionIds: ["S7A_GPO_BY_ROOM", "S8_GPO_LIGHTING_EXCEPTIONS", "S7B_LIGHTING_BY_ROOM"] },
+  { id: "roof_space", title: "Roof Space", titleEn: "Roof Space", sectionIds: ["S3F_ROOF_SPACE"] },
   {
-    id: "internal_installation",
-    title: "室内安装",
-    titleEn: "Internal Installation",
-    sectionIds: [
-      "S3B_LIGHTING_SWITCHES",
-      "S3C_KITCHEN",
-      "S3D_BATHROOMS",
-      "S3E_LAUNDRY",
-      "S3F_ROOF_SPACE",
-      "S3G_EXTERIOR_GARAGE",
-      "S3H_SMOKE_ALARMS",
-      "S3I_GENERAL_OBSERVATIONS",
-    ],
+    id: "earthing_external",
+    title: "Earthing & External",
+    titleEn: "Earthing & External",
+    sectionIds: ["S4_EARTHING_MEN", "S4_CABLES_LEGACY", "S3G_EXTERIOR_GARAGE"],
   },
-  { id: "assets", title: "可再生能源与高负荷", titleEn: "Renewable & High-Load", sectionIds: ["S9_SOLAR_BATTERY_EV", "S9B_POOL_HIGH_LOAD"] },
-  { id: "measured", title: "测量与测试数据", titleEn: "Measured & Test Data", sectionIds: ["S5A_MEASURED_DATA"] },
-  { id: "exceptions", title: "例外与客户陈述", titleEn: "Exceptions & Client Statements", sectionIds: ["S6_EXCEPTIONS_COMPLETION"] },
-  { id: "signoff", title: "签字确认", titleEn: "Sign-off", sectionIds: ["S10_SIGNOFF"] },
+  {
+    id: "other_internal",
+    title: "Kitchen, Bathrooms & Other",
+    titleEn: "Kitchen, Bathrooms & Other",
+    sectionIds: ["S3C_KITCHEN", "S3D_BATHROOMS", "S3E_LAUNDRY", "S3H_SMOKE_ALARMS", "S3I_GENERAL_OBSERVATIONS"],
+  },
+  { id: "assets", title: "Solar, Battery & High Load", titleEn: "Solar, Battery & High Load", sectionIds: ["S9_SOLAR_BATTERY_EV", "S9B_POOL_HIGH_LOAD"] },
+  { id: "measured", title: "Measured Data", titleEn: "Measured Data", sectionIds: ["S5A_MEASURED_DATA"] },
+  { id: "exceptions", title: "Exceptions & Client Statements", titleEn: "Exceptions & Client Statements", sectionIds: ["S6_EXCEPTIONS_COMPLETION"] },
+  { id: "signoff", title: "Sign-off", titleEn: "Sign-off", sectionIds: ["S10_SIGNOFF"] },
 ];
+
+/** Block order and grouping; kept for getBlockForSection (now maps to wizard page). */
+export const INSPECTION_BLOCKS: BlockDef[] = WIZARD_PAGES;
 
 export function getBlocks() {
   return INSPECTION_BLOCKS;
 }
 
 export function getBlockForSection(sectionId: string): BlockDef | undefined {
-  return INSPECTION_BLOCKS.find((b) => b.sectionIds.includes(sectionId));
+  return WIZARD_PAGES.find((b) => b.sectionIds.includes(sectionId));
+}
+
+export function getWizardPages(): BlockDef[] {
+  return WIZARD_PAGES;
 }

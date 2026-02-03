@@ -5,10 +5,11 @@ import { validateSection } from "../lib/validation";
 import { useInspection, type IssueDetailsByField } from "../hooks/useInspection";
 import { SectionForm } from "./SectionForm";
 import { SectionPhotoEvidence } from "./SectionPhotoEvidence";
-import { getBlockForSection } from "../lib/inspectionBlocks";
+import { getWizardPages } from "../lib/inspectionBlocks";
 import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
 import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
 import { getFindingForField } from "../lib/fieldToFindingMap";
+import type { SectionDef } from "../lib/fieldDictionary";
 
 const GATE_KEYS = new Set([
   "rcd_tests.performed",
@@ -18,11 +19,9 @@ const GATE_KEYS = new Set([
   "assets.has_ev_charger",
 ]);
 
-/** S8 and S7B shown on one page; S7B is not a separate step when S8 is present. */
-const S8_COMBINED_WITH_S7B = "S8_GPO_LIGHTING_EXCEPTIONS";
-const S7B_LIGHTING_BY_ROOM = "S7B_LIGHTING_BY_ROOM";
+const S0_START_CONTEXT = "S0_START_CONTEXT";
 
-/** Sections that have a photo evidence block below the form. S7A/S7B omit it: photos are captured in the room table. */
+/** Sections that have a photo evidence block below the form. */
 const SECTIONS_WITH_PHOTOS = new Set([
   "S1_ACCESS_LIMITATIONS",
   "S2_SUPPLY_OVERVIEW",
@@ -47,7 +46,7 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S9B_POOL_HIGH_LOAD",
 ]);
 
-const S0_START_CONTEXT = "S0_START_CONTEXT";
+type VisibleStep = { pageId: string; pageTitle: string; sectionIds: string[] };
 
 type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
 
@@ -72,24 +71,30 @@ export function Wizard({ onSubmitted }: Props) {
   const [sectionErrors, setSectionErrors] = useState<Record<string, Record<string, string>>>({});
 
   const sections = useMemo(() => getSections(), []);
-  const visibleSections = useMemo(() => {
-    const filtered = sections.filter((s) => !isSectionGatedOut(s.id, state) && !isSectionAutoSkipped(s.id, state));
-    // Merge S8 + S7B into one step: when S8 is present, do not show S7B as a separate step (it is rendered with S8).
-    return filtered.filter((s, i, arr) => {
-      if (s.id === S7B_LIGHTING_BY_ROOM && arr[i - 1]?.id === S8_COMBINED_WITH_S7B) return false;
-      return true;
-    });
-  }, [sections, state]);
+  const sectionById = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, s])), [sections]);
 
-  const current = visibleSections[step];
+  const visibleSteps = useMemo((): VisibleStep[] => {
+    const pages = getWizardPages();
+    const out: VisibleStep[] = [];
+    for (const page of pages) {
+      const sectionIds = page.sectionIds.filter(
+        (id) => !isSectionGatedOut(id, state) && !isSectionAutoSkipped(id, state)
+      );
+      if (sectionIds.length > 0) {
+        out.push({ pageId: page.id, pageTitle: page.titleEn, sectionIds });
+      }
+    }
+    return out;
+  }, [state]);
+
+  const currentStep = visibleSteps[step];
   const isFirst = step === 0;
-  const isLast = step === visibleSections.length - 1;
-  const progress = visibleSections.length ? ((step + 1) / visibleSections.length) * 100 : 0;
+  const isLast = step === visibleSteps.length - 1;
+  const progress = visibleSteps.length ? ((step + 1) / visibleSteps.length) * 100 : 0;
 
   const goNext = () => {
-    if (!current) return;
-    const sectionsToValidate =
-      current.id === S8_COMBINED_WITH_S7B ? [S8_COMBINED_WITH_S7B, S7B_LIGHTING_BY_ROOM] : [current.id];
+    if (!currentStep) return;
+    const sectionsToValidate = currentStep.sectionIds;
     let allValid = true;
     const mergedErrors: Record<string, Record<string, string>> = {};
     for (const sectionId of sectionsToValidate) {
@@ -113,19 +118,17 @@ export function Wizard({ onSubmitted }: Props) {
       submitInspection();
       return;
     }
-    setStep((s) => Math.min(s + 1, visibleSections.length - 1));
+    setStep((s) => Math.min(s + 1, visibleSteps.length - 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goBack = () => {
     setStep((s) => Math.max(0, s - 1));
-    // Scroll to top when navigating to previous section
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const submitInspection = async () => {
     const { _staged_photos, _issue_details, ...rest } = state as Record<string, unknown>;
-    // Include _issue_details (without photos) in payload for backend storage
     const issueDetailsForPayload: Record<string, { location: string; notes: string }> = {};
     const issueDetails = (_issue_details as IssueDetailsByField) ?? {};
     for (const [fieldKey, detail] of Object.entries(issueDetails)) {
@@ -159,7 +162,6 @@ export function Wizard({ onSubmitted }: Props) {
       const data = JSON.parse(text) as { inspection_id: string; status: string; review_url: string };
       const inspectionId = data.inspection_id;
 
-      // Get findings from server to know which ones were created
       let findingIds: string[] = [];
       try {
         const reviewRes = await fetch(`/api/review/${inspectionId}`);
@@ -171,19 +173,11 @@ export function Wizard({ onSubmitted }: Props) {
         console.warn("Could not fetch findings for photo upload");
       }
 
-      // Upload issue detail photos (each field → finding mapping)
       for (const [fieldKey, detail] of Object.entries(issueDetails)) {
         if (!detail?.photo_ids?.length) continue;
         const findingId = getFindingForField(fieldKey);
-        if (!findingId) {
-          console.warn(`No finding mapping for field: ${fieldKey}`);
-          continue;
-        }
-        // Only upload if this finding was actually created
-        if (!findingIds.includes(findingId)) {
-          console.warn(`Finding ${findingId} not in inspection, skipping photos for ${fieldKey}`);
-          continue;
-        }
+        if (!findingId) continue;
+        if (!findingIds.includes(findingId)) continue;
         const location = detail.location || "";
         const notes = detail.notes || "";
         const caption = location ? `${location}${notes ? " - " + notes : ""}` : (notes || "Issue photo");
@@ -201,10 +195,10 @@ export function Wizard({ onSubmitted }: Props) {
         }
       }
 
-      // Upload staged section photos (legacy flow)
-      const stagedBySection = (typeof _staged_photos === "object" && _staged_photos !== null && !Array.isArray(_staged_photos))
-        ? (_staged_photos as Record<string, Array<{ caption: string; dataUrl: string }>>)
-        : {};
+      const stagedBySection =
+        typeof _staged_photos === "object" && _staged_photos !== null && !Array.isArray(_staged_photos)
+          ? (_staged_photos as Record<string, Array<{ caption: string; dataUrl: string }>>)
+          : {};
       const hasStaged = Object.keys(stagedBySection).some((k) => (stagedBySection[k]?.length ?? 0) > 0);
       if (hasStaged && findingIds.length > 0) {
         try {
@@ -227,12 +221,19 @@ export function Wizard({ onSubmitted }: Props) {
       const technicianName = getValue("signoff.technician_name") as string | undefined;
       onSubmitted(inspectionId, address, technicianName);
     } catch (e) {
+      const firstSection = currentStep?.sectionIds[0];
       setSectionErrors((prev) => ({
         ...prev,
-        [current!.id]: { _submit: (e as Error).message },
+        ...(firstSection ? { [firstSection]: { _submit: (e as Error).message } } : {}),
       }));
     }
   };
+
+  const currentPageHasS0 = currentStep?.sectionIds.includes(S0_START_CONTEXT);
+  const currentPageIsInternalRooms = currentStep?.pageId === "internal_rooms";
+  const currentPageIsSwitchboardRcd = currentStep?.pageId === "switchboard_rcd";
+  const currentPageIsRoof = currentStep?.pageId === "roof_space";
+  const currentPageIsEarthingExternal = currentStep?.pageId === "earthing_external";
 
   return (
     <div className="app">
@@ -241,145 +242,150 @@ export function Wizard({ onSubmitted }: Props) {
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <p className="progress-text">
-          Section {step + 1} of {visibleSections.length}
+          Page {step + 1} of {visibleSteps.length}: {currentStep?.pageTitle ?? ""}
         </p>
       </div>
 
-      {current && (
+      {currentStep && (
         <>
-          {/* Block title when section belongs to a logical block */}
-          {getBlockForSection(current.id) && (
-            <div style={{ margin: "12px 12px 0", fontSize: 12, color: "var(--text-muted)" }}>
-              {getBlockForSection(current.id)?.title} → {current.id === S8_COMBINED_WITH_S7B ? "GPO/Lighting 例外与灯具按房" : current.title}
-            </div>
-          )}
-          {/* Combined S8 + S7B: inspector checklist reminder */}
-          {current.id === S8_COMBINED_WITH_S7B && (
-            <div
-              className="section"
-              style={{
-                margin: 12,
-                padding: 12,
-                background: "var(--surface, #f5f8fa)",
-                borderRadius: 8,
-                border: "1px solid var(--border, #e0e6ed)",
-              }}
-            >
-              <p style={{ margin: "0 0 8px", fontWeight: 600 }}>检查要点 (Checklist)</p>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                <li>逐房确认灯具与开关：过热、不工作、松动、打火、调光异常等</li>
-                <li>有问题的房间在下方「灯具按房」表中填写并附照片</li>
-                <li>GPO 失败项：若已在上一页「GPO 按房」表中逐条填写，可勾选「No exceptions」；否则在下方「GPO/Lighting 例外」中逐条填写位置、问题类型并附照片</li>
-              </ul>
-            </div>
-          )}
-          {/* S0: 一键测试（加载示例 payload 并提交，跳转 Review 页生成报告） */}
-          {current.id === S0_START_CONTEXT && (
-            <div className="section" style={{ margin: 12, padding: 12, background: "var(--surface)", borderRadius: 8, border: "1px solid #e0e0e0" }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={oneClickTestLoading}
-                onClick={async () => {
-                  setOneClickTestError(null);
-                  setOneClickTestLoading(true);
-                  try {
-                    const r = await fetch("/sample-inspection-payload.json");
-                    if (!r.ok) throw new Error("测试数据未生成。请先运行: npm run write-sample-payload");
-                    const payload = await r.json();
-                    const res = await fetch("/api/submitInspection", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
-                    });
-                    if (!res.ok) {
-                      const text = await res.text();
-                      throw new Error(text || `HTTP ${res.status}`);
+          <div className="wizard-page">
+            <h1 className="wizard-page__title">{currentStep.pageTitle}</h1>
+
+            {/* Page 1 – Internal Rooms: checklist reminder */}
+            {currentPageIsInternalRooms && (
+              <div className="wizard-page__banner wizard-page__banner--info">
+                <p className="wizard-page__banner-heading">What to inspect</p>
+                <ul>
+                  <li>Lighting: operation, overheating, flicker, loose fittings</li>
+                  <li>Switches: operation, labelling, condition</li>
+                  <li>GPO (power points): test results by room; note any failures and add photos</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Page 2 – Switchboard & RCD: compliance emphasis */}
+            {currentPageIsSwitchboardRcd && (
+              <div className="wizard-page__banner wizard-page__banner--compliance">
+                <p className="wizard-page__banner-heading">Compliance-related</p>
+                <p>Switchboard condition, RCD presence and testing, labelling and enclosure.</p>
+              </div>
+            )}
+
+            {/* Page 3 – Roof: one-time access note */}
+            {currentPageIsRoof && (
+              <div className="wizard-page__banner wizard-page__banner--info">
+                <p className="wizard-page__banner-heading">Roof space</p>
+                <p>Complete all roof-related checks here. If access is not possible, record limitations below.</p>
+              </div>
+            )}
+
+            {/* Page 4 – Earthing & External: final checks */}
+            {currentPageIsEarthingExternal && (
+              <div className="wizard-page__banner wizard-page__banner--info">
+                <p className="wizard-page__banner-heading">Earthing & external</p>
+                <p>Earthing system and external electrical items before leaving site.</p>
+              </div>
+            )}
+
+            {/* S0: one-click test */}
+            {currentPageHasS0 && (
+              <div className="section wizard-page__card">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={oneClickTestLoading}
+                  onClick={async () => {
+                    setOneClickTestError(null);
+                    setOneClickTestLoading(true);
+                    try {
+                      const r = await fetch("/sample-inspection-payload.json");
+                      if (!r.ok) throw new Error("测试数据未生成。请先运行: npm run write-sample-payload");
+                      const payload = await r.json();
+                      const res = await fetch("/api/submitInspection", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                      });
+                      if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(text || `HTTP ${res.status}`);
+                      }
+                      const data = (await res.json()) as { inspection_id: string };
+                      onSubmitted(data.inspection_id);
+                    } catch (e) {
+                      setOneClickTestError((e as Error).message);
+                    } finally {
+                      setOneClickTestLoading(false);
                     }
-                    const data = (await res.json()) as { inspection_id: string };
-                    onSubmitted(data.inspection_id);
-                  } catch (e) {
-                    setOneClickTestError((e as Error).message);
-                  } finally {
-                    setOneClickTestLoading(false);
-                  }
-                }}
-              >
-                {oneClickTestLoading ? "提交中…" : "一键测试（填充并提交 → 生成报告）"}
-              </button>
-              {oneClickTestError && <p className="validation-msg" style={{ marginTop: 8 }}>{oneClickTestError}</p>}
-            </div>
-          )}
-          {(sectionErrors[current.id]?._submit) && (
-            <div className="section" style={{ margin: 12 }}>
-              <p className="validation-msg">{sectionErrors[current.id]._submit}</p>
-            </div>
-          )}
-          {current.id === S8_COMBINED_WITH_S7B && sectionErrors[S7B_LIGHTING_BY_ROOM] && Object.keys(sectionErrors[S7B_LIGHTING_BY_ROOM]).length > 0 && !sectionErrors[S7B_LIGHTING_BY_ROOM]._submit && (
-            <div className="section" style={{ margin: 12 }}>
-              <p className="validation-msg">灯具按房：{Object.values(sectionErrors[S7B_LIGHTING_BY_ROOM])[0]}</p>
-            </div>
-          )}
-          {current.id === S8_COMBINED_WITH_S7B ? (
-            <>
-              {sections
-                .filter((s) => s.id === S8_COMBINED_WITH_S7B || s.id === S7B_LIGHTING_BY_ROOM)
-                .map((section) => (
-                  <div key={section.id}>
-                    <div style={{ margin: "12px 12px 0", fontSize: 14, fontWeight: 600 }}>
-                      {section.title}
-                    </div>
-                    <SectionForm
-                      section={section}
-                      state={state}
-                      setAnswer={setAnswer}
-                      setAnswerWithGateCheck={setAnswerWithGateCheck}
-                      getValue={getValue}
-                      getAnswer={getAnswer}
-                      errors={sectionErrors[section.id] ?? {}}
-                      gateKeys={GATE_KEYS}
-                      getIssueDetail={getIssueDetail}
-                      setIssueDetail={setIssueDetail}
-                    />
-                    {SECTIONS_WITH_PHOTOS.has(section.id) && (
-                      <SectionPhotoEvidence
-                        sectionId={section.id}
-                        sectionTitle={section.title}
-                        photos={getStagedPhotos()[section.id] ?? []}
-                        onAddPhoto={addStagedPhoto}
-                        onRemovePhoto={removeStagedPhoto}
-                        onUpdateCaption={updateStagedPhotoCaption}
-                      />
-                    )}
+                  }}
+                >
+                  {oneClickTestLoading ? "提交中…" : "一键测试（填充并提交 → 生成报告）"}
+                </button>
+                {oneClickTestError && (
+                  <p className="validation-msg" style={{ marginTop: 8 }}>
+                    {oneClickTestError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Submit / section errors */}
+            {currentStep.sectionIds.some((id) => sectionErrors[id]?._submit) && (
+              <div className="wizard-page__card">
+                <p className="validation-msg">
+                  {currentStep.sectionIds.map((id) => sectionErrors[id]?._submit).filter(Boolean)[0]}
+                </p>
+              </div>
+            )}
+            {currentStep.sectionIds.map((sectionId) => {
+              const errs = sectionErrors[sectionId];
+              if (!errs?._submit && errs && Object.keys(errs).length > 0) {
+                const section = sectionById[sectionId] as SectionDef | undefined;
+                const label = section?.title ?? sectionId;
+                return (
+                  <div key={sectionId} className="wizard-page__card">
+                    <p className="validation-msg">
+                      {label}: {Object.values(errs)[0]}
+                    </p>
                   </div>
-                ))}
-            </>
-          ) : (
-            <>
-              <SectionForm
-                section={current}
-                state={state}
-                setAnswer={setAnswer}
-                setAnswerWithGateCheck={setAnswerWithGateCheck}
-                getValue={getValue}
-                getAnswer={getAnswer}
-                errors={sectionErrors[current.id] ?? {}}
-                gateKeys={GATE_KEYS}
-                getIssueDetail={getIssueDetail}
-                setIssueDetail={setIssueDetail}
-              />
-              {SECTIONS_WITH_PHOTOS.has(current.id) && (
-                <SectionPhotoEvidence
-                  sectionId={current.id}
-                  sectionTitle={current.title}
-                  photos={getStagedPhotos()[current.id] ?? []}
-                  onAddPhoto={addStagedPhoto}
-                  onRemovePhoto={removeStagedPhoto}
-                  onUpdateCaption={updateStagedPhotoCaption}
-                />
-              )}
-            </>
-          )}
+                );
+              }
+              return null;
+            })}
+
+            {/* Sections in this page */}
+            {currentStep.sectionIds.map((sectionId) => {
+              const section = sectionById[sectionId] as SectionDef | undefined;
+              if (!section) return null;
+              return (
+                <div key={section.id} className="wizard-page__section-card">
+                  <h2 className="wizard-page__section-title">{section.title}</h2>
+                  <SectionForm
+                    section={section}
+                    state={state}
+                    setAnswer={setAnswer}
+                    setAnswerWithGateCheck={setAnswerWithGateCheck}
+                    getValue={getValue}
+                    getAnswer={getAnswer}
+                    errors={sectionErrors[section.id] ?? {}}
+                    gateKeys={GATE_KEYS}
+                    getIssueDetail={getIssueDetail}
+                    setIssueDetail={setIssueDetail}
+                  />
+                  {SECTIONS_WITH_PHOTOS.has(section.id) && (
+                    <SectionPhotoEvidence
+                      sectionId={section.id}
+                      sectionTitle={section.title}
+                      photos={getStagedPhotos()[section.id] ?? []}
+                      onAddPhoto={addStagedPhoto}
+                      onRemovePhoto={removeStagedPhoto}
+                      onUpdateCaption={updateStagedPhotoCaption}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
 
@@ -394,4 +400,3 @@ export function Wizard({ onSubmitted }: Props) {
     </div>
   );
 }
-
