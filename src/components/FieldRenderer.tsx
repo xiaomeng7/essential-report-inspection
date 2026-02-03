@@ -1051,8 +1051,8 @@ function LightingRoomTable({
   const [issues, setIssues] = useState<string[]>([]);
   const [issueOther, setIssueOther] = useState("");
   const [note, setNote] = useState("");
-  const [photoInput, setPhotoInput] = useState("");
   const [photoIds, setPhotoIds] = useState<string[]>([]);
+  const [duplicateRoomError, setDuplicateRoomError] = useState("");
 
   const roomTypeOpts = getEnum("room_type");
   const lightingSwitchIssueOpts = getEnum("lighting_switch_issue");
@@ -1078,12 +1078,6 @@ function LightingRoomTable({
     }
   };
 
-  const addPhoto = () => {
-    const t = photoInput.trim();
-    if (t && !photoIds.includes(t)) setPhotoIds([...photoIds, t]);
-    setPhotoInput("");
-  };
-
   const photoFileRef = useRef<HTMLInputElement>(null);
   const handlePhotoFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1101,6 +1095,7 @@ function LightingRoomTable({
   );
 
   const addRow = () => {
+    setDuplicateRoomError("");
     if (!roomType) return;
     if (roomType === "other" && !roomNameCustom.trim()) return;
     if (!isAccessible) {
@@ -1109,6 +1104,15 @@ function LightingRoomTable({
     } else {
       if (needIssueOther) return;
       if (needPhotos) return;
+    }
+    const isDuplicate = rows.some(
+      (r) =>
+        (r.room_type as string) === roomType &&
+        (roomType !== "other" || (r.room_name_custom as string)?.trim() === roomNameCustom.trim())
+    );
+    if (isDuplicate) {
+      setDuplicateRoomError("此房间已添加，请勿重复添加。");
+      return;
     }
 
     onChange([
@@ -1133,7 +1137,6 @@ function LightingRoomTable({
     setIssues([]);
     setIssueOther("");
     setNote("");
-    setPhotoInput("");
     setPhotoIds([]);
   };
 
@@ -1183,7 +1186,7 @@ function LightingRoomTable({
     if (row.room_access !== "not_accessible") {
       const ids = row.photo_ids as string[] | undefined;
       if (!Array.isArray(ids) || ids.length === 0) return "—";
-      return ids.length === 1 ? ids[0] : `${ids.length} photos`;
+      return ids.length === 1 ? "1 photo" : `${ids.length} photos`;
     }
     return "—";
   };
@@ -1191,12 +1194,12 @@ function LightingRoomTable({
   const isRowAccessible = (row: Record<string, unknown>) => row.room_access !== "not_accessible";
 
   return (
-    <div>
-      <div className="repeatable-card" style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, marginBottom: 12 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "end" }}>
+    <div className="lighting-room-form">
+      <div className="lighting-room-form__card">
+        <div className="lighting-room-form__row">
           <div className="field">
             <label>Room</label>
-            <select value={roomType} onChange={(e) => setRoomType(e.target.value)} disabled={disabled}>
+            <select value={roomType} onChange={(e) => { setRoomType(e.target.value); setDuplicateRoomError(""); }} disabled={disabled}>
               <option value="">—</option>
               {roomTypeOpts.map((o) => (
                 <option key={o} value={o}>{o.replace(/_/g, " ")}</option>
@@ -1216,44 +1219,46 @@ function LightingRoomTable({
             </div>
           )}
           <div className="field">
-            <label>可进入性 (Access)</label>
+            <label>Access</label>
             <select value={roomAccess} onChange={(e) => setRoomAccess(e.target.value)} disabled={disabled}>
               <option value="accessible">{ROOM_ACCESS_LABELS.accessible}</option>
               <option value="not_accessible">{ROOM_ACCESS_LABELS.not_accessible}</option>
             </select>
           </div>
-          {!isAccessible && (
-            <>
+        </div>
+        {!isAccessible && (
+          <div className="lighting-room-form__row">
+            <div className="field">
+              <label>Reason (not accessible)</label>
+              <select value={notAccessibleReason} onChange={(e) => setNotAccessibleReason(e.target.value)} disabled={disabled}>
+                <option value="">—</option>
+                {notAccessibleReasonOpts.map((o) => (
+                  <option key={o} value={o}>{NOT_ACCESSIBLE_REASON_LABELS[o] ?? o.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </div>
+            {notAccessibleReason === "other" && (
               <div className="field">
-                <label>不可进入原因</label>
-                <select value={notAccessibleReason} onChange={(e) => setNotAccessibleReason(e.target.value)} disabled={disabled}>
-                  <option value="">—</option>
-                  {notAccessibleReasonOpts.map((o) => (
-                    <option key={o} value={o}>{NOT_ACCESSIBLE_REASON_LABELS[o] ?? o.replace(/_/g, " ")}</option>
-                  ))}
-                </select>
+                <label>Reason (other)</label>
+                <input
+                  type="text"
+                  value={notAccessibleReasonOther}
+                  onChange={(e) => setNotAccessibleReasonOther(e.target.value)}
+                  placeholder="Please specify"
+                  disabled={disabled}
+                />
               </div>
-              {notAccessibleReason === "other" && (
-                <div className="field" style={{ minWidth: 140 }}>
-                  <label>原因（其他）</label>
-                  <input
-                    type="text"
-                    value={notAccessibleReasonOther}
-                    onChange={(e) => setNotAccessibleReasonOther(e.target.value)}
-                    placeholder="请填写"
-                    disabled={disabled}
-                  />
-                </div>
-              )}
-            </>
-          )}
-          {isAccessible && (
-            <>
-              <div className="field" style={{ minWidth: 200 }}>
-                <label>Issues (灯具/开关问题) — 可多选</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            )}
+          </div>
+        )}
+        {isAccessible && (
+          <>
+            <div className="lighting-room-form__row lighting-room-form__row--issues">
+              <div className="field">
+                <label>Issues (lighting / switch) — multi-select</label>
+                <div className="lighting-room-form__checkboxes">
                   {lightingSwitchIssueOpts.map((opt) => (
-                    <label key={opt} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.9em" }}>
+                    <label key={opt} className="lighting-room-form__checkbox">
                       <input
                         type="checkbox"
                         checked={issues.includes(opt)}
@@ -1266,54 +1271,52 @@ function LightingRoomTable({
                 </div>
               </div>
               {hasIssueOther && (
-                <div className="field" style={{ minWidth: 160 }}>
-                  <label>描述问题（其他）</label>
+                <div className="field">
+                  <label>Describe (other)</label>
                   <input
                     type="text"
                     value={issueOther}
                     onChange={(e) => setIssueOther(e.target.value)}
-                    placeholder="请填写"
+                    placeholder="Please specify"
                     disabled={disabled}
                   />
                 </div>
               )}
               {hasIssues && (
-                <div className="field" style={{ minWidth: 180 }}>
+                <div className="field lighting-room-photos">
                   <label>Photo evidence (required)</label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <div className="lighting-room-photos__row">
                     <input
                       ref={photoFileRef}
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      style={{ display: "none" }}
+                      className="lighting-room-photos__input"
                       onChange={handlePhotoFile}
                     />
                     <button type="button" onClick={() => photoFileRef.current?.click()} className="btn-secondary" disabled={disabled || photoIds.length >= 2}>
-                      📷 拍照/上传
+                      Take / upload photo
                     </button>
-                    <input
-                      type="text"
-                      value={photoInput}
-                      onChange={(e) => setPhotoInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhoto())}
-                      placeholder="或输入 Photo ID"
-                      disabled={disabled}
-                    />
-                    <button type="button" onClick={addPhoto} className="btn-secondary" disabled={disabled}>Add</button>
                   </div>
                   {photoIds.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                    <div className="lighting-room-photos__preview">
                       {photoIds.map((id, idx) => (
-                        <span key={id} style={{ background: "#e0e0e0", padding: "4px 8px", borderRadius: 4 }}>
-                          {id.startsWith("data:image") ? `Photo ${idx + 1}` : id} <button type="button" onClick={() => setPhotoIds(photoIds.filter((x) => x !== id))} aria-label="Remove">×</button>
-                        </span>
+                        <div key={idx} className="lighting-room-photos__thumb">
+                          {id.startsWith("data:image") ? (
+                            <img src={id} alt="" className="lighting-room-photos__img" />
+                          ) : (
+                            <span className="lighting-room-photos__fallback">{id}</span>
+                          )}
+                          <button type="button" onClick={() => setPhotoIds(photoIds.filter((_, i) => i !== idx))} className="lighting-room-photos__remove" aria-label="Remove photo">Remove</button>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-              <div className="field" style={{ minWidth: 120 }}>
+            </div>
+            <div className="lighting-room-form__row">
+              <div className="field">
                 <label>Note (optional)</label>
                 <input
                   type="text"
@@ -1323,12 +1326,14 @@ function LightingRoomTable({
                   disabled={disabled}
                 />
               </div>
-            </>
-          )}
+            </div>
+          </>
+        )}
+        <div className="lighting-room-form__actions">
           <button
             type="button"
             onClick={addRow}
-            className="btn-secondary"
+            className="btn-primary"
             disabled={Boolean(
               disabled ||
               !roomType ||
@@ -1340,44 +1345,47 @@ function LightingRoomTable({
             Add to table
           </button>
         </div>
-        {(needNotAccessibleReason || needNotAccessibleReasonOther || needIssueOther || needPhotos) && (
-          <p className="validation-msg" style={{ marginTop: 8, marginBottom: 0 }}>
-            {needNotAccessibleReason && "不可进入时请选择原因。"}
-            {needNotAccessibleReasonOther && !needNotAccessibleReason && "选择「其他」时请填写原因。"}
-            {needIssueOther && !needNotAccessibleReason && !needNotAccessibleReasonOther && "选择「其他」issue 时请描述问题。"}
-            {needPhotos && !needNotAccessibleReason && !needNotAccessibleReasonOther && !needIssueOther && "有 Issue 时至少需要 1 张照片证据。"}
+        {duplicateRoomError && <p className="validation-msg">{duplicateRoomError}</p>}
+        {(needNotAccessibleReason || needNotAccessibleReasonOther || needIssueOther || needPhotos) && !duplicateRoomError && (
+          <p className="validation-msg">
+            {needNotAccessibleReason && "Please select a reason when room is not accessible."}
+            {needNotAccessibleReasonOther && !needNotAccessibleReason && "Please specify the reason when \"Other\" is selected."}
+            {needIssueOther && !needNotAccessibleReason && !needNotAccessibleReasonOther && "Please describe the issue when \"Other\" is selected."}
+            {needPhotos && !needNotAccessibleReason && !needNotAccessibleReasonOther && !needIssueOther && "At least one photo is required when issues are present."}
           </p>
         )}
       </div>
       {rows.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #ddd" }}>
-              <th style={{ textAlign: "left", padding: 6 }}>Room</th>
-              <th style={{ textAlign: "left", padding: 6 }}>可进入性</th>
-              <th style={{ textAlign: "left", padding: 6 }}>不可进入原因</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Issues</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Photos</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Note</th>
-              <th style={{ width: 80 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: 6 }}>{displayRoomName(row)}</td>
-                <td style={{ padding: 6 }}>{displayRoomAccess(row)}</td>
-                <td style={{ padding: 6 }}>{displayNotAccessibleReason(row)}</td>
-                <td style={{ padding: 6 }}>{displayIssues(row)}</td>
-                <td style={{ padding: 6 }}>{displayPhotos(row)}</td>
-                <td style={{ padding: 6 }}>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
-                <td style={{ padding: 6 }}>
-                  <button type="button" onClick={() => removeRow(i)} className="btn-secondary" disabled={disabled} aria-label="Remove row">×</button>
-                </td>
+        <div className="lighting-room-table-wrap">
+          <table className="lighting-room-table">
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th>Access</th>
+                <th>Reason (if not accessible)</th>
+                <th>Issues</th>
+                <th>Photos</th>
+                <th>Note</th>
+                <th className="lighting-room-table__action" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i}>
+                  <td>{displayRoomName(row)}</td>
+                  <td>{displayRoomAccess(row)}</td>
+                  <td>{displayNotAccessibleReason(row)}</td>
+                  <td>{displayIssues(row)}</td>
+                  <td>{displayPhotos(row)}</td>
+                  <td>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
+                  <td className="lighting-room-table__action">
+                    <button type="button" onClick={() => removeRow(i)} className="btn-secondary lighting-room-table__remove" disabled={disabled} aria-label="Remove row">Remove</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

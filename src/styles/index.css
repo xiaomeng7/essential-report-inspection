@@ -418,6 +418,148 @@ button {
   margin-top: 6px;
 }
 
+/* Lighting by Room: form layout and table */
+.lighting-room-form__card {
+  border: 1px solid #ddd;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--surface);
+}
+
+.lighting-room-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.lighting-room-form__row:last-of-type {
+  margin-bottom: 0;
+}
+
+.lighting-room-form__row--issues {
+  align-items: flex-start;
+}
+
+.lighting-room-form__row .field {
+  min-width: 0;
+}
+
+.lighting-room-form__checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lighting-room-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.lighting-room-form__actions {
+  margin-top: 14px;
+}
+
+.lighting-room-photos__input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lighting-room-photos__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.lighting-room-photos__preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.lighting-room-photos__thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.lighting-room-photos__img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid #ddd;
+  display: block;
+}
+
+.lighting-room-photos__fallback {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: #eee;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lighting-room-photos__remove {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  min-height: 0;
+}
+
+.lighting-room-table-wrap {
+  overflow-x: auto;
+  margin-top: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lighting-room-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lighting-room-table th,
+.lighting-room-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.lighting-room-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid #ddd;
+}
+
+.lighting-room-table__action {
+  width: 80px;
+  white-space: nowrap;
+}
+
+.lighting-room-table__remove {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  min-height: 0;
+}
+
 .skip-row {
   display: flex;
   gap: 8px;
