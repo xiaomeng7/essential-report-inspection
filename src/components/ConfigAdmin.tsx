@@ -166,6 +166,22 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   }, []);
 
+  const loadLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/customFindingLibrary");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { entries: CustomFindingLibraryEntry[] };
+      setLibraryEntries(Array.isArray(data.entries) ? data.entries : []);
+    } catch (e) {
+      setLibraryEntries([]);
+      setError((e as Error).message);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, []);
+
   // Check URL tab param (e.g. ?tab=dimensions, ?tab=customLibrary)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -377,22 +393,6 @@ export function ConfigAdmin({ onBack }: Props) {
     }
   };
 
-  const loadLibrary = useCallback(async () => {
-    setLibraryLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/customFindingLibrary");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { entries: CustomFindingLibraryEntry[] };
-      setLibraryEntries(Array.isArray(data.entries) ? data.entries : []);
-    } catch (e) {
-      setLibraryEntries([]);
-      setError((e as Error).message);
-    } finally {
-      setLibraryLoading(false);
-    }
-  }, []);
-
   const handleTabChange = (newTab: ConfigType) => {
     setActiveTab(newTab);
     setEditMode("visual");
@@ -539,12 +539,18 @@ export function ConfigAdmin({ onBack }: Props) {
       const url = "/api/customFindingLibrary";
       if (libraryEdit.id) {
         const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(libraryEdit) });
-        if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = (await res.json()) as { error?: string };
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
         const data = (await res.json()) as { entry: CustomFindingLibraryEntry };
         setLibraryEntries((prev) => (prev ?? []).map((e) => (e.id === data.entry.id ? data.entry : e)));
       } else {
         const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(libraryEdit) });
-        if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = (await res.json()) as { error?: string };
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
         const data = (await res.json()) as { entry: CustomFindingLibraryEntry };
         setLibraryEntries((prev) => [...(prev ?? []), data.entry]);
       }
@@ -564,7 +570,10 @@ export function ConfigAdmin({ onBack }: Props) {
     setError(null);
     try {
       const res = await fetch("/api/customFindingLibrary", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-      if (!res.ok) throw new Error((await res.json()) as { error?: string }).error || `HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: string };
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
       setLibraryEntries((prev) => (prev ?? []).filter((e) => e.id !== id));
       setLibraryEdit((prev) => (prev?.id === id ? null : prev));
       setSuccess(true);

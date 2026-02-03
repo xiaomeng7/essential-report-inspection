@@ -45,6 +45,9 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       const json = (await res.json()) as ReviewData;
       setData(json);
       if (json.report_html) setTemplateHtml(json.report_html);
+      setEnhancedHtml(null);
+      setIsEnhancing(false);
+      setEnhanceError(null);
       const pending = json.custom_findings_pending ?? [];
       if (pending.length > 0) {
         setCustomFindingsToFill(
@@ -101,80 +104,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     loadData().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
   }, [loadData]);
-
-  const handleEnhanceReport = async () => {
-    if (!data) {
-      console.error("Cannot enhance: data is null");
-      return;
-    }
-    
-    // AI enhancement temporarily disabled for testing to avoid API costs
-    // Just show the template HTML directly without calling AI API
-    console.log("AI enhancement disabled - showing template directly");
-    
-    setIsEnhancing(true);
-    setEnhanceError(null);
-    
-    // Immediately show template HTML (with original data filled)
-    const initialTemplateHtml = data.report_html; // This is already template-filled HTML
-    setTemplateHtml(initialTemplateHtml);
-    setEnhancedHtml(null); // Reset enhanced HTML
-    
-    // Simulate a short delay for UI consistency
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    setIsEnhancing(false);
-    console.log("Template displayed (AI disabled)");
-    
-    /* AI enhancement code - disabled for testing
-    try {
-      const requestBody = {
-        inspection_id: data.inspection_id,
-        report_html: data.report_html,
-        findings: data.findings,
-        limitations: data.limitations,
-        raw_data: data.raw_data
-      };
-      
-      const res = await fetch("/api/enhanceReport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        const errorMessage = errorData.message || errorData.error || `HTTP ${res.status}`;
-        throw new Error(errorMessage);
-      }
-
-      const result = await res.json();
-      
-      if (result.enhanced_html && result.enhanced_html.length > 100) {
-        setEnhancedHtml(result.enhanced_html);
-        setTemplateHtml(null);
-      } else {
-        setEnhanceError("AI返回了无效内容，请重试");
-        setTemplateHtml(null);
-      }
-      
-      // Model info temporarily disabled with AI
-      // if (result.model_used) {
-      //   setModelInfo({
-      //     model: result.model_used,
-      //     usage: result.usage
-      //   });
-      // }
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
-      setEnhanceError(errorMessage);
-      console.error("Error enhancing report:", e);
-      setTemplateHtml(null);
-    } finally {
-      setIsEnhancing(false);
-    }
-    */
-  };
 
   const handleGenerateMarkdownWord = async () => {
     if (!data?.inspection_id) {
@@ -253,8 +182,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   // Display priority: enhanced HTML > template HTML > original report HTML
   const displayHtml = enhancedHtml || templateHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
-  const isShowingTemplate = templateHtml !== null && enhancedHtml === null;
-  
   // Log state changes for debugging
   if (typeof window !== "undefined" && window.location.search.includes("debug")) {
     console.log("ReviewPage render:", {

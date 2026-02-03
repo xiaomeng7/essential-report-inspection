@@ -3,12 +3,14 @@ description: 完成修改后自动提交并推送
 alwaysApply: true
 ---
 
-# 自动提交规则
+# 自动提交并推送规则
 
 完成代码修改后，必须自动执行以下步骤（无需用户再提醒）：
 
 1. `git add -A`
 2. `git commit -m "简短描述性提交信息"`
-3. `git push origin main`（若 post-commit 已有自动推送，则 commit 后即可）
+3. **必须执行** `git push origin main`（或当前分支），确保远程仓库已更新
+
+无论本地是否有 post-commit 钩子，都要在 commit 后显式执行一次 push，以保证 Netlify 等远程构建能拿到最新代码。
 
 提交信息用中文或英文均可，需简明说明本次改动内容。
