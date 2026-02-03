@@ -87,12 +87,19 @@ export function Wizard({ onSubmitted }: Props) {
     return out;
   }, [state]);
 
-  const currentStep = visibleSteps[step];
+  /** Step 0 = Start Screen; steps 1..N = content pages. */
+  const isStartScreen = step === 0;
+  const currentStep = isStartScreen ? null : visibleSteps[step - 1] ?? null;
   const isFirst = step === 0;
-  const isLast = step === visibleSteps.length - 1;
-  const progress = visibleSteps.length ? ((step + 1) / visibleSteps.length) * 100 : 0;
+  const isLast = !isStartScreen && step === visibleSteps.length;
+  const progress = isStartScreen ? 0 : visibleSteps.length ? (step / visibleSteps.length) * 100 : 0;
 
   const goNext = () => {
+    if (isStartScreen) {
+      setStep(1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     if (!currentStep) return;
     const sectionsToValidate = currentStep.sectionIds;
     let allValid = true;
@@ -118,7 +125,7 @@ export function Wizard({ onSubmitted }: Props) {
       submitInspection();
       return;
     }
-    setStep((s) => Math.min(s + 1, visibleSteps.length - 1));
+    setStep((s) => Math.min(s + 1, visibleSteps.length));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -235,6 +242,13 @@ export function Wizard({ onSubmitted }: Props) {
   const currentPageIsRoof = currentStep?.pageId === "roof_space";
   const currentPageIsEarthingExternal = currentStep?.pageId === "earthing_external";
 
+  const address = getValue("job.address");
+  const inspectionId = getValue("inspection_id");
+  const preparedFor =
+    getValue("job.prepared_for") ?? getValue("job.client_name") ?? getValue("client.name");
+  const hasPreparedFor =
+    preparedFor !== undefined && preparedFor !== null && String(preparedFor).trim() !== "";
+
   return (
     <div className="app">
       <div className="progress-wrap">
@@ -242,11 +256,55 @@ export function Wizard({ onSubmitted }: Props) {
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <p className="progress-text">
-          Page {step + 1} of {visibleSteps.length}: {currentStep?.pageTitle ?? ""}
+          {isStartScreen
+            ? "Start"
+            : `Page ${step} of ${visibleSteps.length}: ${currentStep?.pageTitle ?? ""}`}
         </p>
       </div>
 
-      {currentStep && (
+      {isStartScreen && (
+        <div className="start-screen">
+          <h1 className="start-screen__title">Start Screen</h1>
+          <div className="start-screen__card">
+            <dl className="start-screen__meta">
+              <div className="start-screen__meta-row">
+                <dt>Property address</dt>
+                <dd>{address != null && String(address).trim() !== "" ? String(address) : "—"}</dd>
+              </div>
+              <div className="start-screen__meta-row">
+                <dt>Inspection ID</dt>
+                <dd>
+                  {inspectionId != null && String(inspectionId).trim() !== ""
+                    ? String(inspectionId)
+                    : "—"}
+                </dd>
+              </div>
+              {hasPreparedFor && (
+                <div className="start-screen__meta-row">
+                  <dt>Prepared for</dt>
+                  <dd>{String(preparedFor)}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+          <div className="start-screen__card">
+            <p className="start-screen__workflow-heading">Workflow</p>
+            <ol className="start-screen__workflow-list">
+              <li>Indoor Rooms</li>
+              <li>Switchboard + RCD + Earthing</li>
+              <li>Roof Space</li>
+              <li>External + Finalise</li>
+            </ol>
+          </div>
+          <div className="start-screen__actions">
+            <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
+              Start / Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isStartScreen && currentStep && (
         <>
           <div className="wizard-page">
             <h1 className="wizard-page__title">{currentStep.pageTitle}</h1>
@@ -389,14 +447,16 @@ export function Wizard({ onSubmitted }: Props) {
         </>
       )}
 
-      <div className="actions">
-        <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
-          Back
-        </button>
-        <button type="button" className="btn-primary" onClick={goNext}>
-          {isLast ? "Submit Inspection" : "Next"}
-        </button>
-      </div>
+      {!isStartScreen && (
+        <div className="actions">
+          <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
+            Back
+          </button>
+          <button type="button" className="btn-primary" onClick={goNext}>
+            {isLast ? "Submit Inspection" : "Next"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

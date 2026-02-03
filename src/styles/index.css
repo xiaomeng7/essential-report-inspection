@@ -170,6 +170,82 @@ button {
   border-bottom: 1px solid #eee;
 }
 
+/* Page 0 – Start Screen (navigation/presentation only) */
+.start-screen {
+  padding: 0 12px 24px;
+}
+
+.start-screen__title {
+  margin: 12px 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.start-screen__card {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid #eee;
+}
+
+.start-screen__meta {
+  margin: 0;
+}
+
+.start-screen__meta-row {
+  margin: 0 0 12px;
+}
+
+.start-screen__meta-row:last-child {
+  margin-bottom: 0;
+}
+
+.start-screen__meta-row dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+.start-screen__meta-row dd {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.start-screen__workflow-heading {
+  margin: 0 0 10px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.start-screen__workflow-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 0.9375rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.start-screen__workflow-list li {
+  margin: 6px 0;
+}
+
+.start-screen__actions {
+  margin-top: 24px;
+}
+
+.start-screen__btn {
+  width: 100%;
+  min-height: var(--tap);
+  font-size: 1rem;
+}
+
 .field {
   margin-bottom: 16px;
 }
