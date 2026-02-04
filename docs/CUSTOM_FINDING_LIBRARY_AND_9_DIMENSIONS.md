@@ -70,7 +70,20 @@
 
 ---
 
-## 三、小结
+## 三、Admin 9 维度调试覆盖（影响报告生成）
+
+在 **Config Admin → Finding 9 维度调试**（`/admin/findings-debug`）中修改的维度会写入 `raw.finding_dimensions_debug[finding_id]`。报告生成管道会**优先使用这些覆盖值**：
+
+- **优先级**：若在调试里设置了 `priority`，报告中的该 Finding 会使用该优先级，并标记 `override_reason: "Admin 9-dimension override"`。
+- **判断逻辑**：safety / urgency / liability / severity / likelihood / escalation 等会与 `custom_findings_completed` 合并后参与 `computeCustomFindingPriority`，因此可用来修正「某问题影响更严重」或「以前合规现在不合规」等判断。
+- **标题与预算**：调试中的 `title`、`budget_low`、`budget_high` 会覆盖到报告用的 Finding 上，影响 CapEx 与展示标题。
+
+实现位置：`netlify/functions/lib/customFindingPriority.ts` 的 `enrichFindingsWithCalculatedPriority` 会读取 `inspection.raw.finding_dimensions_debug`，按 finding_id 合并到维度并参与优先级计算与最终报告。
+
+---
+
+## 四、小结
 
 - **9 维度里**：目前真正参与 Word 和计算的只有 **priority**（和 title）；其余 8 个只存不用，但为“库 + 以后参与计算”预留。
+- **Admin 调试覆盖**：在 `/admin/findings-debug` 中修改的 9 维度会参与报告生成（优先级、标题、预算及 safety/urgency/liability 等计算），用于修正单次检查的判断逻辑。
 - **自定义 Finding 库**：可以单独做，技师下次可从库选，工程师可看统计并一键入常用库；**第一步**已做「界面能直观改 9 个维度」的库管理 + 后端 API。
