@@ -3,6 +3,7 @@ import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
 import { ConfigAdmin } from "./components/ConfigAdmin";
+import { FindingsDebugPage } from "./components/FindingsDebugPage";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -78,6 +79,7 @@ function App() {
 
   const isReviewRoute = pathname.startsWith("/review/");
   const isSuccessRoute = pathname.startsWith("/success/");
+  const isFindingsDebugRoute = pathname === "/admin/findings-debug" || pathname.startsWith("/admin/findings-debug");
   const isConfigAdminRoute = pathname === "/admin/config" || pathname.startsWith("/admin/config/");
   const isAdminRoute = pathname === "/admin/rules" || pathname.startsWith("/admin/rules/");
   const idFromRoute = isReviewRoute ? pathname.replace(/^\/review\//, "") : null;
@@ -118,6 +120,17 @@ function App() {
         address={successData?.address}
         technicianName={successData?.technicianName}
         onNewInspection={handleNewInspection}
+      />
+    );
+  }
+
+  if (isFindingsDebugRoute) {
+    return (
+      <FindingsDebugPage
+        onBack={() => {
+          window.history.replaceState(null, "", "/");
+          setPathname("/");
+        }}
       />
     );
   }

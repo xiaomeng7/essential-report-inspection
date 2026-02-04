@@ -613,7 +613,10 @@ export function ConfigAdmin({ onBack }: Props) {
               当前路径: <strong>{window.location.pathname}</strong>
             </p>
           </div>
-          <button onClick={onBack} className="btn-secondary">返回首页</button>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <a href="/admin/findings-debug" style={{ padding: "8px 14px", borderRadius: "8px", background: "#e3f2fd", color: "#1565c0", textDecoration: "none", fontWeight: 500 }}>Finding 9 维调试</a>
+            <button onClick={onBack} className="btn-secondary">返回首页</button>
+          </div>
         </div>
       </div>
 

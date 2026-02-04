@@ -619,3 +619,191 @@ button {
     font-size: 14px;
   }
 }
+
+/* Finding 9 dimensions debug page */
+.findings-debug-page {
+  padding: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.findings-debug-page__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.findings-debug-page__title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.findings-debug-page__toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.findings-debug-page__input {
+  flex: 1;
+  max-width: 280px;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: var(--radius);
+  font-size: 1rem;
+}
+
+.findings-debug-page__count {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.findings-debug-page__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.findings-debug-page__item {
+  margin-bottom: 6px;
+}
+
+.findings-debug-page__item-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid #eee;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.findings-debug-page__item-btn:hover {
+  border-color: var(--primary);
+  background: #f0f7ff;
+}
+
+.findings-debug-page__item-id {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.findings-debug-page__item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.findings-debug-page__item-priority {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #eee;
+  color: var(--text);
+}
+
+/* Finding dimensions modal */
+.finding-dimensions-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.finding-dimensions-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.finding-dimensions-modal__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+}
+
+.finding-dimensions-modal__title {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+}
+
+.finding-dimensions-modal__subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.finding-dimensions-modal__body {
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.finding-dimensions-field {
+  margin-bottom: 18px;
+}
+
+.finding-dimensions-field__label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-bottom: 4px;
+}
+
+.finding-dimensions-field__desc {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.finding-dimensions-field__input,
+.finding-dimensions-field__select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  box-sizing: border-box;
+}
+
+.finding-dimensions-field__meanings {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.finding-dimensions-field__meanings li {
+  margin: 4px 0;
+}
+
+.finding-dimensions-modal__footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
