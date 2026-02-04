@@ -119,6 +119,21 @@ function getConfigStore(event?: HandlerEvent) {
   });
 }
 
+const GLOBAL_DIM_BLOB_KEY = "finding_dimensions_global.json";
+
+/** Load global 9-dimension overrides from config blob (for report generation). */
+export async function loadFindingDimensionsGlobal(event: HandlerEvent): Promise<Record<string, Record<string, unknown>>> {
+  const blobStore = getConfigStore(event);
+  const raw = await blobStore.get(GLOBAL_DIM_BLOB_KEY, { type: "text" });
+  if (!raw || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 // Load from file or blob store
 // IMPORTANT: Prioritize Blob Store to preserve user edits (user edits are saved to Blob Store)
 async function loadConfig(event: HandlerEvent, type: "rules" | "mapping" | "responses" | "finding_profiles"): Promise<{ content: string; source: "file" | "blob" }> {
@@ -279,6 +294,78 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   const pathRaw = event.path ?? "";
+
+  // Handle global 9-dimension overrides (affects all reports; stored in config blob)
+  if (pathRaw.includes("findingDimensionsGlobal")) {
+    try {
+      const blobStore = getConfigStore(event);
+      if (event.httpMethod === "GET") {
+        const raw = await blobStore.get(GLOBAL_DIM_BLOB_KEY, { type: "text" });
+        const overrides: Record<string, Record<string, unknown>> = raw ? (JSON.parse(raw) as Record<string, Record<string, unknown>>) : {};
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ overrides }),
+        };
+      }
+      if (event.httpMethod === "POST") {
+        const body = JSON.parse(event.body ?? "{}") as { finding_id?: string; dimensions?: Record<string, unknown> };
+        const { finding_id, dimensions } = body;
+        if (!finding_id || typeof finding_id !== "string" || !dimensions || typeof dimensions !== "object") {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Missing finding_id or dimensions" }),
+          };
+        }
+        const raw = await blobStore.get(GLOBAL_DIM_BLOB_KEY, { type: "text" });
+        const overrides: Record<string, Record<string, unknown>> = raw ? (JSON.parse(raw) as Record<string, Record<string, unknown>>) : {};
+        overrides[finding_id] = { ...overrides[finding_id], ...dimensions };
+        await blobStore.set(GLOBAL_DIM_BLOB_KEY, JSON.stringify(overrides), {
+          metadata: { updated_at: new Date().toISOString() },
+        });
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ok: true, finding_id }),
+        };
+      }
+      if (event.httpMethod === "DELETE") {
+        const body = JSON.parse(event.body ?? "{}") as { finding_id?: string };
+        const { finding_id } = body;
+        if (!finding_id || typeof finding_id !== "string") {
+          return {
+            statusCode: 400,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ error: "Missing finding_id" }),
+          };
+        }
+        const raw = await blobStore.get(GLOBAL_DIM_BLOB_KEY, { type: "text" });
+        const overrides: Record<string, Record<string, unknown>> = raw ? (JSON.parse(raw) as Record<string, Record<string, unknown>>) : {};
+        delete overrides[finding_id];
+        await blobStore.set(GLOBAL_DIM_BLOB_KEY, JSON.stringify(overrides), {
+          metadata: { updated_at: new Date().toISOString() },
+        });
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ok: true, finding_id }),
+        };
+      }
+      return {
+        statusCode: 405,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Method Not Allowed" }),
+      };
+    } catch (e) {
+      console.error("findingDimensionsGlobal error:", e);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "findingDimensionsGlobal failed", message: e instanceof Error ? e.message : String(e) }),
+      };
+    }
+  }
 
   // Handle dimensions endpoint (merged view + save)
   if (pathRaw.includes("/dimensions")) {

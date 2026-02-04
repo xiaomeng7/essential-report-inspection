@@ -78,10 +78,12 @@ export async function computeCustomFindingPriority(
  * Backward compatible: standard findings keep existing priority; custom findings get calculated + override rules.
  * Admin overrides from raw.finding_dimensions_debug (9-dimension debug UI) are merged so report generation
  * uses the updated logic (e.g. severity change, compliance update) and optional priority/title/budget overrides.
+ * Global overrides (from Config → 9 维全局) are merged before per-inspection debug; both affect all reports / single report.
  */
 export async function enrichFindingsWithCalculatedPriority(
   inspection: StoredInspection,
-  event?: HandlerEvent
+  event?: HandlerEvent,
+  options?: { globalOverrides?: Record<string, FindingDimensionsDebugOverride> }
 ): Promise<StoredFinding[]> {
   const completed = (inspection.raw?.custom_findings_completed as Array<CustomFindingDimensions & { id?: string }> | undefined) ?? [];
   const byId = new Map<string, CustomFindingDimensions>();
@@ -90,14 +92,16 @@ export async function enrichFindingsWithCalculatedPriority(
     if (id) byId.set(String(id), c);
   }
 
+  const globalOverrides = options?.globalOverrides ?? {};
   const debugOverrides = (inspection.raw?.finding_dimensions_debug as Record<string, FindingDimensionsDebugOverride>) ?? {};
   const result: StoredFinding[] = [];
 
   for (const f of inspection.findings) {
     const dims = byId.get(f.id);
+    const global = globalOverrides[f.id] as FindingDimensionsDebugOverride | undefined;
     const debug = debugOverrides[f.id];
-    const effectiveDims: CustomFindingDimensions | undefined = dims || debug
-      ? { ...dims, ...debug } as CustomFindingDimensions
+    const effectiveDims: CustomFindingDimensions | undefined = dims || global || debug
+      ? { ...dims, ...global, ...debug } as CustomFindingDimensions
       : undefined;
 
     let priority_calculated: string | undefined;
@@ -113,10 +117,14 @@ export async function enrichFindingsWithCalculatedPriority(
     const budget_low = hasCustomBudget && typeof effectiveDims!.budget_low === "number" ? effectiveDims!.budget_low : f.budget_low;
     const budget_high = hasCustomBudget && typeof effectiveDims!.budget_high === "number" ? effectiveDims!.budget_high : f.budget_high;
 
-    const hasAdminPriorityOverride = debug?.priority != null && String(debug.priority).trim() !== "";
-    const priority_selected = hasAdminPriorityOverride ? debug!.priority! : (f.priority_selected ?? f.priority);
-    const override_reason = hasAdminPriorityOverride ? "Admin 9-dimension override" : f.override_reason;
-    const title = (debug?.title != null && String(debug.title).trim() !== "") ? debug.title.trim() : f.title;
+    const debugPriority = debug?.priority != null && String(debug.priority).trim() !== "";
+    const globalPriority = global?.priority != null && String(global?.priority).trim() !== "";
+    const hasAdminPriorityOverride = debugPriority || globalPriority;
+    const priority_selected = debugPriority ? debug!.priority! : globalPriority ? global!.priority! : (f.priority_selected ?? f.priority);
+    const override_reason = hasAdminPriorityOverride ? (debugPriority ? "Admin 9-dimension override" : "Global 9-dimension override") : f.override_reason;
+    const title = (debug?.title != null && String(debug.title).trim() !== "") ? debug.title.trim()
+      : (global?.title != null && String(global.title).trim() !== "") ? global.title.trim()
+      : f.title;
 
     const enriched: StoredFinding = {
       ...f,

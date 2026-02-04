@@ -22,6 +22,7 @@ import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignal
 import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
 import { getBaseUrl } from "./lib/baseUrl";
 import { enrichFindingsWithCalculatedPriority } from "./lib/customFindingPriority";
+import { loadFindingDimensionsGlobal } from "./configAdmin";
 import { derivePropertySignals } from "./lib/derivePropertySignals";
 import { customDimensionsToFindingDimensions, profileToFindingDimensions, overallHealthToRiskLabel } from "./lib/dimensionsToPropertySignals";
 import type { CustomFindingDimensions } from "./lib/customFindingPriority";
@@ -1211,8 +1212,10 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
   
+  // Global 9-dim overrides (Config → 9 维全局) apply to all reports
+  const globalOverrides = event ? await loadFindingDimensionsGlobal(event) : {};
   // Enrich findings with priority_calculated (custom) and priority_final (all); use for report
-  const findings = await enrichFindingsWithCalculatedPriority(inspection, event);
+  const findings = await enrichFindingsWithCalculatedPriority(inspection, event, { globalOverrides: globalOverrides as Record<string, import("./lib/customFindingPriority").FindingDimensionsDebugOverride> });
   const effectivePriority = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
   /** Findings with .priority set to effective (for functions that only read .priority) */
   const findingsWithEffectivePriority = findings.map(f => ({ ...f, priority: effectivePriority(f) }));
@@ -2141,7 +2144,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Build computed fields (for Markdown generation); use enriched findings for consistency with reportData
     const reportData = await buildReportData(inspection, event);
-    const enrichedFindings = await enrichFindingsWithCalculatedPriority(inspection, event);
+    const globalOverridesForHandler = event ? await loadFindingDimensionsGlobal(event) : {};
+    const enrichedFindings = await enrichFindingsWithCalculatedPriority(inspection, event, {
+      globalOverrides: globalOverridesForHandler as Record<string, import("./lib/customFindingPriority").FindingDimensionsDebugOverride>,
+    });
     const handlerEffectivePriority = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
     const handlerFindingsWithPriority = enrichedFindings.map(f => ({ ...f, priority: handlerEffectivePriority(f) }));
 

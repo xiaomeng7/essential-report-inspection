@@ -1,38 +1,37 @@
 # 自定义 Finding 库与 9 维度使用说明
 
-## 一、9 个维度当前是否被使用？
+## 一、报告生成用了哪些收集到的信息？几个维度？
 
-工程师在 Review 页补全的 **9 个维度** 为：
+报告生成**会用到当前收集到的主要信息**，**9 个维度都参与**（有的直接进报告，有的参与计算）。
 
-| 维度 | 说明 | 是否参与 Word 报告 | 是否参与计算/优先级 |
-|------|------|--------------------|----------------------|
-| **priority** | 优先级（IMMEDIATE / RECOMMENDED_0_3_MONTHS / PLAN_MONITOR） | ✅ 是：报告分组、CapEx 表、Executive 摘要 | ✅ 是：直接写入 `finding.priority`，报告全链路使用 |
-| **title** | 显示标题 | ✅ 是：Finding 标题、CapEx 项名 | 否 |
-| **safety** | 安全影响 | 否 | ❌ 否（见下） |
-| **urgency** | 紧急程度 | 否 | ❌ 否 |
-| **liability** | 责任/合规 | 否 | ❌ 否 |
-| **budget_low** | 预算下限 | 否 | ❌ 否 |
-| **budget_high** | 预算上限 | 否 | ❌ 否 |
-| **severity** | 严重程度 1–5 | 否 | ❌ 否 |
-| **likelihood** | 发生可能性 1–5 | 否 | ❌ 否 |
-| **escalation** | 升级风险 | 否 | ❌ 否 |
+### 数据来源一览
 
-### 为什么 safety / urgency / liability 等“没用到”？
+| 数据来源 | 用途 |
+|----------|------|
+| `inspection.findings`（Review API） | Finding 列表、id、基础 priority/title；报告以之为基础并做一次 enrich |
+| `inspection.raw.custom_findings_completed` | 每条 finding 的 9 维：参与优先级计算、CapEx、OVERALL_RISK_LABEL 的 D1–D9 |
+| `inspection.raw.finding_dimensions_debug` | Admin 调试覆盖：与上面合并后参与优先级计算、标题、预算（不参与 OVERALL_RISK_LABEL 的 D1–D9） |
+| `inspection.raw` → canonical（normalizeInspection） | 物业地址、评估日期、test_data、technician_notes、limitations 等 |
+| `finding_profiles` / `responses.yml` | 标准 finding 的标题、预算带、D1–D9 映射；无 custom 时的回退 |
 
-- **标准 Finding**：优先级由 `rules.yml` 的 `findings[id]`（safety/urgency/liability）+ `applyPriority()` 计算得出。
-- **自定义 Finding（CUSTOM_GPO_* / CUSTOM_LIGHTING_*）**：不入 `rules.yml`，**不经过** `evaluateFindings` → `applyPriority`；工程师在弹窗里选的 **priority** 直接写入 `data.findings`，报告只用这个 priority。
-- 因此对自定义 Finding 而言，**safety、urgency、liability、budget_low、budget_high、severity、likelihood、escalation 共 8 个维度目前只存不用于**：
-  - 不参与 Word 报告生成（报告只看 priority + title）；
-  - 不参与 `derivePropertySignals`（该逻辑用的是另一套 D1–D9 字段，且未从 `custom_findings_completed` 取数）；
-  - CapEx 行的预算来自 `responses.yml` 或 `finding_profiles` 的 `budget_band`，**未**使用 `custom_findings_completed` 的 budget_low/budget_high。
+### 9 个维度在报告中的使用（当前实现）
 
-### 若希望 8 个维度也参与
+| 维度 | 说明 | 是否参与报告 | 具体用途 |
+|------|------|--------------|----------|
+| **priority** | 优先级 | ✅ 是 | 报告分组、CapEx 表、Executive 摘要、评分；可来自工程师选择或由 6 维计算得出 |
+| **title** | 显示标题 | ✅ 是 | Finding 标题、CapEx 项名、top findings 等 |
+| **safety** | 安全影响 | ✅ 是 | 参与自定义 finding 的 `computeCustomFindingPriority`；映射到 D1–D9 → OVERALL_RISK_LABEL |
+| **urgency** | 紧急程度 | ✅ 是 | 同上（优先级计算 + D1–D9） |
+| **liability** | 责任/合规 | ✅ 是 | 同上 |
+| **budget_low** / **budget_high** | 预算区间 | ✅ 是 | CapEx 表、CAPEX_RANGE、评分模型中的预算汇总 |
+| **severity** / **likelihood** | 严重程度 / 可能性 1–5 | ✅ 是 | 参与优先级计算（如 severity×likelihood 升级）；映射到 D1–D9 |
+| **escalation** | 升级风险 | ✅ 是 | 参与优先级计算与 D1–D9 映射 |
 
-可在后续迭代中：
+结论：**目前报告生成使用了所有收集到的 9 个维度**；优先级既可人工选也可由 safety/urgency/liability/severity/likelihood/escalation 计算；预算与 OVERALL_RISK_LABEL（D1–D9）均使用上述维度。
 
-1. **优先级**：用 safety/urgency/liability 调用 `applyPriority()` 得到 priority，替代工程师直接选 priority（或二者并存、以计算值为建议）。
-2. **CapEx**：对 CUSTOM_*，CapEx 行优先用 `custom_findings_completed` 的 budget_low/budget_high。
-3. **Property 信号**：把 9 维映射为 `FindingDimensions`（D1–D9），传入 `derivePropertySignals`，参与 overall_health 等。
+### OVERALL_RISK_LABEL
+
+- **OVERALL_RISK_LABEL** 的 D1–D9 来自 `custom_findings_completed` 映射（未直接合并 debug 覆盖）。调试里改的优先级等会通过优先级分组、CapEx、Executive 等**间接受影响**，当前设计下无需再让 debug 直接参与 D1–D9 计算。
 
 ---
 
@@ -70,20 +69,26 @@
 
 ---
 
-## 三、Admin 9 维度调试覆盖（影响报告生成）
+## 三、9 维全局（Config）与单次检查调试
 
-在 **Config Admin → Finding 9 维度调试**（`/admin/findings-debug`）中修改的维度会写入 `raw.finding_dimensions_debug[finding_id]`。报告生成管道会**优先使用这些覆盖值**：
+### 9 维全局（影响所有报告）
 
-- **优先级**：若在调试里设置了 `priority`，报告中的该 Finding 会使用该优先级，并标记 `override_reason: "Admin 9-dimension override"`。
-- **判断逻辑**：safety / urgency / liability / severity / likelihood / escalation 等会与 `custom_findings_completed` 合并后参与 `computeCustomFindingPriority`，因此可用来修正「某问题影响更严重」或「以前合规现在不合规」等判断。
-- **标题与预算**：调试中的 `title`、`budget_low`、`budget_high` 会覆盖到报告用的 Finding 上，影响 CapEx 与展示标题。
+在 **Config Admin → 9 维全局**（`/admin/config?tab=findingDimensionsGlobal`）中按 **Finding ID** 设置的维度会写入 Blob `config/finding_dimensions_global.json`，报告生成时**对所有报告生效**：
 
-实现位置：`netlify/functions/lib/customFindingPriority.ts` 的 `enrichFindingsWithCalculatedPriority` 会读取 `inspection.raw.finding_dimensions_debug`，按 finding_id 合并到维度并参与优先级计算与最终报告。
+- **入口**：配置管理页顶部「9 维全局」链接或 Tab「9 维全局」。
+- **优先级**：若为某 finding_id 设置了 `priority`，所有报告中该 Finding 会使用该优先级，并标记 `override_reason: "Global 9-dimension override"`。
+- **合并顺序**：`custom_findings_completed` → **全局覆盖**（Config 9 维全局）→ **单次调试覆盖**（见下）。单次调试覆盖优先于全局。
+
+### 单次检查调试（仅影响该次报告）
+
+原「Finding 9 维调试」页已合并进 Config：访问 `/admin/findings-debug` 会重定向到 `/admin/config?tab=findingDimensionsGlobal`。若需**只改某一次检查**的维度，可继续使用后端 API 写入 `raw.finding_dimensions_debug[finding_id]`（例如由其他工具或后续单次调试界面调用）。
+
+实现位置：`netlify/functions/lib/customFindingPriority.ts` 的 `enrichFindingsWithCalculatedPriority` 会合并 `options.globalOverrides`（来自 Config Blob）与 `inspection.raw.finding_dimensions_debug`，再参与优先级计算与最终报告。
 
 ---
 
 ## 四、小结
 
-- **9 维度里**：目前真正参与 Word 和计算的只有 **priority**（和 title）；其余 8 个只存不用，但为“库 + 以后参与计算”预留。
-- **Admin 调试覆盖**：在 `/admin/findings-debug` 中修改的 9 维度会参与报告生成（优先级、标题、预算及 safety/urgency/liability 等计算），用于修正单次检查的判断逻辑。
+- **9 维度**：**全部参与**报告生成——priority/title/budget 直接进报告与 CapEx；safety/urgency/liability/severity/likelihood/escalation 参与优先级计算并映射到 D1–D9（OVERALL_RISK_LABEL）。报告生成已使用当前收集到的主要信息。
+- **Admin 调试覆盖**：在 `/admin/findings-debug` 中修改的维度会参与报告生成（优先级、标题、预算及 6 维判断逻辑）；OVERALL_RISK_LABEL 为间接受影响，当前设计即可。
 - **自定义 Finding 库**：可以单独做，技师下次可从库选，工程师可看统计并一键入常用库；**第一步**已做「界面能直观改 9 个维度」的库管理 + 后端 API。

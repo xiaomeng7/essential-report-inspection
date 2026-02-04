@@ -3,7 +3,6 @@ import { Wizard } from "./components/Wizard";
 import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
 import { ConfigAdmin } from "./components/ConfigAdmin";
-import { FindingsDebugPage } from "./components/FindingsDebugPage";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -125,8 +124,12 @@ function App() {
   }
 
   if (isFindingsDebugRoute) {
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/admin/config?tab=findingDimensionsGlobal");
+      setPathname("/admin/config");
+    }
     return (
-      <FindingsDebugPage
+      <ConfigAdmin
         onBack={() => {
           window.history.replaceState(null, "", "/");
           setPathname("/");
