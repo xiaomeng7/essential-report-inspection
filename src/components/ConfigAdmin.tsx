@@ -1008,7 +1008,6 @@ export function ConfigAdmin({ onBack }: Props) {
                       </h4>
                       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                         {findingsInCategory.map((findingId) => {
-                          const dims = dimensionsData.findings[findingId] || {};
                           const globalDims = globalDimOverrides[findingId];
                           const hasGlobal = !!globalDims;
                           
