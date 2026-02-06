@@ -13,7 +13,7 @@ finding_profiles:
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Alarm Sounded
@@ -25,6 +25,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Schedule periodic testing and replacement in line with manufacturer guidance.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 100
+      high: 300
   ALL_CHECKLIST_ITEMS_COMPLETED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -41,6 +48,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   ALL_REQUIRED_PHOTOS_UPLOADED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -59,13 +73,20 @@ finding_profiles:
         gradually.
       planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   ASBESTOS_SUSPECTED_BACKBOARD:
     category: OTHER
     default_priority: IMMEDIATE
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Asbestos Suspected Backboard
@@ -75,13 +96,20 @@ finding_profiles:
         exposure within the next 6-12 months.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 2
+    budgetary_range:
+      low: 2000
+      high: 8000
   BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Bakelite Or Ceramic Accessory Visible
@@ -91,13 +119,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   BARE_METAL_WIRE_CORE_IS_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Bare Metal Wire Core Is Visible
@@ -107,13 +142,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   BURN_MARKS_VISIBLE:
     category: OTHER
     default_priority: IMMEDIATE
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Burn Marks Visible
@@ -123,13 +165,20 @@ finding_profiles:
         exposure within the next 6-12 months.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 1000
   CABLE_DAMAGE_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Cable Damage Visible
@@ -139,13 +188,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
   CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Cable Support Method Observed Clips Resting Buried
@@ -155,13 +211,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
   CABLE_WITH_NON_MODERN_INSULATION_OBSERVED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Cable With Non Modern Insulation Observed
@@ -171,13 +234,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
   CERAMIC_FUSE_HOLDER_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Ceramic Fuse Holder Visible
@@ -187,6 +257,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   COOKTOP_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -203,13 +280,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   COVER_BROKEN_OR_MISSING:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Cover Broken Or Missing
@@ -219,6 +303,13 @@ finding_profiles:
         gradually.
       planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 200
+      high: 1000
   CRACKS_VISIBLE_ON_FACEPLATE:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -235,13 +326,20 @@ finding_profiles:
         gradually.
       planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   DAMAGE_CORROSION_OVERHEATING:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Damage Corrosion Overheating
@@ -253,6 +351,13 @@ finding_profiles:
         gradually.
       planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 1000
   DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -269,6 +374,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   DISHWASHER_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -285,6 +397,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   DRYER_OUTLET_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -301,13 +420,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   EARTH_PIN_MISSING_OR_DAMAGED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Earth Pin Missing Or Damaged
@@ -317,6 +443,13 @@ finding_profiles:
         gradually.
       planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   EXHAUST_FAN_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -333,6 +466,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -349,6 +489,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   EXTERIOR_LIGHT_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -365,6 +512,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -381,6 +535,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   GARAGE_DOOR_OPENER_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -397,6 +558,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -413,6 +581,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   HEATED_TOWEL_RAIL_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -429,13 +604,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Heat Damage Visible On Fitting Or Ceiling
@@ -445,6 +627,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 200
+      high: 1000
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -461,6 +650,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -477,13 +673,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   INSULATION_CONTACT_OBSERVED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Insulation Contact Observed
@@ -493,6 +696,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 1000
   LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -509,6 +719,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -525,6 +742,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -541,6 +765,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   LOCATION_PHOTOGRAPHED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -559,13 +790,20 @@ finding_profiles:
         gradually.
       planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   MAIN_SWITCH_SERVICE_FUSE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Main Switch Service Fuse
@@ -577,6 +815,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Often best completed during other major electrical works (e.g., adding circuits, solar, EV charging).
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   MANUFACTURE_DATE_RECORDED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -593,13 +838,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   MEN_LINK:
     category: OTHER
     default_priority: IMMEDIATE
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Men Link
@@ -611,13 +863,20 @@ finding_profiles:
         exposure within the next 6-12 months.
       planning_guidance: Prioritise where test results are marginal or site conditions increase corrosion risk.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 500
   MOISTURE_STAINING_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Moisture Staining Visible
@@ -627,13 +886,20 @@ finding_profiles:
         gradually.
       planning_guidance: Coordinate with plumbing/building maintenance where relevant.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Non Standard Wiring Or Added Component Observed
@@ -643,6 +909,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Rectification can be staged if no immediate hazards are present.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   NO_ADVICE_OR_QUOTATIONS_PROVIDED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -659,13 +932,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   NUMBER_OF_POWER_BOARDS_OBSERVED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Number Of Power Boards Observed
@@ -675,6 +955,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 2000
+      high: 8000
   NUMBER_OF_POWER_POINTS_ABOVE_BENCH:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -691,6 +978,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   OUTDOOR_POWER_POINT_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -707,6 +1001,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -723,6 +1024,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   OVEN_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -739,13 +1047,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   OVERALL_SWITCHBOARD:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Overall Switchboard
@@ -757,6 +1072,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Often best completed during other major electrical works (e.g., adding circuits, solar, EV charging).
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 2000
+      high: 8000
   PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -773,6 +1095,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -789,6 +1118,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   POWER_POINT_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -805,6 +1141,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   POWER_POINT_PRESENT_IN_BATHROOM:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -821,6 +1164,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -837,6 +1187,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   RANGE_HOOD_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -853,6 +1210,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   ROOF_SPACE_ACCESSED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -869,6 +1233,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   SMOKE_ALARM_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -887,13 +1258,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Schedule periodic testing and replacement in line with manufacturer guidance.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 100
+      high: 300
   SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Supply Cable Located Within Mm Of Cooktop Surface
@@ -903,6 +1281,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
   SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -919,6 +1304,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   SWITCH_BODY_MOVES_WHEN_TOUCHED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -935,13 +1327,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED:
     category: OTHER
     default_priority: IMMEDIATE
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Switch Movement Uneven Or Obstructed
@@ -953,13 +1352,20 @@ finding_profiles:
         exposure within the next 6-12 months.
       planning_guidance: Prioritise where test results are marginal or site conditions increase corrosion risk.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 500
   SWITCH_PLATE_CRACKED_OR_DAMAGED:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Switch Plate Cracked Or Damaged
@@ -969,13 +1375,20 @@ finding_profiles:
         gradually.
       planning_guidance: If minor and not safety-critical, can be addressed during routine maintenance.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 200
+      high: 1000
   TAPED_CONNECTION_VISIBLE:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Taped Connection Visible
@@ -985,6 +1398,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 200
+      high: 1000
   TEST_BUTTON_PRESSED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1001,6 +1421,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   TRANSFORMER_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1017,13 +1444,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   TRANSFORMER_RESTING_ON_INSULATION:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: Transformer Resting On Insulation
@@ -1033,13 +1467,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: Where safe, minor cable rectification can be grouped with other planned works.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 1000
   TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN:
     category: OTHER
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: Type Observed Photoelectric Ionisation Unknown
@@ -1051,6 +1492,13 @@ finding_profiles:
         gradually.
       planning_guidance: Do not defer if temperature rise is significant or critical circuits are affected.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 200
+      high: 1000
   UNIT_TESTED_AS_INTERCONNECTED:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1067,6 +1515,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1083,6 +1538,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   WASHING_MACHINE_OUTLET_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1099,6 +1561,13 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1115,6 +1584,13 @@ finding_profiles:
         gradually.
       planning_guidance: Coordinate with plumbing/building maintenance where relevant.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 150
+      high: 400
   WEATHERPROOF_COVER_PRESENT:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1131,13 +1607,20 @@ finding_profiles:
         compliance confidence.
       planning_guidance: If no immediate hazard is present, this can be planned with other electrical works to minimise disruption.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 200
+      high: 1000
   SWITCHBOARD_CERAMIC_FUSES_PRESENT:
     category: LEGACY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: LOW
     budget: high
     messaging:
       title: SWITCHBOARD CERAMIC FUSES PRESENT
@@ -1145,13 +1628,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   SWITCHBOARD_REWIREABLE_FUSES_PRESENT:
     category: LEGACY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: LOW
     budget: high
     messaging:
       title: SWITCHBOARD REWIREABLE FUSES PRESENT
@@ -1159,13 +1649,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   SWITCHBOARD_NO_RCD_OR_RCBO:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: MODERATE
+      escalation: HIGH
     budget: high
     messaging:
       title: SWITCHBOARD NO RCD OR RCBO
@@ -1173,6 +1670,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
   SWITCHBOARD_NO_RCBO:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1187,6 +1691,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_AGED_ORIGINAL:
     category: LEGACY
     default_priority: PLAN_MONITOR
@@ -1201,13 +1712,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_LABELING_INCOMPLETE:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: SWITCHBOARD LABELING INCOMPLETE
@@ -1215,13 +1733,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_CLEARANCES_OR_ACCESS_ISSUE:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: LOW
+      escalation: MODERATE
     budget: low
     messaging:
       title: SWITCHBOARD CLEARANCES OR ACCESS ISSUE
@@ -1229,6 +1754,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_ENCLOSURE_DAMAGED:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1243,6 +1775,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_SIGNS_OF_HEAT_DAMAGE:
     category: FIRE
     default_priority: PLAN_MONITOR
@@ -1257,6 +1796,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   SWITCHBOARD_LOOSE_CONNECTIONS_SUSPECTED:
     category: FIRE
     default_priority: PLAN_MONITOR
@@ -1271,13 +1817,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   SWITCHBOARD_INADEQUATE_SPARE_WAYS:
     category: RELIABILITY
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: low
     messaging:
       title: SWITCHBOARD INADEQUATE SPARE WAYS
@@ -1285,13 +1838,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   LIGHTING_CIRCUITS_NO_RCD:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: LIGHTING CIRCUITS NO RCD
@@ -1299,21 +1859,14 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
   POWER_CIRCUITS_NO_RCD:
-    category: SHOCK
-    default_priority: PLAN_MONITOR
-    risk:
-      safety: HIGH
-      compliance: HIGH
-      escalation: MODERATE
-    budget: low
-    messaging:
-      title: POWER CIRCUITS NO RCD
-      why_it_matters: No RCD on power circuits increases liability exposure for occupants/tenants.
-      if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
-      planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
-    disclaimer_line: ""
-  RCD_TEST_FAIL_OR_UNSTABLE:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
@@ -1322,11 +1875,39 @@ finding_profiles:
       escalation: HIGH
     budget: low
     messaging:
+      title: POWER CIRCUITS NO RCD
+      why_it_matters: No RCD on power circuits increases liability exposure for occupants/tenants.
+      if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
+      planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  RCD_TEST_FAIL_OR_UNSTABLE:
+    category: SHOCK
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: HIGH
+      compliance: HIGH
+      escalation: MODERATE
+    budget: low
+    messaging:
       title: RCD TEST FAIL OR UNSTABLE
       why_it_matters: Failed/unstable RCD operation can invalidate assumptions of protection.
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   RCD_TRIP_TIME_SLOW:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1341,13 +1922,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   RCD_NOT_TESTED_OR_UNKNOWN:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: LOW
+      escalation: MODERATE
     budget: horizon
     messaging:
       title: RCD NOT TESTED OR UNKNOWN
@@ -1355,6 +1943,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   RCBO_RECOMMENDED_UPGRADE:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1369,13 +1964,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   OVERCURRENT_PROTECTION_NONCOMPLIANT:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: OVERCURRENT PROTECTION NONCOMPLIANT
@@ -1383,11 +1985,18 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   MEN_NOT_VERIFIED:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
-      safety: MODERATE
+      safety: HIGH
       compliance: MEDIUM
       escalation: MODERATE
     budget: low
@@ -1397,13 +2006,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
   MEN_CONNECTION_DEFECTIVE:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: HIGH
+      escalation: MODERATE
     budget: low
     messaging:
       title: MEN CONNECTION DEFECTIVE
@@ -1411,6 +2027,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
   EARTHING_RESISTANCE_HIGH:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1425,6 +2048,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
   EARTHING_CONTINUITY_NOT_VERIFIED:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
@@ -1439,6 +2069,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
   MAIN_EARTH_CONDUCTOR_UNDERSIZED_SUSPECTED:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
@@ -1453,13 +2090,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
   BONDING_TO_WATER_GAS_NOT_VERIFIED:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: LOW
+      escalation: MODERATE
     budget: low
     messaging:
       title: BONDING TO WATER GAS NOT VERIFIED
@@ -1467,13 +2111,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
   GPO_MECHANICAL_LOOSE:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: horizon
     messaging:
       title: GPO MECHANICAL LOOSE
@@ -1481,13 +2132,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   DAMAGED_OUTLET_OR_SWITCH:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: DAMAGED OUTLET OR SWITCH
@@ -1495,13 +2153,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
   FITTING_OVERHEAT:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: FITTING OVERHEAT
@@ -1509,13 +2174,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: LIGHT FITTING NONCOMPLIANT OR UNSAFE
@@ -1523,6 +2195,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   EXTENSION_LEADS_PERMANENT_USE_OBSERVED:
     category: RELIABILITY
     default_priority: PLAN_MONITOR
@@ -1537,13 +2216,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   SMOKE_ALARMS_MISSING:
     category: LIFE_SAFETY
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: SMOKE ALARMS MISSING
@@ -1551,13 +2237,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   SMOKE_ALARMS_EXPIRED:
     category: LIFE_SAFETY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: SMOKE ALARMS EXPIRED
@@ -1565,13 +2258,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   SMOKE_ALARMS_NOT_INTERCONNECTED:
     category: LIFE_SAFETY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: LOW
+      escalation: HIGH
     budget: low
     messaging:
       title: SMOKE ALARMS NOT INTERCONNECTED
@@ -1579,13 +2279,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   SMOKE_ALARMS_LOCATION_NONCOMPLIANT_SUSPECTED:
     category: LIFE_SAFETY
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: LOW
+      escalation: HIGH
     budget: low
     messaging:
       title: SMOKE ALARMS LOCATION NONCOMPLIANT SUSPECTED
@@ -1593,13 +2300,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   THERMAL_NOT_PERFORMED:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: THERMAL NOT PERFORMED
@@ -1607,13 +2321,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   THERMAL_NORMAL_NO_HOTSPOTS:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
     risk:
       safety: LOW
       compliance: LOW
-      escalation: LOW
+      escalation: HIGH
     budget: horizon
     messaging:
       title: THERMAL NORMAL NO HOTSPOTS
@@ -1621,13 +2342,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   THERMAL_HOTSPOT_DETECTED_MINOR:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: THERMAL HOTSPOT DETECTED MINOR
@@ -1635,6 +2363,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   THERMAL_HOTSPOT_DETECTED_MAJOR:
     category: FIRE
     default_priority: PLAN_MONITOR
@@ -1649,6 +2384,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   WIRING_INSULATION_DEGRADED:
     category: FIRE
     default_priority: PLAN_MONITOR
@@ -1663,13 +2405,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 100
+      high: 500
   WIRING_UNSUPPORTED_OR_POOR_FIXING:
     category: COMPLIANCE
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: LOW
-      escalation: LOW
+      escalation: MODERATE
     budget: low
     messaging:
       title: WIRING UNSUPPORTED OR POOR FIXING
@@ -1677,13 +2426,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
   OLD_RUBBER_VIR_WIRING_SUSPECTED:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: HIGH
+      escalation: LOW
     budget: high
     messaging:
       title: OLD RUBBER VIR WIRING SUSPECTED
@@ -1691,6 +2447,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   EXTERNAL_CABLE_MECHANICAL_RISK:
     category: RELIABILITY
     default_priority: PLAN_MONITOR
@@ -1705,6 +2468,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 100
+      high: 500
   TEST_DATA_INCOMPLETE:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
@@ -1719,13 +2489,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   INSULATION_RESISTANCE_LOW_BORDERLINE:
     category: FIRE
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: MODERATE
+      escalation: LOW
     budget: low
     messaging:
       title: INSULATION RESISTANCE LOW BORDERLINE
@@ -1733,6 +2510,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   INSULATION_RESISTANCE_FAIL:
     category: FIRE
     default_priority: PLAN_MONITOR
@@ -1747,13 +2531,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
   EARTH_FAULT_LOOP_IMPEDANCE_BORDERLINE:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: MODERATE
       compliance: MEDIUM
-      escalation: MODERATE
+      escalation: HIGH
     budget: low
     messaging:
       title: EARTH FAULT LOOP IMPEDANCE BORDERLINE
@@ -1761,6 +2552,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
   EARTH_FAULT_LOOP_IMPEDANCE_FAIL:
     category: SHOCK
     default_priority: PLAN_MONITOR
@@ -1775,13 +2573,20 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
   POLARITY_ISSUE_DETECTED:
     category: SHOCK
     default_priority: PLAN_MONITOR
     risk:
       safety: HIGH
       compliance: HIGH
-      escalation: HIGH
+      escalation: LOW
     budget: low
     messaging:
       title: POLARITY ISSUE DETECTED
@@ -1789,6 +2594,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
@@ -1803,6 +2615,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 2
+    likelihood: 2
+    budgetary_range:
+      low: 200
+      high: 1000
   ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED:
     category: DATA_QUALITY
     default_priority: PLAN_MONITOR
@@ -1817,6 +2636,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   GENERAL_OBSERVATION_AGEING_INSTALLATION:
     category: LEGACY
     default_priority: PLAN_MONITOR
@@ -1831,7 +2657,13 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
-  # Internal fallback for unmapped finding IDs. Messaging must be client-safe (never show developer notes).
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
   UNKNOWN_FINDING_FALLBACK:
     category: OTHER
     default_priority: PLAN_MONITOR
@@ -1846,3 +2678,561 @@ finding_profiles:
       if_not_addressed: If this condition is not addressed, it may impact long-term reliability or compliance confidence.
       planning_guidance: This can be factored into future capital planning cycles without immediate urgency.
     disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  ALARM_AGEING:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: ALARM AGEING
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: MEDIUM
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
+  ARCING_EVIDENCE_PRESENT:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: ARCING EVIDENCE PRESENT
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 1
+    likelihood: 4
+    budgetary_range:
+      low: 0
+      high: 0
+  ASBESTOS_RISK:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: ASBESTOS RISK
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
+  BATTERY_INSTALL_UNVERIFIED:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: BATTERY INSTALL UNVERIFIED
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  BATTERY_THERMAL:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: BATTERY THERMAL
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
+  BOARD_AT_CAPACITY:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: BOARD AT CAPACITY
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
+  EARTH_DEGRADED:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: EARTH DEGRADED
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
+  EV_LOAD_AGGREGATION:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: EV LOAD AGGREGATION
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  EV_UNSEGREGATED_LOAD:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: EV UNSEGREGATED LOAD
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 1
+    likelihood: 4
+    budgetary_range:
+      low: 0
+      high: 0
+  EXPOSED_CONDUCTOR:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: EXPOSED CONDUCTOR
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  GPO_EARTH_FAULT:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: GPO EARTH FAULT
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  HYBRID_UPGRADE_STAGE:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: HYBRID UPGRADE STAGE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  IP_UNVERIFIED:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: IP UNVERIFIED
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  LABELING_POOR:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: LABELING POOR
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  LEGACY_DEVICES:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: LEGACY DEVICES
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  LEGACY_EARTHING:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: LEGACY EARTHING
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 3
+    likelihood: 2
+    budgetary_range:
+      low: 400
+      high: 1500
+  LEGACY_SUPPLY_FUSE:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: LEGACY SUPPLY FUSE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
+  MATERIAL_DEGRADATION:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: MATERIAL DEGRADATION
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  MECHANICAL_EXPOSURE:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: MECHANICAL EXPOSURE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 2
+    likelihood: 3
+    budgetary_range:
+      low: 100
+      high: 500
+  NON_STANDARD_WORK:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: NON STANDARD WORK
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 300
+      high: 1200
+  NO_EXPANSION_MARGIN:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: NO EXPANSION MARGIN
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: MEDIUM
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  NO_RCD_PROTECTION:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: NO RCD PROTECTION
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  PARTIAL_RCD_COVERAGE:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: PARTIAL RCD COVERAGE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
+  PV_ISOLATION_UNVERIFIED:
+    category: OTHER
+    default_priority: PLAN_MONITOR
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: LOW
+    budget: horizon
+    messaging:
+      title: PV ISOLATION UNVERIFIED
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: MEDIUM
+    risk_severity: 1
+    likelihood: 1
+    budgetary_range:
+      low: 0
+      high: 0
+  SMOKE_ALARM_FAILURE:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: SMOKE ALARM FAILURE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800
+  SUPPLY_NO_MAIN_ISOLATION:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: SUPPLY NO MAIN ISOLATION
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 3
+    likelihood: 4
+    budgetary_range:
+      low: 500
+      high: 2000
+  SURGE_PROTECTION_ABSENT:
+    category: OTHER
+    default_priority: RECOMMENDED_0_3_MONTHS
+    risk:
+      safety: LOW
+      compliance: LOW
+      escalation: MODERATE
+    budget: horizon
+    messaging:
+      title: SURGE PROTECTION ABSENT
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: LONG_TERM
+    liability: LOW
+    risk_severity: 3
+    likelihood: 3
+    budgetary_range:
+      low: 500
+      high: 2000
+  SWITCH_ARCING:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: MODERATE
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: SWITCH ARCING
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: SHORT_TERM
+    liability: HIGH
+    risk_severity: 5
+    likelihood: 4
+    budgetary_range:
+      low: 300
+      high: 1000
+  THERMAL_STRESS_ACTIVE:
+    category: OTHER
+    default_priority: IMMEDIATE
+    risk:
+      safety: HIGH
+      compliance: LOW
+      escalation: HIGH
+    budget: horizon
+    messaging:
+      title: THERMAL STRESS ACTIVE
+      why_it_matters: This condition may affect electrical safety, reliability, or maintainability depending on severity and location.
+    disclaimer_line: ""
+    urgency: IMMEDIATE
+    liability: HIGH
+    risk_severity: 4
+    likelihood: 4
+    budgetary_range:
+      low: 200
+      high: 800

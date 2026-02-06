@@ -247,8 +247,8 @@ function buildDimensionsData(
     const safety = rulesEntry?.safety ?? pf?.risk?.safety ?? "";
     const urgency = rulesEntry?.urgency ?? "";
     const liability = rulesEntry?.liability ?? "";
-    const budgetLow = resp?.budgetary_range?.low ?? null;
-    const budgetHigh = resp?.budgetary_range?.high ?? null;
+    const budgetLow = resp?.budgetary_range?.low ?? pf?.budgetary_range?.low ?? null;
+    const budgetHigh = resp?.budgetary_range?.high ?? pf?.budgetary_range?.high ?? null;
     const priority = pf?.default_priority ?? resp?.default_priority ?? "";
     const severity = pf?.risk_severity ?? null;
     const likelihood = pf?.likelihood ?? null;
