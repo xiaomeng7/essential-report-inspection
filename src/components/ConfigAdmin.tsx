@@ -1011,7 +1011,6 @@ export function ConfigAdmin({ onBack }: Props) {
                           const dims = dimensionsData.findings[findingId] || {};
                           const globalDims = globalDimOverrides[findingId];
                           const hasGlobal = !!globalDims;
-                          const title = (globalDims?.title as string) || (dims.title as string) || findingId;
                           
                           return (
                             <li
