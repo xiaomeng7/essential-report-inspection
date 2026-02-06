@@ -59,6 +59,7 @@ export type StructuredReport = {
 
   // Appendix
   TEST_DATA_SECTION: string;
+  TEST_DATA_SECTION_HTML?: string; // HTML version for Word template (optional for backward compatibility)
   TECHNICAL_NOTES: string;
 
   // Closing

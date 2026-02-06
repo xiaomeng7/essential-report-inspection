@@ -1298,6 +1298,9 @@ export async function buildStructuredReport(
   const appendixParts = appendixSection.split("### Technical Notes");
   const testDataSection = (appendixParts[0] || "").replace(/<h2[^>]*>.*?<\/h2>\s*/s, "").trim() || "Test data not captured.";
   const technicalNotesPart = (appendixParts[1] || "").trim() || defaultText.TECHNICAL_NOTES || "This assessment is based on a visual inspection and limited electrical testing of accessible areas only.";
+  
+  // Convert testDataSection (markdown) to HTML for Word template
+  const testDataSectionHtml = markdownToHtml(testDataSection);
   const capexSection = buildCapExRoadmapSection(computed, defaultText, findings, responses);
   const capexTableRows = capexSection.split(/\*\*Indicative market/)[0]?.trim() || capexSection;
   const capexDisclaimer = "Provided for financial provisioning only. Not a quotation or scope of works.";
@@ -1382,6 +1385,7 @@ export async function buildStructuredReport(
       return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : (termsContent || "Terms and conditions apply. Please refer to the full terms document.");
     })(),
     TEST_DATA_SECTION: testDataSection,
+    TEST_DATA_SECTION_HTML: testDataSectionHtml, // HTML version for Word template
     TECHNICAL_NOTES: technicalNotesPart,
     CLOSING_STATEMENT: closingSection,
   } as StructuredReport;
