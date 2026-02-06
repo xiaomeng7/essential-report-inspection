@@ -21,6 +21,7 @@ import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader";
 import { loadResponses, buildReportData, type ReportData } from "../generateWordReport";
 import { normalizeInspection, type CanonicalInspection } from "./normalizeInspection";
 import { getFindingProfile } from "./findingProfilesLoader";
+import { tagFindingsWithOTR, getCoveredOTRCategories, getCoveredOTRTests, type FindingWithOTR } from "./otrMapping";
 
 export type GenerateReportParams = {
   inspection: StoredInspection;
@@ -216,6 +217,12 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
     console.warn(`⚠️ Missing canonical fields: ${missingFields.join(", ")}`);
   }
   
+  // Tag findings with OTR metadata (internal only, not visible to technicians)
+  const findingsWithOTR: FindingWithOTR[] = tagFindingsWithOTR(findings);
+  const coveredOTRCategories = getCoveredOTRCategories(findingsWithOTR);
+  const testData = canonical.test_data || {};
+  const coveredOTRTests = getCoveredOTRTests(testData);
+  
   // 加载默认文本和模板
   const defaultText = await loadDefaultText(event);
   const executiveSummaryTemplates = await loadExecutiveSummaryTemplates(event);
@@ -354,6 +361,44 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("This assessment is based on a visual inspection and limited electrical testing of accessible areas only. It provides a framework for managing electrical risk within acceptable parameters.");
   md.push("");
   
+  // OTR/AS3000 Alignment Statement (internal mapping, decision-support tone)
+  if (coveredOTRCategories.length > 0 || coveredOTRTests.length > 0) {
+    md.push("This inspection includes visual inspection and testing aligned with AS/NZS 3000:2018 (Wiring Rules) and OTR Verification of Electrical Installation requirements. The assessment covers the following areas:");
+    md.push("");
+    
+    if (coveredOTRCategories.length > 0) {
+      const categoryLabels: Record<string, string> = {
+        general: "General visual inspection",
+        consumer_mains: "Consumer mains and service connections",
+        switchboards: "Switchboards, enclosures, and protection devices",
+        wiring_systems: "Wiring systems, cables, and installation methods",
+        electrical_equipment: "Electrical equipment, appliances, and accessories",
+        earthing: "Earthing, MEN connection, and bonding",
+      };
+      
+      md.push("- " + coveredOTRCategories.map(cat => categoryLabels[cat] || cat).join("\n- "));
+      md.push("");
+    }
+    
+    if (coveredOTRTests.length > 0) {
+      const testLabels: Record<string, string> = {
+        earth_continuity: "Earth continuity testing",
+        insulation_resistance: "Insulation resistance testing",
+        polarity: "Polarity testing",
+        earth_fault_loop_impedance: "Earth fault loop impedance assessment",
+        rcd_tests: "RCD testing",
+        men_connection: "MEN connection verification",
+      };
+      
+      md.push("Mandatory test concepts covered:");
+      md.push("- " + coveredOTRTests.map(test => testLabels[test] || test).join("\n- "));
+      md.push("");
+    }
+    
+    md.push("*Note: This report is a decision-support document and does not constitute a compliance certificate or regulatory enforcement judgment.*");
+    md.push("");
+  }
+  
   // Limitations
   const limitations = inspection.limitations || [];
   if (limitations.length > 0) {
@@ -397,12 +442,12 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("## Observed Conditions & Risk Interpretation");
   md.push("");
   
-  if (findings.length === 0) {
+  if (findingsWithOTR.length === 0) {
     md.push("No findings were identified during this assessment.");
     md.push("");
   } else {
-    // 按优先级排序：IMMEDIATE → RECOMMENDED → PLAN
-    const sortedFindings = [...findings].sort((a, b) => {
+    // Use findings with OTR metadata, sorted by priority
+    const sortedFindings = [...findingsWithOTR].sort((a, b) => {
       const priorityOrder: Record<string, number> = {
         "IMMEDIATE": 1,
         "RECOMMENDED_0_3_MONTHS": 2,

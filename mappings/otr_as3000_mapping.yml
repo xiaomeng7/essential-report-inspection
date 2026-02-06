@@ -1,0 +1,234 @@
+version: "1.0"
+description: >
+  Internal mapping of existing inspection sections and fields to OTR Verification of Electrical Installation categories
+  and AS/NZS 3000 references. This mapping is used ONLY for report generation and compliance narratives.
+  Technicians do NOT see OTR wording or references.
+
+# OTR Visual Inspection Categories
+otr_categories:
+  general:
+    description: "General visual inspection requirements"
+    sections:
+      - S0_START_CONTEXT
+      - S1_ACCESS_LIMITATIONS
+    fields:
+      - job.*
+      - access.*
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 1 - General"
+      - "AS/NZS 3000:2018 Section 2 - Definitions"
+
+  consumer_mains:
+    description: "Consumer mains and service connections"
+    sections:
+      - S2_SUPPLY_OVERVIEW
+      - S2_MAIN_SWITCH
+    fields:
+      - supply.*
+      - switchboard.main_switch_*
+      - switchboard.service_fuse_*
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 3.2 - Consumer mains"
+      - "AS/NZS 3000:2018 Section 3.3 - Service connections"
+
+  switchboards:
+    description: "Switchboards, enclosures, and protection devices"
+    sections:
+      - S2_SWITCHBOARD_OVERVIEW
+      - S2_METERBOX
+      - S3_SWITCHBOARD_CAPACITY_LABELS
+    fields:
+      - switchboard.overall_condition
+      - switchboard.enclosure_condition
+      - switchboard.protection_types_present
+      - switchboard.ceramic_fuse_holders_present
+      - switchboard.rewireable_fuses_present
+      - switchboard.mixed_old_new_devices
+      - switchboard.board_at_capacity
+      - switchboard.spare_ways_available
+      - switchboard.labelling_quality
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 2.9 - Switchboards"
+      - "AS/NZS 3000:2018 Section 3.9 - Protection devices"
+
+  wiring_systems:
+    description: "Wiring systems, cables, and installation methods"
+    sections:
+      - S4_CABLES_LEGACY
+      - S3F_ROOF_SPACE
+      - S3G_EXTERIOR_GARAGE
+    fields:
+      - switchboard.supply_cable_condition
+      - switchboard.cracked_brittle_insulation
+      - switchboard.unprotected_cable_entries
+      - switchboard.exposed_single_insulated
+      - internal.roof.cable_support_method
+      - internal.roof.insulation_contact
+      - internal.roof.non_modern_cable
+      - internal.roof.taped_connection
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 3.7 - Wiring systems"
+      - "AS/NZS 3000:2018 Section 3.8 - Cables and conductors"
+
+  electrical_equipment:
+    description: "Electrical equipment, appliances, and accessories"
+    sections:
+      - S3C_KITCHEN
+      - S3D_BATHROOMS
+      - S3E_LAUNDRY
+      - S3H_SMOKE_ALARMS
+      - S9_SOLAR_BATTERY_EV
+      - S9B_POOL_HIGH_LOAD
+    fields:
+      - internal.kitchen.*
+      - internal.bathroom.*
+      - internal.laundry.*
+      - internal.smoke_alarm.*
+      - assets.*
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 4 - Electrical equipment"
+      - "AS/NZS 3000:2018 Section 4.2 - Socket-outlets"
+      - "AS/NZS 3000:2018 Section 4.3 - Lighting"
+
+  earthing:
+    description: "Earthing, MEN connection, and bonding"
+    sections:
+      - S4_EARTHING_MEN
+    fields:
+      - earthing.men_link_confirmed
+      - earthing.main_earth_conductor_intact
+      - earthing.earth_electrode_present
+      - earthing.earth_resistance_measured
+      - earthing.earth_resistance_ohm
+      - earthing.bonding_present
+    as3000_references:
+      - "AS/NZS 3000:2018 Section 5 - Earthing"
+      - "AS/NZS 3000:2018 Section 5.3 - MEN system"
+      - "AS/NZS 3000:2018 Section 5.4 - Bonding"
+
+# OTR Mandatory Test Concepts
+otr_tests:
+  earth_continuity:
+    description: "Earth continuity testing"
+    test_fields:
+      - earthing.earth_resistance_measured
+      - earthing.earth_resistance_ohm
+      - measured.earth_resistance_ohm
+    as3000_reference: "AS/NZS 3000:2018 Section 8.3.4 - Earth continuity"
+    otr_category: earthing
+
+  insulation_resistance:
+    description: "Insulation resistance testing"
+    test_fields:
+      - measured.insulation_resistance_mohm
+    as3000_reference: "AS/NZS 3000:2018 Section 8.3.3 - Insulation resistance"
+    otr_category: wiring_systems
+
+  polarity:
+    description: "Polarity testing"
+    test_fields:
+      - gpo_tests.summary.polarity_pass
+      - gpo_tests.summary.total_gpo_tested
+      - gpo_tests.exceptions[].issue
+    as3000_reference: "AS/NZS 3000:2018 Section 8.3.2 - Polarity"
+    otr_category: electrical_equipment
+
+  earth_fault_loop_impedance:
+    description: "Earth fault loop impedance testing"
+    test_fields:
+      - measured.earth_resistance_ohm
+      # Note: Direct EFLI measurement may not be in current inspection, but earth resistance contributes
+    as3000_reference: "AS/NZS 3000:2018 Section 8.3.5 - Earth fault loop impedance"
+    otr_category: earthing
+
+  rcd_tests:
+    description: "RCD testing"
+    test_fields:
+      - rcd_tests.performed
+      - rcd_tests.summary.total_tested
+      - rcd_tests.summary.total_pass
+      - rcd_tests.summary.total_fail
+      - rcd_tests.exceptions[]
+    as3000_reference: "AS/NZS 3000:2018 Section 8.3.6 - RCD testing"
+    otr_category: switchboards
+
+  men_connection:
+    description: "MEN connection verification"
+    test_fields:
+      - earthing.men_link_confirmed
+      - measured.men_continuity
+    as3000_reference: "AS/NZS 3000:2018 Section 5.3 - MEN system"
+    otr_category: earthing
+
+# Finding to OTR Category Mapping
+finding_to_otr_category:
+  # Switchboard findings
+  ASBESTOS_RISK: switchboards
+  THERMAL_STRESS_ACTIVE: switchboards
+  ARCING_EVIDENCE_PRESENT: switchboards
+  MATERIAL_DEGRADATION: switchboards
+  BOARD_AT_CAPACITY: switchboards
+  NO_EXPANSION_MARGIN: switchboards
+  LABELING_POOR: switchboards
+  NON_STANDARD_WORK: switchboards
+  NO_RCD_PROTECTION: switchboards
+  SWITCHBOARD_CONTAMINATION: switchboards
+  SWITCHBOARD_GREASE_OIL: switchboards
+
+  # Consumer mains findings
+  SUPPLY_NO_MAIN_ISOLATION: consumer_mains
+  LEGACY_SUPPLY_FUSE: consumer_mains
+
+  # Wiring systems findings
+  EXPOSED_CONDUCTOR: wiring_systems
+  CRACKED_BRITTLE_INSULATION: wiring_systems
+  UNPROTECTED_CABLE_ENTRIES: wiring_systems
+  INCORRECT_COLOUR_IDENTIFICATION: wiring_systems
+  INSULATION_CONTACT_OBSERVED: wiring_systems
+  NON_MODERN_CABLE: wiring_systems
+  TAPED_CONNECTION: wiring_systems
+
+  # Electrical equipment findings
+  GPO_EARTH_FAULT: electrical_equipment
+  POLARITY_ISSUE_DETECTED: electrical_equipment
+  DAMAGED_OUTLET_OR_SWITCH: electrical_equipment
+  GPO_MECHANICAL_LOOSE: electrical_equipment
+  FITTING_OVERHEAT: electrical_equipment
+  LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE: electrical_equipment
+  SMOKE_ALARM_FAILURE: electrical_equipment
+  SMOKE_ALARMS_MISSING: electrical_equipment
+  SMOKE_ALARMS_EXPIRED: electrical_equipment
+  SMOKE_ALARMS_NOT_INTERCONNECTED: electrical_equipment
+  BATTERY_THERMAL: electrical_equipment
+  EV_UNSEGREGATED_LOAD: electrical_equipment
+
+  # Earthing findings
+  MEN_NOT_VERIFIED: earthing
+  EARTH_DEGRADED: earthing
+  EARTHING_RESISTANCE_HIGH: earthing
+  BONDING_TO_WATER_GAS_NOT_VERIFIED: earthing
+  LEGACY_EARTHING: earthing
+
+  # RCD test findings
+  RCD_TEST_FAIL_OR_UNSTABLE: switchboards
+  RCD_TRIP_TIME_SLOW: switchboards
+
+  # General findings
+  ACCESS_LIMITATION_ROOF_VOID_NOT_ACCESSED: general
+  ACCESS_LIMITATION_SUBFLOOR_NOT_ACCESSED: general
+  TEST_DATA_INCOMPLETE: general
+
+# Finding to AS3000 Reference Mapping
+finding_to_as3000:
+  ASBESTOS_RISK: "AS/NZS 3000:2018 Section 2.9.2 - Switchboard construction"
+  THERMAL_STRESS_ACTIVE: "AS/NZS 3000:2018 Section 3.9.2 - Protection device ratings"
+  ARCING_EVIDENCE_PRESENT: "AS/NZS 3000:2018 Section 3.9.2 - Protection device condition"
+  MATERIAL_DEGRADATION: "AS/NZS 3000:2018 Section 2.9.2 - Switchboard construction"
+  NO_RCD_PROTECTION: "AS/NZS 3000:2018 Section 2.6 - Additional protection by RCDs"
+  MEN_NOT_VERIFIED: "AS/NZS 3000:2018 Section 5.3 - MEN system"
+  EARTH_DEGRADED: "AS/NZS 3000:2018 Section 5.2 - Earthing conductors"
+  GPO_EARTH_FAULT: "AS/NZS 3000:2018 Section 4.2 - Socket-outlets"
+  POLARITY_ISSUE_DETECTED: "AS/NZS 3000:2018 Section 8.3.2 - Polarity"
+  EXPOSED_CONDUCTOR: "AS/NZS 3000:2018 Section 3.7 - Wiring systems"
+  SUPPLY_NO_MAIN_ISOLATION: "AS/NZS 3000:2018 Section 3.2 - Consumer mains"
+  RCD_TEST_FAIL_OR_UNSTABLE: "AS/NZS 3000:2018 Section 8.3.6 - RCD testing"
