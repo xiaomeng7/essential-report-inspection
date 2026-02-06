@@ -5,6 +5,18 @@ meta:
   notes: >-
     Upgraded structure with observed_condition, risk_interpretation, priority_rationale, budgetary_range, and
     default_priority
+
+    Recommended actions use standardized archetypes: A (Immediate Safety), B (Prompt Rectification), C (Planned
+    Maintenance), D (Monitoring), E (Documentation Only), F (Further Assessment).
+
+    Recommended actions use standardized archetypes: A (Immediate Safety), B (Prompt Rectification), C (Planned
+    Maintenance), D (Monitoring), E (Documentation Only), F (Further Assessment).
+
+    Recommended actions use standardized archetypes: A (Immediate Safety), B (Prompt Rectification), C (Planned
+    Maintenance), D (Monitoring), E (Documentation Only), F (Further Assessment).
+
+    Recommended actions use standardized archetypes: A (Immediate Safety), B (Prompt Rectification), C (Planned
+    Maintenance), D (Monitoring), E (Documentation Only), F (Further Assessment).
 defaults:
   no_immediate: No immediate safety risks were identified at the time of inspection.
   no_recommended: No items requiring short-term planned action were identified at the time of inspection.
@@ -31,6 +43,9 @@ findings:
       note: Per unit
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   ALL_CHECKLIST_ITEMS_COMPLETED:
     title: All Checklist Items Completed
     observed_condition:
@@ -51,6 +66,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   ALL_REQUIRED_PHOTOS_UPLOADED:
     title: All Required Photos Uploaded
     observed_condition:
@@ -73,6 +89,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   ASBESTOS_SUSPECTED_BACKBOARD:
     title: Asbestos Suspected Backboard
     observed_condition:
@@ -94,6 +111,9 @@ findings:
       note: Depending on size and complexity
     default_priority: IMMEDIATE
     disclaimer_line: ""
+    recommended_action: >-
+      Further assessment by a licensed electrician or appropriately qualified specialist is recommended before any works
+      are undertaken.
   BAKELITE_OR_CERAMIC_ACCESSORY_VISIBLE:
     title: Bakelite Or Ceramic Accessory Visible
     observed_condition:
@@ -114,6 +134,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate rectification is required. This item can be addressed as part of planned electrical maintenance or
+      future upgrade works.
   BARE_METAL_WIRE_CORE_IS_VISIBLE:
     title: Bare Metal Wire Core Is Visible
     observed_condition:
@@ -134,6 +157,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   BURN_MARKS_VISIBLE:
     title: Burn Marks Visible
     observed_condition:
@@ -155,6 +181,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: IMMEDIATE
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   CABLE_DAMAGE_VISIBLE:
     title: Cable Damage Visible
     observed_condition:
@@ -175,6 +204,9 @@ findings:
       note: Depending on extent of work
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   CABLE_SUPPORT_METHOD_OBSERVED_CLIPS_RESTING_BURIED:
     title: Cable Support Method Observed Clips Resting Buried
     observed_condition:
@@ -195,6 +227,9 @@ findings:
       note: Depending on extent of work
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   CABLE_WITH_NON_MODERN_INSULATION_OBSERVED:
     title: Cable With Non Modern Insulation Observed
     observed_condition:
@@ -215,6 +250,9 @@ findings:
       note: Depending on extent of work
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   CERAMIC_FUSE_HOLDER_VISIBLE:
     title: Ceramic Fuse Holder Visible
     observed_condition:
@@ -235,6 +273,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate rectification is required. This item can be addressed as part of planned electrical maintenance or
+      future upgrade works.
   COOKTOP_PRESENT:
     title: Cooktop Present
     observed_condition:
@@ -255,6 +296,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   COVER_BROKEN_OR_MISSING:
     title: Cover Broken Or Missing
     observed_condition:
@@ -275,6 +317,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   CRACKS_VISIBLE_ON_FACEPLATE:
     title: Cracks Visible On Faceplate
     observed_condition:
@@ -295,6 +340,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   DAMAGE_CORROSION_OVERHEATING:
     title: Damage Corrosion Overheating
     observed_condition:
@@ -317,6 +365,9 @@ findings:
       note: Depending on component and extent
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   DEDICATED_OUTLET_OR_ISOLATOR_VISIBLE:
     title: Dedicated Outlet Or Isolator Visible
     observed_condition:
@@ -337,6 +388,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   DISHWASHER_PRESENT:
     title: Dishwasher Present
     observed_condition:
@@ -357,6 +411,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   DRYER_OUTLET_PRESENT:
     title: Dryer Outlet Present
     observed_condition:
@@ -377,6 +432,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   EARTH_PIN_MISSING_OR_DAMAGED:
     title: Earth Pin Missing Or Damaged
     observed_condition:
@@ -397,6 +453,9 @@ findings:
       note: Depending on component and extent
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   EXHAUST_FAN_PRESENT:
     title: Exhaust Fan Present
     observed_condition:
@@ -417,6 +476,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   EXTENSION_LEAD_CONNECTED_AT_TIME_OF_INSPECTION:
     title: Extension Lead Connected At Time Of Inspection
     observed_condition:
@@ -437,6 +497,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   EXTERIOR_LIGHT_PRESENT:
     title: Exterior Light Present
     observed_condition:
@@ -457,6 +520,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   FLEXIBLE_LEAD_FIXED_IN_PLACE_WITH_CLIPS_SCREWS:
     title: Flexible Lead Fixed In Place With Clips Screws
     observed_condition:
@@ -477,6 +541,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   GARAGE_DOOR_OPENER_PRESENT:
     title: Garage Door Opener Present
     observed_condition:
@@ -497,6 +564,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   GREASE_RESIDUE_OBSERVED_ON_RANGEHOOD_FILTER_COVER:
     title: Grease Residue Observed On Rangehood Filter Cover
     observed_condition:
@@ -517,6 +585,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   HEATED_TOWEL_RAIL_PRESENT:
     title: Heated Towel Rail Present
     observed_condition:
@@ -537,6 +608,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   HEAT_DAMAGE_VISIBLE_ON_FITTING_OR_CEILING:
     title: Heat Damage Visible On Fitting Or Ceiling
     observed_condition:
@@ -557,6 +629,9 @@ findings:
       note: Depending on component and extent
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_EDGE_TO_SINK_TAP_EDGE_MEASURED_MM:
     title: Horizontal Distance From Power Point Edge To Sink Tap Edge Measured Mm
     observed_condition:
@@ -579,6 +654,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   HORIZONTAL_DISTANCE_FROM_POWER_POINT_TO_SINK_EDGE_MM:
     title: Horizontal Distance From Power Point To Sink Edge Mm
     observed_condition:
@@ -599,6 +677,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   INSULATION_CONTACT_OBSERVED:
     title: Insulation Contact Observed
     observed_condition:
@@ -619,6 +700,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   LAMP_TYPE_OBSERVED_LED_HALOGEN_INCANDESCENT:
     title: Lamp Type Observed Led Halogen Incandescent
     observed_condition:
@@ -639,6 +723,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   LIGHT_FITTING_MOVES_WHEN_LIGHTLY_TOUCHED:
     title: Light Fitting Moves When Lightly Touched
     observed_condition:
@@ -659,6 +746,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   LIGHT_FITTING_PRESENT_ABOVE_BATH_SHOWER:
     title: Light Fitting Present Above Bath Shower
     observed_condition:
@@ -679,6 +769,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   LOCATION_PHOTOGRAPHED:
     title: Location Photographed
     observed_condition:
@@ -701,6 +792,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   MAIN_SWITCH_SERVICE_FUSE:
     title: Main Switch Service Fuse
     observed_condition:
@@ -723,6 +815,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate rectification is required. This item can be addressed as part of planned electrical maintenance or
+      future upgrade works.
   MANUFACTURE_DATE_RECORDED:
     title: Manufacture Date Recorded
     observed_condition:
@@ -743,6 +838,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   MEN_LINK:
     title: Men Link
     observed_condition:
@@ -764,6 +860,9 @@ findings:
       note: Verification and testing
     default_priority: IMMEDIATE
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   MOISTURE_STAINING_VISIBLE:
     title: Moisture Staining Visible
     observed_condition:
@@ -784,6 +883,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   NON_STANDARD_WIRING_OR_ADDED_COMPONENT_OBSERVED:
     title: Non Standard Wiring Or Added Component Observed
     observed_condition:
@@ -804,6 +906,9 @@ findings:
       note: Depending on extent of work
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   NO_ADVICE_OR_QUOTATIONS_PROVIDED:
     title: No Advice Or Quotations Provided
     observed_condition:
@@ -824,6 +929,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   NUMBER_OF_POWER_BOARDS_OBSERVED:
     title: Number Of Power Boards Observed
     observed_condition:
@@ -844,6 +950,9 @@ findings:
       note: Depending on size and complexity
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   NUMBER_OF_POWER_POINTS_ABOVE_BENCH:
     title: Number Of Power Points Above Bench
     observed_condition:
@@ -864,6 +973,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   OUTDOOR_POWER_POINT_PRESENT:
     title: Outdoor Power Point Present
     observed_condition:
@@ -884,6 +996,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   OUTLET_HEIGHT_ABOVE_FINISHED_FLOOR_MM:
     title: Outlet Height Above Finished Floor Mm
     observed_condition:
@@ -904,6 +1017,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   OVEN_PRESENT:
     title: Oven Present
     observed_condition:
@@ -924,6 +1040,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   OVERALL_SWITCHBOARD:
     title: Overall Switchboard
     observed_condition:
@@ -946,6 +1063,9 @@ findings:
       note: Depending on size and complexity
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate rectification is required. This item can be addressed as part of planned electrical maintenance or
+      future upgrade works.
   PLUG_DISENGAGES_UNDER_ITS_OWN_WEIGHT:
     title: Plug Disengages Under Its Own Weight
     observed_condition:
@@ -966,6 +1086,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   POWER_POINT_MOVES_WHEN_LIGHTLY_TOUCHED:
     title: Power Point Moves When Lightly Touched
     observed_condition:
@@ -986,6 +1109,9 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   POWER_POINT_PRESENT:
     title: Power Point Present
     observed_condition:
@@ -1006,6 +1132,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   POWER_POINT_PRESENT_IN_BATHROOM:
     title: Power Point Present In Bathroom
     observed_condition:
@@ -1026,6 +1153,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   POWER_SOURCE_OBSERVED_MAINS_BATTERY_BOTH:
     title: Power Source Observed Mains Battery Both
     observed_condition:
@@ -1046,6 +1174,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   RANGE_HOOD_PRESENT:
     title: Range Hood Present
     observed_condition:
@@ -1066,6 +1197,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   ROOF_SPACE_ACCESSED:
     title: Roof Space Accessed
     observed_condition:
@@ -1086,6 +1218,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   SMOKE_ALARM_PRESENT:
     title: Smoke Alarm Present
     observed_condition:
@@ -1106,6 +1241,7 @@ findings:
       note: Per unit
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   SUPPLY_CABLE_LOCATED_WITHIN_MM_OF_COOKTOP_SURFACE:
     title: Supply Cable Located Within Mm Of Cooktop Surface
     observed_condition:
@@ -1126,6 +1262,9 @@ findings:
       note: Depending on extent of work
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   SURFACE_FEELS_ABNORMALLY_WARM_TO_TOUCH:
     title: Surface Feels Abnormally Warm To Touch
     observed_condition:
@@ -1146,6 +1285,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   SWITCH_BODY_MOVES_WHEN_TOUCHED:
     title: Switch Body Moves When Touched
     observed_condition:
@@ -1166,6 +1308,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED:
     title: Switch Movement Uneven Or Obstructed
     observed_condition:
@@ -1187,6 +1332,9 @@ findings:
       note: Verification and testing
     default_priority: IMMEDIATE
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   SWITCH_PLATE_CRACKED_OR_DAMAGED:
     title: Switch Plate Cracked Or Damaged
     observed_condition:
@@ -1207,6 +1355,9 @@ findings:
       note: Depending on component and extent
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   TAPED_CONNECTION_VISIBLE:
     title: Taped Connection Visible
     observed_condition:
@@ -1227,6 +1378,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   TEST_BUTTON_PRESSED:
     title: Test Button Pressed
     observed_condition:
@@ -1247,6 +1401,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   TRANSFORMER_PRESENT:
     title: Transformer Present
     observed_condition:
@@ -1267,6 +1424,7 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   TRANSFORMER_RESTING_ON_INSULATION:
     title: Transformer Resting On Insulation
     observed_condition:
@@ -1287,6 +1445,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Immediate rectification by a licensed electrician is recommended. This condition presents a potential safety risk
+      and should not be deferred.
   TYPE_OBSERVED_PHOTOELECTRIC_IONISATION_UNKNOWN:
     title: Type Observed Photoelectric Ionisation Unknown
     observed_condition:
@@ -1309,6 +1470,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      Rectification is recommended in the near term to reduce the likelihood of progressive deterioration or future
+      safety issues.
   UNIT_TESTED_AS_INTERCONNECTED:
     title: Unit Tested As Interconnected
     observed_condition:
@@ -1329,6 +1493,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   UNUSUAL_AUDIBLE_SOUND_HEARD_DURING_OPERATION:
     title: Unusual Audible Sound Heard During Operation
     observed_condition:
@@ -1349,6 +1516,9 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: >-
+      No immediate action is required at this time. Ongoing monitoring is recommended, with reassessment during future
+      inspections or if site conditions change.
   WASHING_MACHINE_OUTLET_PRESENT:
     title: Washing Machine Outlet Present
     observed_condition:
@@ -1369,6 +1539,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   WATER_TAP_PRESENT_WITHIN_MM_OF_OUTLET:
     title: Water Tap Present Within Mm Of Outlet
     observed_condition:
@@ -1389,6 +1560,7 @@ findings:
       note: Per outlet
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
   WEATHERPROOF_COVER_PRESENT:
     title: Weatherproof Cover Present
     observed_condition:
@@ -1409,3 +1581,4 @@ findings:
       note: Indicative range, to be confirmed with contractor quotation
     default_priority: PLAN_MONITOR
     disclaimer_line: ""
+    recommended_action: No action is required. This item has been recorded for documentation and compliance purposes.
