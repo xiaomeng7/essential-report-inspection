@@ -217,7 +217,7 @@ async function saveConfig(event: HandlerEvent, type: "rules" | "mapping" | "resp
 /** Build merged dimensions view from rules + finding_profiles + responses */
 function buildDimensionsData(
   rulesData: { hard_overrides?: Record<string, unknown>; findings?: Record<string, { safety?: string; urgency?: string; liability?: string }> },
-  profilesData: { finding_profiles?: Record<string, { risk?: { safety?: string; escalation?: string }; default_priority?: string; risk_severity?: number; likelihood?: number; budget?: string; budget_band?: string; messaging?: { title?: string } }> },
+  profilesData: { finding_profiles?: Record<string, { risk?: { safety?: string; escalation?: string }; default_priority?: string; risk_severity?: number; likelihood?: number; urgency?: string; liability?: string; budgetary_range?: { low?: number; high?: number }; budget?: string; budget_band?: string; messaging?: { title?: string } }> },
   responsesData: { findings?: Record<string, { budgetary_range?: { low?: number; high?: number }; default_priority?: string }> }
 ): { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> } {
   const allIds = new Set<string>();
@@ -245,8 +245,8 @@ function buildDimensionsData(
     const rulesEntry = getRules(id);
 
     const safety = rulesEntry?.safety ?? pf?.risk?.safety ?? "";
-    const urgency = rulesEntry?.urgency ?? "";
-    const liability = rulesEntry?.liability ?? "";
+    const urgency = rulesEntry?.urgency ?? pf?.urgency ?? "";
+    const liability = rulesEntry?.liability ?? pf?.liability ?? "";
     const budgetLow = resp?.budgetary_range?.low ?? pf?.budgetary_range?.low ?? null;
     const budgetHigh = resp?.budgetary_range?.high ?? pf?.budgetary_range?.high ?? null;
     const priority = pf?.default_priority ?? resp?.default_priority ?? "";
