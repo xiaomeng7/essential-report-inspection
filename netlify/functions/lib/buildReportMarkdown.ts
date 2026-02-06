@@ -1300,7 +1300,10 @@ export async function buildStructuredReport(
   const technicalNotesPart = (appendixParts[1] || "").trim() || defaultText.TECHNICAL_NOTES || "This assessment is based on a visual inspection and limited electrical testing of accessible areas only.";
   
   // Convert testDataSection (markdown) to HTML for Word template
-  const testDataSectionHtml = markdownToHtml(testDataSection);
+  // markdownToHtml returns full HTML document, extract body content
+  const fullHtml = markdownToHtml(testDataSection);
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(fullHtml);
+  const testDataSectionHtml = bodyMatch ? bodyMatch[1].trim() : fullHtml.replace(/<!doctype[^>]*>/gi, "").replace(/<html[^>]*>/gi, "").replace(/<\/html>/gi, "").replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "").replace(/<body[^>]*>/gi, "").replace(/<\/body>/gi, "").trim();
   const capexSection = buildCapExRoadmapSection(computed, defaultText, findings, responses);
   const capexTableRows = capexSection.split(/\*\*Indicative market/)[0]?.trim() || capexSection;
   const capexDisclaimer = "Provided for financial provisioning only. Not a quotation or scope of works.";
