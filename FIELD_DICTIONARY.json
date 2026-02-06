@@ -1063,7 +1063,23 @@
           "skippable": true,
           "ui": "radio",
           "on_issue_capture": true
-        },
+        }
+      ]
+    },
+    {
+      "id": "S2_METERBOX",
+      "title": "Meter Box – Fuses & Legacy Devices",
+      "gates": [
+        {
+          "depends_on": "access.switchboard_accessible",
+          "equals": true,
+          "on_false": {
+            "section_status": "skipped",
+            "skip_reason": "no_access"
+          }
+        }
+      ],
+      "fields": [
         {
           "key": "switchboard.ceramic_fuse_holders_present",
           "label": "Ceramic fuse holders present?",
@@ -1501,6 +1517,14 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "internal.kitchen.oven_dedicated_circuit_device",
+          "label": "Device name (if dedicated circuit is Yes)",
+          "type": "string",
+          "required_when": "internal.kitchen.oven_dedicated_circuit==true",
+          "skippable": true,
+          "ui": "text"
+        },
+        {
           "key": "internal.kitchen.cooktop_present",
           "label": "Cooktop present?",
           "type": "boolean",
@@ -1545,6 +1569,7 @@
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.cooktop_present==true",
+          "show_when": "internal.kitchen.cooktop_type==gas",
           "ui": "radio_yes_no"
         },
         {
@@ -1598,16 +1623,6 @@
           "on_issue_capture": true
         },
         {
-          "key": "internal.kitchen.dishwasher_heat_type",
-          "label": "Dishwasher heating: electric or gas?",
-          "type": "enum",
-          "enum": "dishwasher_heat_type",
-          "required": false,
-          "skippable": true,
-          "required_when": "internal.kitchen.dishwasher_present==true",
-          "ui": "radio"
-        },
-        {
           "key": "internal.kitchen.dedicated_outlet_visible",
           "label": "Dedicated outlet or isolator visible (kitchen)?",
           "type": "boolean",
@@ -1617,7 +1632,7 @@
         },
         {
           "key": "internal.kitchen.cable_distance_cooktop_mm",
-          "label": "Supply cable within ___ mm of cooktop surface",
+          "label": "Power point within ___ mm of cooktop surface",
           "type": "integer",
           "min": 0,
           "max": 2000,
@@ -1743,7 +1758,7 @@
         },
         {
           "key": "internal.laundry.water_tap_distance_mm",
-          "label": "Water tap within ___ mm of outlet",
+          "label": "Sink within ___ mm of outlet",
           "type": "integer",
           "min": 0,
           "max": 2000,
@@ -2047,6 +2062,7 @@
           "max": 999,
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "number"
         },
         {
@@ -2056,6 +2072,7 @@
           "enum": "inverter_location",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "radio"
         },
         {
@@ -2064,6 +2081,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "radio_yes_no",
           "on_issue_capture": true
         },
@@ -2073,6 +2091,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "radio_yes_no"
         },
         {
@@ -2081,6 +2100,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "radio_yes_no"
         },
         {
@@ -2089,6 +2109,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_solar_pv==true",
           "ui": "radio_yes_no"
         },
         {
@@ -2107,6 +2128,7 @@
           "max": 999,
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_battery==true",
           "ui": "number"
         },
         {
@@ -2117,6 +2139,7 @@
           "max": 999,
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_battery==true",
           "ui": "number"
         },
         {
@@ -2125,6 +2148,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_battery==true",
           "ui": "radio_yes_no"
         },
         {
@@ -2133,6 +2157,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_battery==true",
           "ui": "radio_yes_no",
           "on_issue_capture": true
         },
@@ -2151,6 +2176,7 @@
           "enum": "ev_charger_type",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
           "ui": "radio"
         },
         {
@@ -2161,6 +2187,7 @@
           "max": 200,
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
           "ui": "number"
         },
         {
@@ -2171,6 +2198,7 @@
           "max": 350,
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
           "ui": "number"
         },
         {
@@ -2179,7 +2207,17 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
           "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.ev.dedicated_circuit_device",
+          "label": "Device name (if dedicated circuit is Yes)",
+          "type": "string",
+          "required_when": "assets.ev.dedicated_circuit==true",
+          "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
+          "ui": "text"
         },
         {
           "key": "assets.ev.local_isolator",
@@ -2187,6 +2225,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "show_when": "assets.has_ev_charger==true",
           "ui": "radio_yes_no"
         },
         {
@@ -2317,6 +2356,14 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "assets.pool.dedicated_circuit_device",
+          "label": "Device name (if dedicated circuit is Yes)",
+          "type": "string",
+          "required_when": "assets.pool.dedicated_circuit==true",
+          "skippable": true,
+          "ui": "text"
+        },
+        {
           "key": "assets.pool.rcd_protection",
           "label": "RCD protection indicated?",
           "type": "boolean",
@@ -2379,6 +2426,14 @@
           "required": false,
           "skippable": true,
           "ui": "radio_yes_no"
+        },
+        {
+          "key": "assets.dedicated_circuits_device",
+          "label": "Device name(s) (if dedicated circuit is Yes)",
+          "type": "string",
+          "required_when": "assets.dedicated_circuits==true",
+          "skippable": true,
+          "ui": "text"
         }
       ]
     },
@@ -2539,16 +2594,6 @@
           "label": "Thermal – Max main switch temp (°C)",
           "type": "number",
           "min": -20,
-          "max": 100,
-          "required": false,
-          "skippable": true,
-          "ui": "number"
-        },
-        {
-          "key": "measured.thermal_delta_t",
-          "label": "Thermal – ΔT (°C)",
-          "type": "number",
-          "min": 0,
           "max": 100,
           "required": false,
           "skippable": true,

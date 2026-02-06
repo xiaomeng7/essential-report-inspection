@@ -17,6 +17,8 @@ export type FieldDef = {
   helper_text?: string;
   /** When true/yes is selected, expand sub-form to capture location, photo, notes */
   on_issue_capture?: boolean;
+  /** Only show this field when the condition is true (e.g. "internal.kitchen.cooktop_type==gas") */
+  show_when?: string;
 };
 
 export type GateDef = {

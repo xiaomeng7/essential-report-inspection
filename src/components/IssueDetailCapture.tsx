@@ -251,6 +251,6 @@ export function IssueDetailCapture({ fieldKey, fieldLabel: _fieldLabel, detail, 
   );
 }
 
-export function createEmptyIssueDetail(): IssueDetail {
-  return { location: "", photo_ids: [], notes: "" };
+export function createEmptyIssueDetail(initial?: Partial<IssueDetail>): IssueDetail {
+  return { location: "", photo_ids: [], notes: "", ...initial };
 }

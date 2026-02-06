@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import type { SectionDef, FieldDef } from "../lib/fieldDictionary";
 import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
 import type { InspectionState } from "../hooks/useInspection";
@@ -176,10 +176,34 @@ export function SectionForm({
     const out: FieldDef[] = [];
     for (const f of section.fields) {
       if (f.required_when && !evalRequiredWhen(f.required_when, flat)) continue;
+      if (f.show_when && !evalRequiredWhen(f.show_when, flat)) continue;
       out.push(f);
     }
     return out;
   }, [section.fields, flat]);
+
+  const defaultLocationByKey: Record<string, string> = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const f of visibleFields) {
+      if (!f.on_issue_capture) continue;
+      if (f.key === "switchboard.grease_oil_contamination") out[f.key] = "kitchen";
+      if (f.key === "internal.bathroom.moisture_staining") out[f.key] = "bathroom";
+    }
+    return out;
+  }, [visibleFields]);
+
+  useEffect(() => {
+    if (!setIssueDetail) return;
+    for (const [fieldKey, defaultLocation] of Object.entries(defaultLocationByKey)) {
+      const value = getValue(fieldKey);
+      const triggered =
+        value === true || value === "yes" || (typeof value === "number" && value > 0);
+      if (!triggered) continue;
+      const existing = getIssueDetail?.(fieldKey);
+      if (existing?.location?.trim()) continue;
+      setIssueDetail(fieldKey, createEmptyIssueDetail({ location: defaultLocation }));
+    }
+  }, [defaultLocationByKey, flat, getValue, getIssueDetail, setIssueDetail]);
 
   /** Group fields into blocks of 3–6 for layout; no change to validation or inputs. */
   const fieldBlocks = useMemo(() => {
@@ -214,7 +238,15 @@ export function SectionForm({
               console.log(`Field ${f.key}: answer=`, answer, "value=", value, "type=", typeof value);
             }
             const showIssueCapture = isIssueTriggered(f, value);
-            const issueDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
+            const defaultLocation =
+              f.key === "switchboard.grease_oil_contamination"
+                ? "kitchen"
+                : f.key === "internal.bathroom.moisture_staining"
+                  ? "bathroom"
+                  : undefined;
+            const existingDetail = showIssueCapture && getIssueDetail ? getIssueDetail(f.key) : undefined;
+            const issueDetail =
+              existingDetail ?? (showIssueCapture && defaultLocation ? createEmptyIssueDetail({ location: defaultLocation }) : undefined);
             const isAddressField = f.key === "job.address" && f.ui === "address_autocomplete";
             return (
               <div key={f.key}>
@@ -232,7 +264,7 @@ export function SectionForm({
                   <IssueDetailCapture
                     fieldKey={f.key}
                     fieldLabel={f.label}
-                    detail={issueDetail ?? createEmptyIssueDetail()}
+                    detail={issueDetail ?? createEmptyIssueDetail(defaultLocation ? { location: defaultLocation } : undefined)}
                     onDetailChange={handleIssueDetailChange}
                   />
                 )}
