@@ -7,7 +7,80 @@ type Props = {
 
 const ADMIN_TOKEN_KEY = "admin_token";
 
-type ConfigType = "rules" | "mapping" | "responses" | "dimensions" | "findingDimensionsGlobal" | "customLibrary";
+type ConfigType = "rules" | "mapping" | "responses" | "dimensions" | "findingDimensionsGlobal" | "problemDimensions" | "customLibrary";
+
+// Finding ID 分类映射
+const FINDING_CATEGORIES = [
+  "GPO & Final Subcircuits",
+  "Lighting & Switching",
+  "Switchboard & Protection",
+  "RCD / RCBO",
+  "Earthing & MEN",
+  "Thermal / Overheating",
+  "Cabling & Insulation",
+  "Load / Capacity",
+  "Roof Space",
+  "External / Other",
+] as const;
+
+type FindingCategory = typeof FINDING_CATEGORIES[number];
+
+// 根据 finding ID 推断分类
+function categorizeFinding(findingId: string): FindingCategory {
+  const id = findingId.toUpperCase();
+  
+  // GPO & Final Subcircuits
+  if (id.includes("GPO") || id.includes("SOCKET") || id.includes("OUTLET") || id.includes("POWER_POINT")) {
+    return "GPO & Final Subcircuits";
+  }
+  
+  // Lighting & Switching
+  if (id.includes("LIGHT") || id.includes("SWITCH") || id.includes("FITTING") || id.includes("LAMP")) {
+    return "Lighting & Switching";
+  }
+  
+  // Switchboard & Protection
+  if (id.includes("SWITCHBOARD") || id.includes("BOARD") || id.includes("FUSE") || id.includes("CIRCUIT_BREAKER") || 
+      id.includes("MAIN_ISOLATION") || id.includes("SUPPLY") || id.includes("PROTECTION") && !id.includes("RCD")) {
+    return "Switchboard & Protection";
+  }
+  
+  // RCD / RCBO
+  if (id.includes("RCD") || id.includes("RCBO") || id.includes("RESIDUAL")) {
+    return "RCD / RCBO";
+  }
+  
+  // Earthing & MEN
+  if (id.includes("EARTH") || id.includes("MEN") || id.includes("BONDING") || id.includes("GROUND")) {
+    return "Earthing & MEN";
+  }
+  
+  // Thermal / Overheating
+  if (id.includes("THERMAL") || id.includes("OVERHEAT") || id.includes("HOTSPOT") || id.includes("HEAT") || 
+      id.includes("TEMPERATURE") || id.includes("BURN")) {
+    return "Thermal / Overheating";
+  }
+  
+  // Cabling & Insulation
+  if (id.includes("CABLE") || id.includes("WIRING") || id.includes("INSULATION") || id.includes("CONDUCTOR") || 
+      id.includes("EXPOSED") || id.includes("DEGRADATION") || id.includes("MATERIAL")) {
+    return "Cabling & Insulation";
+  }
+  
+  // Load / Capacity
+  if (id.includes("LOAD") || id.includes("CAPACITY") || id.includes("MARGIN") || id.includes("EXPANSION") || 
+      id.includes("BATTERY") || id.includes("EV") || id.includes("SOLAR")) {
+    return "Load / Capacity";
+  }
+  
+  // Roof Space
+  if (id.includes("ROOF") || id.includes("CEILING") || id.includes("ATTIC") || id.includes("VOID")) {
+    return "Roof Space";
+  }
+  
+  // External / Other (默认)
+  return "External / Other";
+}
 
 type CustomFindingLibraryEntry = {
   id: string;
@@ -97,6 +170,11 @@ export function ConfigAdmin({ onBack }: Props) {
   const [globalDimSaving, setGlobalDimSaving] = useState(false);
   const [globalDimEdit, setGlobalDimEdit] = useState<{ finding_id: string; dimensions: FindingDimensionsForm } | null>(null);
   const [globalDimNewId, setGlobalDimNewId] = useState("");
+  // 合并页面的状态：当前选中的 finding ID（用于显示右侧问题描述）
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  // 合并页面的状态：当前编辑的 finding（用于弹窗）
+  const [problemDimEdit, setProblemDimEdit] = useState<{ finding_id: string; dimensions: FindingDimensionsForm } | null>(null);
+  const [problemDimSaving, setProblemDimSaving] = useState(false);
 
   const loadConfig = useCallback(async (token: string, type: ConfigType, forceReload = false) => {
     try {
@@ -211,13 +289,16 @@ export function ConfigAdmin({ onBack }: Props) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam && ["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "customLibrary"].includes(tabParam) && activeTab !== tabParam) {
+    if (tabParam && ["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "problemDimensions", "customLibrary"].includes(tabParam) && activeTab !== tabParam) {
       setActiveTab(tabParam as ConfigType);
       if (tabParam === "customLibrary") loadLibrary();
       else if (authToken) {
         if (tabParam === "dimensions") loadDimensions(authToken);
         else if (tabParam === "findingDimensionsGlobal") loadGlobalDimensions(authToken);
-        else loadConfig(authToken, tabParam as "rules" | "mapping" | "responses");
+        else if (tabParam === "problemDimensions") {
+          loadDimensions(authToken);
+          loadGlobalDimensions(authToken);
+        } else loadConfig(authToken, tabParam as "rules" | "mapping" | "responses");
       }
     }
   }, [loadLibrary, loadGlobalDimensions]);
@@ -231,6 +312,9 @@ export function ConfigAdmin({ onBack }: Props) {
       } else if (activeTab === "dimensions") {
         loadDimensions(savedToken);
       } else if (activeTab === "findingDimensionsGlobal") {
+        loadGlobalDimensions(savedToken);
+      } else if (activeTab === "problemDimensions") {
+        loadDimensions(savedToken);
         loadGlobalDimensions(savedToken);
       } else {
         loadConfig(savedToken, activeTab);
@@ -435,6 +519,9 @@ export function ConfigAdmin({ onBack }: Props) {
         loadDimensions(authToken);
       } else if (newTab === "findingDimensionsGlobal") {
         loadGlobalDimensions(authToken);
+      } else if (newTab === "problemDimensions") {
+        loadDimensions(authToken);
+        loadGlobalDimensions(authToken);
       } else {
         loadConfig(authToken, newTab);
       }
@@ -480,7 +567,7 @@ export function ConfigAdmin({ onBack }: Props) {
     }));
   };
 
-  if (loading && !configData && activeTab !== "customLibrary" && activeTab !== "findingDimensionsGlobal") {
+  if (loading && !configData && activeTab !== "customLibrary" && activeTab !== "findingDimensionsGlobal" && activeTab !== "problemDimensions") {
     return (
       <div className="app" style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
         <h1>规则 & 文案管理</h1>
@@ -545,6 +632,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "Finding 维度 (7 维度)";
       case "findingDimensionsGlobal":
         return "9 维全局";
+      case "problemDimensions":
+        return "问题（9维度）";
       case "customLibrary":
         return "自定义 Finding 库";
     }
@@ -562,6 +651,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "可视化编辑 7 维度：Safety、Urgency、Liability、Budget、Priority、Severity、Likelihood、Escalation";
       case "findingDimensionsGlobal":
         return "按 Finding ID 设置 9 维度覆盖，影响所有报告。与「单次检查调试」不同，此处修改会应用到全局。";
+      case "problemDimensions":
+        return "合并的 9 维度编辑页面：左侧按分类列出 Finding ID，右侧显示对应问题，点击 ID 弹出编辑弹窗。";
       case "customLibrary":
         return "维护自定义问题库：标题与 9 维度。技师选 Other 时可从库中选（二期）；工程师可在此直观编辑 9 个维度。";
     }
@@ -664,13 +755,13 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "findingDimensionsGlobal" ? "9 维全局" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
+          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "findingDimensionsGlobal" ? "9 维全局" : activeTab === "problemDimensions" ? "9 维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
         </div>
       )}
 
       {/* Tab Navigation */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
-        {(["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "customLibrary"] as ConfigType[]).map((tab) => (
+        {(["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "problemDimensions", "customLibrary"] as ConfigType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -703,7 +794,12 @@ export function ConfigAdmin({ onBack }: Props) {
             共 {Object.keys(globalDimOverrides).length} 个 Finding 已设置全局 9 维覆盖
           </p>
         )}
-        {configData && activeTab !== "dimensions" && activeTab !== "findingDimensionsGlobal" && (
+        {activeTab === "problemDimensions" && dimensionsData && (
+          <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#0c5460" }}>
+            共 {Object.keys(dimensionsData.findings).length} 个 findings，{dimensionsData.missing.length} 个缺少维度
+          </p>
+        )}
+        {configData && activeTab !== "dimensions" && activeTab !== "findingDimensionsGlobal" && activeTab !== "problemDimensions" && (
           <div style={{ marginTop: "8px" }}>
             <p style={{ margin: "4px 0", fontSize: "13px", color: "#999" }}>
               来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
@@ -878,6 +974,247 @@ export function ConfigAdmin({ onBack }: Props) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* 问题（9维度）合并页面 - 左侧分类列表 + 右侧问题描述 + 点击弹窗编辑 */}
+      {activeTab === "problemDimensions" && dimensionsData && (
+        <div style={{ marginBottom: "20px" }}>
+          {globalDimLoading && <p>加载中...</p>}
+          {!globalDimLoading && (
+            <div style={{ display: "flex", gap: 20, minHeight: "600px" }}>
+              {/* 左侧：分类列表 */}
+              <div style={{ flex: "0 0 300px", border: "1px solid #ddd", borderRadius: 8, padding: 16, overflowY: "auto", maxHeight: "70vh" }}>
+                <h3 style={{ marginTop: 0, marginBottom: 16 }}>Finding ID 列表</h3>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="搜索 finding..."
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid #ccc", borderRadius: 6, marginBottom: 16, boxSizing: "border-box" }}
+                />
+                {FINDING_CATEGORIES.map((category) => {
+                  const findingsInCategory = Object.keys(dimensionsData.findings)
+                    .filter((id) => categorizeFinding(id) === category)
+                    .filter((id) => !searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .sort();
+                  
+                  if (findingsInCategory.length === 0) return null;
+                  
+                  return (
+                    <div key={category} style={{ marginBottom: 20 }}>
+                      <h4 style={{ margin: "0 0 8px 0", fontSize: 14, fontWeight: 600, color: "#1976d2" }}>
+                        {category}
+                      </h4>
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {findingsInCategory.map((findingId) => {
+                          const dims = dimensionsData.findings[findingId] || {};
+                          const globalDims = globalDimOverrides[findingId];
+                          const hasGlobal = !!globalDims;
+                          const title = (globalDims?.title as string) || (dims.title as string) || findingId;
+                          
+                          return (
+                            <li
+                              key={findingId}
+                              style={{
+                                padding: "6px 8px",
+                                marginBottom: 4,
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                backgroundColor: selectedFindingId === findingId ? "#e3f2fd" : "transparent",
+                                border: selectedFindingId === findingId ? "1px solid #2196f3" : "1px solid transparent",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                              onClick={() => setSelectedFindingId(findingId)}
+                              onDoubleClick={() => {
+                                const existing = globalDimOverrides[findingId] || dimensionsData.findings[findingId] || {};
+                                setProblemDimEdit({
+                                  finding_id: findingId,
+                                  dimensions: {
+                                    title: (existing.title as string) || "",
+                                    safety: (existing.safety as string) || "",
+                                    urgency: (existing.urgency as string) || "",
+                                    liability: (existing.liability as string) || "",
+                                    budget_low: typeof existing.budget_low === "number" ? existing.budget_low : "",
+                                    budget_high: typeof existing.budget_high === "number" ? existing.budget_high : "",
+                                    priority: (existing.priority as string) || "",
+                                    severity: typeof existing.severity === "number" ? existing.severity : (existing.severity ? Number(existing.severity) : ""),
+                                    likelihood: typeof existing.likelihood === "number" ? existing.likelihood : (existing.likelihood ? Number(existing.likelihood) : ""),
+                                    escalation: (existing.escalation as string) || "",
+                                  },
+                                });
+                              }}
+                            >
+                              <span style={{ flex: 1, fontSize: 12, fontFamily: "monospace" }}>{findingId}</span>
+                              {hasGlobal && (
+                                <span style={{ fontSize: 10, color: "#27ae60", fontWeight: 600 }}>●</span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* 右侧：问题描述 */}
+              <div style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: 16, overflowY: "auto", maxHeight: "70vh" }}>
+                {selectedFindingId ? (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <h3 style={{ margin: 0, fontFamily: "monospace" }}>{selectedFindingId}</h3>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => {
+                          const existing = globalDimOverrides[selectedFindingId] || dimensionsData.findings[selectedFindingId] || {};
+                          setProblemDimEdit({
+                            finding_id: selectedFindingId,
+                            dimensions: {
+                              title: (existing.title as string) || "",
+                              safety: (existing.safety as string) || "",
+                              urgency: (existing.urgency as string) || "",
+                              liability: (existing.liability as string) || "",
+                              budget_low: typeof existing.budget_low === "number" ? existing.budget_low : "",
+                              budget_high: typeof existing.budget_high === "number" ? existing.budget_high : "",
+                              priority: (existing.priority as string) || "",
+                              severity: typeof existing.severity === "number" ? existing.severity : (existing.severity ? Number(existing.severity) : ""),
+                              likelihood: typeof existing.likelihood === "number" ? existing.likelihood : (existing.likelihood ? Number(existing.likelihood) : ""),
+                              escalation: (existing.escalation as string) || "",
+                            },
+                          });
+                        }}
+                      >
+                        编辑 9 维度
+                      </button>
+                    </div>
+                    
+                    {(() => {
+                      const dims = dimensionsData.findings[selectedFindingId] || {};
+                      const globalDims = globalDimOverrides[selectedFindingId];
+                      const displayDims = globalDims || dims;
+                      const title = (displayDims.title as string) || selectedFindingId;
+                      
+                      return (
+                        <div>
+                          <h4 style={{ marginTop: 0, marginBottom: 12 }}>{title}</h4>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                            <div>
+                              <strong>Safety:</strong> {displayDims.safety ? String(displayDims.safety) : "—"}
+                            </div>
+                            <div>
+                              <strong>Urgency:</strong> {displayDims.urgency ? String(displayDims.urgency) : "—"}
+                            </div>
+                            <div>
+                              <strong>Liability:</strong> {displayDims.liability ? String(displayDims.liability) : "—"}
+                            </div>
+                            <div>
+                              <strong>Priority:</strong> {displayDims.priority ? String(displayDims.priority) : "—"}
+                            </div>
+                            <div>
+                              <strong>Budget:</strong>{" "}
+                              {displayDims.budget_low != null || displayDims.budget_high != null
+                                ? `$${displayDims.budget_low ?? "?"} - $${displayDims.budget_high ?? "?"}`
+                                : "—"}
+                            </div>
+                            <div>
+                              <strong>Severity:</strong> {displayDims.severity != null ? String(displayDims.severity) : "—"}
+                            </div>
+                            <div>
+                              <strong>Likelihood:</strong> {displayDims.likelihood != null ? String(displayDims.likelihood) : "—"}
+                            </div>
+                            <div>
+                              <strong>Escalation:</strong> {displayDims.escalation ? String(displayDims.escalation) : "—"}
+                            </div>
+                          </div>
+                          {globalDims && (
+                            <div style={{ marginTop: 16, padding: 12, backgroundColor: "#e8f5e9", borderRadius: 6, fontSize: 13 }}>
+                              <strong>✓ 已设置全局覆盖</strong>（此 finding 的 9 维度会应用到所有报告）
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div style={{ textAlign: "center", color: "#999", padding: "40px 20px" }}>
+                    <p>请从左侧选择一个 Finding ID 查看详情</p>
+                    <p style={{ fontSize: 12, marginTop: 8 }}>双击 ID 或点击「编辑 9 维度」按钮可编辑</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* 编辑弹窗 */}
+          {problemDimEdit !== null && (
+            <FindingDimensionsModal
+              findingId={problemDimEdit.finding_id}
+              findingTitle={problemDimEdit.dimensions.title}
+              dimensions={problemDimEdit.dimensions}
+              onChange={(field, value) =>
+                setProblemDimEdit((prev) =>
+                  prev ? { ...prev, dimensions: { ...prev.dimensions, [field]: value } } : null
+                )
+              }
+              onSave={async () => {
+                if (!problemDimEdit || !authToken) return;
+                setProblemDimSaving(true);
+                setError(null);
+                try {
+                  // 保存到全局覆盖（影响所有报告）
+                  const res = await fetch("/api/configAdmin/findingDimensionsGlobal", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify({
+                      finding_id: problemDimEdit.finding_id,
+                      dimensions: {
+                        title: problemDimEdit.dimensions.title || undefined,
+                        safety: problemDimEdit.dimensions.safety || undefined,
+                        urgency: problemDimEdit.dimensions.urgency || undefined,
+                        liability: problemDimEdit.dimensions.liability || undefined,
+                        budget_low: problemDimEdit.dimensions.budget_low === "" ? undefined : problemDimEdit.dimensions.budget_low,
+                        budget_high: problemDimEdit.dimensions.budget_high === "" ? undefined : problemDimEdit.dimensions.budget_high,
+                        priority: problemDimEdit.dimensions.priority || undefined,
+                        severity: problemDimEdit.dimensions.severity === "" ? undefined : problemDimEdit.dimensions.severity,
+                        likelihood: problemDimEdit.dimensions.likelihood === "" ? undefined : problemDimEdit.dimensions.likelihood,
+                        escalation: problemDimEdit.dimensions.escalation || undefined,
+                      },
+                    }),
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  const data = (await res.json()) as { ok: boolean; finding_id: string };
+                  setGlobalDimOverrides((prev) => ({
+                    ...prev,
+                    [data.finding_id]: {
+                      title: problemDimEdit.dimensions.title || undefined,
+                      safety: problemDimEdit.dimensions.safety || undefined,
+                      urgency: problemDimEdit.dimensions.urgency || undefined,
+                      liability: problemDimEdit.dimensions.liability || undefined,
+                      budget_low: problemDimEdit.dimensions.budget_low === "" ? undefined : problemDimEdit.dimensions.budget_low,
+                      budget_high: problemDimEdit.dimensions.budget_high === "" ? undefined : problemDimEdit.dimensions.budget_high,
+                      priority: problemDimEdit.dimensions.priority || undefined,
+                      severity: problemDimEdit.dimensions.severity === "" ? undefined : problemDimEdit.dimensions.severity,
+                      likelihood: problemDimEdit.dimensions.likelihood === "" ? undefined : problemDimEdit.dimensions.likelihood,
+                      escalation: problemDimEdit.dimensions.escalation || undefined,
+                    },
+                  }));
+                  setProblemDimEdit(null);
+                  setSuccess(true);
+                  setTimeout(() => setSuccess(false), 3000);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setProblemDimSaving(false);
+                }
+              }}
+              onCancel={() => setProblemDimEdit(null)}
+              saving={problemDimSaving}
+            />
+          )}
         </div>
       )}
 
