@@ -7,7 +7,7 @@ type Props = {
 
 const ADMIN_TOKEN_KEY = "admin_token";
 
-type ConfigType = "rules" | "mapping" | "responses" | "dimensions" | "findingDimensionsGlobal" | "problemDimensions" | "customLibrary";
+type ConfigType = "rules" | "mapping" | "responses" | "problemDimensions" | "customLibrary";
 
 // Finding ID 分类映射
 const FINDING_CATEGORIES = [
@@ -289,13 +289,11 @@ export function ConfigAdmin({ onBack }: Props) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
-    if (tabParam && ["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "problemDimensions", "customLibrary"].includes(tabParam) && activeTab !== tabParam) {
+    if (tabParam && ["rules", "mapping", "responses", "problemDimensions", "customLibrary"].includes(tabParam) && activeTab !== tabParam) {
       setActiveTab(tabParam as ConfigType);
       if (tabParam === "customLibrary") loadLibrary();
       else if (authToken) {
-        if (tabParam === "dimensions") loadDimensions(authToken);
-        else if (tabParam === "findingDimensionsGlobal") loadGlobalDimensions(authToken);
-        else if (tabParam === "problemDimensions") {
+        if (tabParam === "problemDimensions") {
           loadDimensions(authToken);
           loadGlobalDimensions(authToken);
         } else loadConfig(authToken, tabParam as "rules" | "mapping" | "responses");
@@ -309,10 +307,6 @@ export function ConfigAdmin({ onBack }: Props) {
       setAuthToken(savedToken);
       if (activeTab === "customLibrary") {
         loadLibrary();
-      } else if (activeTab === "dimensions") {
-        loadDimensions(savedToken);
-      } else if (activeTab === "findingDimensionsGlobal") {
-        loadGlobalDimensions(savedToken);
       } else if (activeTab === "problemDimensions") {
         loadDimensions(savedToken);
         loadGlobalDimensions(savedToken);
@@ -348,31 +342,10 @@ export function ConfigAdmin({ onBack }: Props) {
   };
 
   const handleSave = async () => {
-    if (activeTab === "findingDimensionsGlobal") return; // 9 维全局在弹窗内单独保存
     try {
       setSaving(true);
       setError(null);
       setSuccess(false);
-
-      if (activeTab === "dimensions") {
-        const res = await fetch("/api/configAdmin/dimensions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ findings: editedDimensions }),
-        });
-        if (!res.ok) {
-          const err = (await res.json()) as { message?: string };
-          throw new Error(err.message || `HTTP ${res.status}`);
-        }
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
-        await loadDimensions(authToken);
-        setSaving(false);
-        return;
-      }
       
       let contentToSave = content;
       
@@ -515,10 +488,6 @@ export function ConfigAdmin({ onBack }: Props) {
     if (authToken || newTab === "customLibrary") {
       if (newTab === "customLibrary") {
         loadLibrary();
-      } else if (newTab === "dimensions") {
-        loadDimensions(authToken);
-      } else if (newTab === "findingDimensionsGlobal") {
-        loadGlobalDimensions(authToken);
       } else if (newTab === "problemDimensions") {
         loadDimensions(authToken);
         loadGlobalDimensions(authToken);
@@ -567,7 +536,7 @@ export function ConfigAdmin({ onBack }: Props) {
     }));
   };
 
-  if (loading && !configData && activeTab !== "customLibrary" && activeTab !== "findingDimensionsGlobal" && activeTab !== "problemDimensions") {
+  if (loading && !configData && activeTab !== "customLibrary" && activeTab !== "problemDimensions") {
     return (
       <div className="app" style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
         <h1>规则 & 文案管理</h1>
@@ -628,10 +597,6 @@ export function ConfigAdmin({ onBack }: Props) {
         return "映射 (CHECKLIST_TO_FINDINGS_MAP.json)";
       case "responses":
         return "文案 (responses.yml)";
-      case "dimensions":
-        return "Finding 维度 (7 维度)";
-      case "findingDimensionsGlobal":
-        return "9 维全局";
       case "problemDimensions":
         return "问题（9维度）";
       case "customLibrary":
@@ -647,12 +612,8 @@ export function ConfigAdmin({ onBack }: Props) {
         return "编辑映射规则，定义从 checklist 字段到 finding_code 的映射关系";
       case "responses":
         return "编辑文案模板，定义每个 finding 的标题、说明、建议等文本内容";
-      case "dimensions":
-        return "可视化编辑 7 维度：Safety、Urgency、Liability、Budget、Priority、Severity、Likelihood、Escalation";
-      case "findingDimensionsGlobal":
-        return "按 Finding ID 设置 9 维度覆盖，影响所有报告。与「单次检查调试」不同，此处修改会应用到全局。";
       case "problemDimensions":
-        return "合并的 9 维度编辑页面：左侧按分类列出 Finding ID，右侧显示对应问题，点击 ID 弹出编辑弹窗。";
+        return "编辑 Finding 的 9 维度：左侧按分类列出 Finding ID，右侧显示对应问题，点击 ID 弹出编辑弹窗。修改会应用到全局，影响所有报告。";
       case "customLibrary":
         return "维护自定义问题库：标题与 9 维度。技师选 Other 时可从库中选（二期）；工程师可在此直观编辑 9 个维度。";
     }
@@ -741,7 +702,6 @@ export function ConfigAdmin({ onBack }: Props) {
             </p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <a href="/admin/config?tab=findingDimensionsGlobal" style={{ padding: "8px 14px", borderRadius: "8px", background: "#e3f2fd", color: "#1565c0", textDecoration: "none", fontWeight: 500 }}>9 维全局</a>
             <button onClick={onBack} className="btn-secondary">返回首页</button>
           </div>
         </div>
@@ -755,13 +715,13 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>成功:</strong> {activeTab === "dimensions" ? "维度" : activeTab === "findingDimensionsGlobal" ? "9 维全局" : activeTab === "problemDimensions" ? "9 维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
+          <strong>成功:</strong> {activeTab === "problemDimensions" ? "9 维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
         </div>
       )}
 
       {/* Tab Navigation */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e0e0e0" }}>
-        {(["rules", "mapping", "responses", "dimensions", "findingDimensionsGlobal", "problemDimensions", "customLibrary"] as ConfigType[]).map((tab) => (
+        {(["rules", "mapping", "responses", "problemDimensions", "customLibrary"] as ConfigType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -784,22 +744,12 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* Tab Description */}
       <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
         <p style={{ margin: 0, color: "#666" }}>{getTabDescription(activeTab)}</p>
-        {activeTab === "dimensions" && dimensionsData && (
-          <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#856404" }}>
-            共 {Object.keys(dimensionsData.findings).length} 个 findings，{dimensionsData.missing.length} 个缺少维度
-          </p>
-        )}
-        {activeTab === "findingDimensionsGlobal" && (
-          <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#0c5460" }}>
-            共 {Object.keys(globalDimOverrides).length} 个 Finding 已设置全局 9 维覆盖
-          </p>
-        )}
         {activeTab === "problemDimensions" && dimensionsData && (
           <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#0c5460" }}>
             共 {Object.keys(dimensionsData.findings).length} 个 findings，{dimensionsData.missing.length} 个缺少维度
           </p>
         )}
-        {configData && activeTab !== "dimensions" && activeTab !== "findingDimensionsGlobal" && activeTab !== "problemDimensions" && (
+        {configData && activeTab !== "problemDimensions" && (
           <div style={{ marginTop: "8px" }}>
             <p style={{ margin: "4px 0", fontSize: "13px", color: "#999" }}>
               来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
@@ -820,162 +770,6 @@ export function ConfigAdmin({ onBack }: Props) {
           </div>
         )}
       </div>
-
-      {/* Dimensions Tab - 7-dimension editor */}
-      {activeTab === "dimensions" && dimensionsData && (
-        <div style={{ marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="搜索 finding..."
-                style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 6, minWidth: 200 }}
-              />
-            </div>
-            <button onClick={handleSave} className="btn-primary" disabled={saving}>
-              {saving ? "保存中..." : "保存维度更改"}
-            </button>
-          </div>
-          <div style={{ overflowX: "auto", maxHeight: "70vh", overflowY: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ position: "sticky", top: 0, background: "#f5f5f5", zIndex: 1 }}>
-                <tr style={{ borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: 8, textAlign: "left" }}>Finding ID</th>
-                  <th style={{ padding: 8 }}>Safety</th>
-                  <th style={{ padding: 8 }}>Urgency</th>
-                  <th style={{ padding: 8 }}>Liability</th>
-                  <th style={{ padding: 8 }}>Budget Low</th>
-                  <th style={{ padding: 8 }}>Budget High</th>
-                  <th style={{ padding: 8 }}>Priority</th>
-                  <th style={{ padding: 8 }}>Severity 1-5</th>
-                  <th style={{ padding: 8 }}>Likelihood 1-5</th>
-                  <th style={{ padding: 8 }}>Escalation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(editedDimensions)
-                  .filter(([id]) => !searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase()))
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([id, row]) => {
-                    const missing = (row.missing as string[]) || [];
-                    const hasMissing = missing.length > 0;
-                    return (
-                      <tr key={id} style={{ borderBottom: "1px solid #eee", background: hasMissing ? "#fff8e6" : undefined }}>
-                        <td style={{ padding: 6 }}>
-                          <span title={(row.title as string) || id}>{id}</span>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.safety ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], safety: e.target.value } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            <option value="HIGH">HIGH</option>
-                            <option value="MODERATE">MODERATE</option>
-                            <option value="LOW">LOW</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.urgency ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], urgency: e.target.value } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            <option value="IMMEDIATE">IMMEDIATE</option>
-                            <option value="SHORT_TERM">SHORT_TERM</option>
-                            <option value="LONG_TERM">LONG_TERM</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.liability ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], liability: e.target.value } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            <option value="HIGH">HIGH</option>
-                            <option value="MEDIUM">MEDIUM</option>
-                            <option value="LOW">LOW</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <input
-                            type="number"
-                            value={row.budget_low != null ? String(row.budget_low) : ""}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_low: e.target.value ? Number(e.target.value) : null } }))}
-                            style={{ width: 70, padding: 4, fontSize: 12 }}
-                            placeholder="—"
-                          />
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <input
-                            type="number"
-                            value={row.budget_high != null ? String(row.budget_high) : ""}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], budget_high: e.target.value ? Number(e.target.value) : null } }))}
-                            style={{ width: 70, padding: 4, fontSize: 12 }}
-                            placeholder="—"
-                          />
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.priority ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], priority: e.target.value } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            <option value="IMMEDIATE">IMMEDIATE</option>
-                            <option value="RECOMMENDED_0_3_MONTHS">RECOMMENDED_0_3_MONTHS</option>
-                            <option value="PLAN_MONITOR">PLAN_MONITOR</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.severity ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], severity: e.target.value ? Number(e.target.value) : "" } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n} value={n}>{n}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.likelihood ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], likelihood: e.target.value ? Number(e.target.value) : "" } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n} value={n}>{n}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ padding: 4 }}>
-                          <select
-                            value={String(row.escalation ?? "")}
-                            onChange={(e) => setEditedDimensions((prev) => ({ ...prev, [id]: { ...prev[id], escalation: e.target.value } }))}
-                            style={{ width: "100%", padding: 4, fontSize: 12 }}
-                          >
-                            <option value="">—</option>
-                            <option value="HIGH">HIGH</option>
-                            <option value="MODERATE">MODERATE</option>
-                            <option value="LOW">LOW</option>
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* 问题（9维度）合并页面 - 左侧分类列表 + 右侧问题描述 + 点击弹窗编辑 */}
       {activeTab === "problemDimensions" && dimensionsData && (
@@ -1211,180 +1005,6 @@ export function ConfigAdmin({ onBack }: Props) {
               }}
               onCancel={() => setProblemDimEdit(null)}
               saving={problemDimSaving}
-            />
-          )}
-        </div>
-      )}
-
-      {/* 9 维全局 Tab - 按 Finding ID 设置覆盖，影响所有报告 */}
-      {activeTab === "findingDimensionsGlobal" && (
-        <div style={{ marginBottom: "20px" }}>
-          {globalDimLoading && <p>加载中...</p>}
-          {!globalDimLoading && (
-            <>
-              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  value={globalDimNewId}
-                  onChange={(e) => setGlobalDimNewId(e.target.value)}
-                  placeholder="Finding ID（如 NO_RCD_PROTECTION）"
-                  style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 6, minWidth: 220 }}
-                />
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={!globalDimNewId.trim()}
-                  onClick={() => {
-                    const id = globalDimNewId.trim();
-                    if (!id) return;
-                    const existing = globalDimOverrides[id];
-                    setGlobalDimEdit({
-                      finding_id: id,
-                      dimensions: {
-                        title: (existing?.title as string) ?? "",
-                        safety: (existing?.safety as string) ?? "",
-                        urgency: (existing?.urgency as string) ?? "",
-                        liability: (existing?.liability as string) ?? "",
-                        budget_low: typeof existing?.budget_low === "number" ? existing.budget_low : "",
-                        budget_high: typeof existing?.budget_high === "number" ? existing.budget_high : "",
-                        priority: (existing?.priority as string) ?? "",
-                        severity: typeof existing?.severity === "number" ? existing.severity : (existing?.severity ? Number(existing.severity) : ""),
-                        likelihood: typeof existing?.likelihood === "number" ? existing.likelihood : (existing?.likelihood ? Number(existing.likelihood) : ""),
-                        escalation: (existing?.escalation as string) ?? "",
-                      },
-                    });
-                    setGlobalDimNewId("");
-                  }}
-                >
-                  添加 / 编辑
-                </button>
-              </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {Object.entries(globalDimOverrides)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([findingId, row]) => (
-                    <li key={findingId} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: "1px solid #eee" }}>
-                      <span style={{ fontWeight: 500, minWidth: 180 }}>{findingId}</span>
-                      <span style={{ color: "#666", fontSize: 13 }}>
-                        {(row.priority as string) && `Priority: ${row.priority}`}
-                        {(row.safety as string) && ` · Safety: ${row.safety}`}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          setGlobalDimEdit({
-                            finding_id: findingId,
-                            dimensions: {
-                              title: (row.title as string) ?? "",
-                              safety: (row.safety as string) ?? "",
-                              urgency: (row.urgency as string) ?? "",
-                              liability: (row.liability as string) ?? "",
-                              budget_low: typeof row.budget_low === "number" ? row.budget_low : "",
-                              budget_high: typeof row.budget_high === "number" ? row.budget_high : "",
-                              priority: (row.priority as string) ?? "",
-                              severity: typeof row.severity === "number" ? row.severity : (row.severity ? Number(row.severity) : ""),
-                              likelihood: typeof row.likelihood === "number" ? row.likelihood : (row.likelihood ? Number(row.likelihood) : ""),
-                              escalation: (row.escalation as string) ?? "",
-                            },
-                          });
-                        }}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={async () => {
-                          if (!window.confirm(`确定删除 ${findingId} 的全局 9 维覆盖？`)) return;
-                          try {
-                            const res = await fetch("/api/configAdmin/findingDimensionsGlobal", {
-                              method: "DELETE",
-                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-                              body: JSON.stringify({ finding_id: findingId }),
-                            });
-                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                            setGlobalDimOverrides((prev) => {
-                              const next = { ...prev };
-                              delete next[findingId];
-                              return next;
-                            });
-                            setSuccess(true);
-                            setTimeout(() => setSuccess(false), 3000);
-                          } catch (e) {
-                            setError((e as Error).message);
-                          }
-                        }}
-                      >
-                        删除
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            </>
-          )}
-          {globalDimEdit !== null && (
-            <FindingDimensionsModal
-              findingId={globalDimEdit.finding_id}
-              findingTitle={globalDimEdit.dimensions.title}
-              dimensions={globalDimEdit.dimensions}
-              onChange={(field, value) =>
-                setGlobalDimEdit((prev) =>
-                  prev ? { ...prev, dimensions: { ...prev.dimensions, [field]: value } } : null
-                )
-              }
-              onSave={async () => {
-                if (!globalDimEdit || !authToken) return;
-                setGlobalDimSaving(true);
-                setError(null);
-                try {
-                  const res = await fetch("/api/configAdmin/findingDimensionsGlobal", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-                    body: JSON.stringify({
-                      finding_id: globalDimEdit.finding_id,
-                      dimensions: {
-                        title: globalDimEdit.dimensions.title || undefined,
-                        safety: globalDimEdit.dimensions.safety || undefined,
-                        urgency: globalDimEdit.dimensions.urgency || undefined,
-                        liability: globalDimEdit.dimensions.liability || undefined,
-                        budget_low: globalDimEdit.dimensions.budget_low === "" ? undefined : globalDimEdit.dimensions.budget_low,
-                        budget_high: globalDimEdit.dimensions.budget_high === "" ? undefined : globalDimEdit.dimensions.budget_high,
-                        priority: globalDimEdit.dimensions.priority || undefined,
-                        severity: globalDimEdit.dimensions.severity === "" ? undefined : globalDimEdit.dimensions.severity,
-                        likelihood: globalDimEdit.dimensions.likelihood === "" ? undefined : globalDimEdit.dimensions.likelihood,
-                        escalation: globalDimEdit.dimensions.escalation || undefined,
-                      },
-                    }),
-                  });
-                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                  const data = (await res.json()) as { ok: boolean; finding_id: string };
-                  setGlobalDimOverrides((prev) => ({
-                    ...prev,
-                    [data.finding_id]: {
-                      title: globalDimEdit.dimensions.title || undefined,
-                      safety: globalDimEdit.dimensions.safety || undefined,
-                      urgency: globalDimEdit.dimensions.urgency || undefined,
-                      liability: globalDimEdit.dimensions.liability || undefined,
-                      budget_low: globalDimEdit.dimensions.budget_low === "" ? undefined : globalDimEdit.dimensions.budget_low,
-                      budget_high: globalDimEdit.dimensions.budget_high === "" ? undefined : globalDimEdit.dimensions.budget_high,
-                      priority: globalDimEdit.dimensions.priority || undefined,
-                      severity: globalDimEdit.dimensions.severity === "" ? undefined : globalDimEdit.dimensions.severity,
-                      likelihood: globalDimEdit.dimensions.likelihood === "" ? undefined : globalDimEdit.dimensions.likelihood,
-                      escalation: globalDimEdit.dimensions.escalation || undefined,
-                    },
-                  }));
-                  setGlobalDimEdit(null);
-                  setSuccess(true);
-                  setTimeout(() => setSuccess(false), 3000);
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setGlobalDimSaving(false);
-                }
-              }}
-              onCancel={() => setGlobalDimEdit(null)}
-              saving={globalDimSaving}
             />
           )}
         </div>
