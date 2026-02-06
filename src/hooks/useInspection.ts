@@ -69,6 +69,14 @@ function deepClone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x));
 }
 
+function formatTodayDDMMYYYY(): string {
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 export function buildEmptyState(): InspectionState {
   const state: InspectionState = {};
   const sections = getSections();
@@ -85,6 +93,11 @@ export function buildEmptyState(): InspectionState {
       }
     }
   }
+  // Auto-fill inspection date with today (DD/MM/YYYY)
+  setNested(state as Record<string, unknown>, "signoff.inspection_date", {
+    value: formatTodayDDMMYYYY(),
+    status: "answered",
+  });
   return state;
 }
 

@@ -17,7 +17,7 @@ type CustomFindingPending = {
 type ReviewData = {
   inspection_id: string;
   report_html: string;
-  findings: Array<{ id: string; priority: string; title?: string; location?: string }>;
+  findings: Array<{ id: string; priority: string; title?: string; location?: string; photo_ids?: string[] }>;
   limitations?: string[];
   raw_data?: Record<string, unknown>;
   custom_findings_pending?: CustomFindingPending[];
@@ -277,7 +277,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings &amp; Photo Evidence</h2>
           <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
-            Add photo evidence for each finding. Max 2 photos per finding. Photos will be included in the final report.
+            Photos added during inspection are shown next to each finding below. You can add more here (max 2 per finding). All photos will appear next to the corresponding issue in the generated report.
           </p>
           {data.findings.map((f, idx) => (
             <div
@@ -321,6 +321,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
                 inspectionId={data.inspection_id}
                 findingId={f.id}
                 findingTitle={f.title}
+                existingPhotoIds={f.photo_ids}
               />
             </div>
           ))}

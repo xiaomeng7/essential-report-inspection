@@ -145,6 +145,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     // Review URL uses unified getBaseUrl (http for localhost / NETLIFY_DEV)
     const baseUrl = getBaseUrl(event);
     const reviewUrl = `${baseUrl}/review/${inspection_id}`;
+    const downloadWordUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`;
     console.log("Generated review URL:", reviewUrl, "from baseUrl:", baseUrl);
     console.log("Preparing to send email notification...");
     try {
@@ -155,6 +156,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         findings,
         limitations,
         review_url: reviewUrl,
+        download_word_url: downloadWordUrl,
         created_at: (raw.created_at as string) || new Date().toISOString(),
         raw_data: raw, // Include full inspection data for manual review
       });

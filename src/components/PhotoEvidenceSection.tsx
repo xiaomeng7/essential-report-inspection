@@ -18,13 +18,17 @@ type Props = {
   inspectionId: string;
   findingId: string;
   findingTitle?: string; // reserved for future use (e.g. default caption hint)
+  /** Photo IDs already attached during inspection (show next to this finding) */
+  existingPhotoIds?: string[];
 };
 
-export function PhotoEvidenceSection({ inspectionId, findingId, findingTitle: _findingTitle }: Props) {
+export function PhotoEvidenceSection({ inspectionId, findingId, findingTitle: _findingTitle, existingPhotoIds = [] }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const existing = Array.isArray(existingPhotoIds) ? existingPhotoIds.filter((id): id is string => typeof id === "string" && id.length > 0) : [];
+  const totalCount = photos.length + existing.length;
+  const canAddMore = totalCount < MAX_PHOTOS;
 
-  const canAddMore = photos.length < MAX_PHOTOS;
 
   const handleTakePhoto = () => {
     if (!canAddMore) return;
@@ -152,7 +156,7 @@ export function PhotoEvidenceSection({ inspectionId, findingId, findingTitle: _f
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-          Photo Evidence ({photos.length}/{MAX_PHOTOS})
+          Photo Evidence ({totalCount}/{MAX_PHOTOS})
         </h4>
         {canAddMore && (
           <button
@@ -184,7 +188,12 @@ export function PhotoEvidenceSection({ inspectionId, findingId, findingTitle: _f
         onChange={handleFileChange}
       />
 
-      {photos.length === 0 && (
+      {existing.length > 0 && (
+        <div style={{ marginBottom: 12, padding: 10, background: "#e8f5e9", borderRadius: 6, fontSize: 13 }}>
+          <strong>Attached during inspection:</strong> {existing.join(", ")}
+        </div>
+      )}
+      {photos.length === 0 && totalCount === 0 && (
         <p style={{ color: "#888", fontSize: 13, margin: 0 }}>
           No photos yet. Tap "Take Photo" to capture evidence.
         </p>

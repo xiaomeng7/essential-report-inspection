@@ -664,11 +664,28 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("## Thermal Imaging Analysis");
   md.push("");
   
-  // Thermal data from test_data if available
+  // Build thermal data from test_data.measured or raw.measured (ambient, max switch, ΔT computed)
   const testDataForThermal = canonical.test_data || {};
-  const thermalData = (testDataForThermal as any)?.thermal || "";
-  if (thermalData) {
-    // 必须解释为什么热成像增加了风险识别的价值（非协商性规则）
+  const rawForThermal = inspection.raw || {};
+  const measuredObj = (testDataForThermal as any)?.measured;
+  const thermalAmbient = (typeof measuredObj === "object" && measuredObj !== null && measuredObj.thermal_ambient_temp != null)
+    ? measuredObj.thermal_ambient_temp
+    : getFieldValue(rawForThermal, "measured.thermal_ambient_temp");
+  const thermalMax = (typeof measuredObj === "object" && measuredObj !== null && measuredObj.thermal_max_main_switch_temp != null)
+    ? measuredObj.thermal_max_main_switch_temp
+    : getFieldValue(rawForThermal, "measured.thermal_max_main_switch_temp");
+  const ambientNum = typeof thermalAmbient === "number" ? thermalAmbient : (String(thermalAmbient).trim() !== "" ? Number(thermalAmbient) : undefined);
+  const maxNum = typeof thermalMax === "number" ? thermalMax : (String(thermalMax).trim() !== "" ? Number(thermalMax) : undefined);
+  const deltaT = ambientNum !== undefined && maxNum !== undefined ? maxNum - ambientNum : undefined;
+  let thermalData = (testDataForThermal as any)?.thermal;
+  if (!thermalData && (ambientNum !== undefined || maxNum !== undefined)) {
+    const parts: string[] = [];
+    if (ambientNum !== undefined) parts.push(`Ambient: ${ambientNum}°C`);
+    if (maxNum !== undefined) parts.push(`Max main switch: ${maxNum}°C`);
+    if (deltaT !== undefined) parts.push(`ΔT: ${deltaT}°C`);
+    thermalData = parts.join("; ");
+  }
+  if (thermalData && String(thermalData).trim().length > 0) {
     md.push("Thermal imaging analysis provides a non-invasive method for identifying potential electrical issues that may not be visible during standard visual inspection.");
     md.push("");
     md.push("This technology adds value to risk identification by detecting abnormal heat patterns that may indicate:");
@@ -678,7 +695,7 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
     md.push("");
     md.push("The following thermal imaging data was captured during this assessment:");
     md.push("");
-    md.push(thermalData);
+    md.push(String(thermalData));
   } else {
     md.push("No thermal imaging data was captured for this assessment.");
     md.push("");
@@ -689,75 +706,76 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   md.push("");
   
   // ========================================================================
-  // 6.5. Test Data & Technical Notes（强制兜底规则）
+  // 6.5. Appendix – Test Data, Technical Notes & Photo Evidence
   // ========================================================================
-  md.push("## Test Data & Technical Notes");
+  md.push("## Appendix");
   md.push("");
   
-  // TEST_SUMMARY（强制兜底规则：永不输出 undefined）
-  md.push("### Test Summary");
-  md.push("");
   const testDataForSummary = canonical.test_data || {};
   const rawForSummary = inspection.raw || {};
   
-  // 显式判断：尝试从 raw 读取测试摘要
-  let testSummary: string = ""; // 初始化为空字符串，确保不是 undefined
-  
-  const rcdSummary = (testDataForSummary as any)?.rcd_tests?.summary || 
-                     getFieldValue(rawForSummary, "rcd_tests.summary");
-  const gpoSummary = (testDataForSummary as any)?.gpo_tests?.summary || 
-                     getFieldValue(rawForSummary, "gpo_tests.summary");
-  
-  // 显式判断：如果有实际数据，使用实际数据
-  if (rcdSummary && String(rcdSummary).trim().length > 0) {
-    const summaries: string[] = [];
-    summaries.push(`RCD Testing: ${String(rcdSummary)}`);
-    if (gpoSummary && String(gpoSummary).trim().length > 0) {
-      summaries.push(`GPO Testing: ${String(gpoSummary)}`);
-    }
-    testSummary = summaries.join(". ");
-  } else if (gpoSummary && String(gpoSummary).trim().length > 0) {
-    testSummary = `GPO Testing: ${String(gpoSummary)}`;
-  }
-  
-  // 强制兜底：如果无数据，使用默认文本
-  if (!testSummary || testSummary.trim().length === 0) {
-    testSummary = defaultText.TEST_SUMMARY || 
-                  "Electrical safety inspection completed in accordance with applicable standards.";
-  }
-  
-  // 确保不是 undefined
-  testSummary = String(testSummary || "");
-  md.push(testSummary);
+  // --- Test Data ---
+  md.push("### Test Data");
   md.push("");
   
-  // TECHNICAL_NOTES（强制兜底规则：永不输出 undefined）
+  const rcdSummary = (testDataForSummary as any)?.rcd_tests?.summary || getFieldValue(rawForSummary, "rcd_tests.summary");
+  const gpoSummary = (testDataForSummary as any)?.gpo_tests?.summary || getFieldValue(rawForSummary, "gpo_tests.summary");
+  const earthingRes = (testDataForSummary as any)?.earthing?.earth_resistance_ohm ?? getFieldValue(rawForSummary, "earthing.earth_resistance_ohm");
+  
+  const testLines: string[] = [];
+  if (rcdSummary != null && String(rcdSummary).trim() !== "") {
+    testLines.push(`- **RCD tests:** ${String(rcdSummary)}`);
+  }
+  if (gpoSummary != null && String(gpoSummary).trim() !== "") {
+    testLines.push(`- **GPO tests:** ${String(gpoSummary)}`);
+  }
+  if (earthingRes != null && String(earthingRes).trim() !== "") {
+    testLines.push(`- **Earth resistance:** ${String(earthingRes)} Ω`);
+  }
+  if (thermalData && String(thermalData).trim().length > 0) {
+    testLines.push(`- **Thermal imaging:** ${String(thermalData)}`);
+  }
+  
+  if (testLines.length > 0) {
+    testLines.forEach(line => md.push(line));
+  } else {
+    md.push(defaultText.TEST_SUMMARY || "Electrical safety inspection completed in accordance with applicable standards.");
+  }
+  md.push("");
+  
+  // --- Technical Notes ---
   md.push("### Technical Notes");
   md.push("");
-  let technicalNotes: string = ""; // 初始化为空字符串，确保不是 undefined
-  
-  // 显式判断：尝试从 canonical 读取 technician_notes
+  let technicalNotes: string = "";
   const canonicalNotes = canonical.technician_notes || "";
   if (canonicalNotes && String(canonicalNotes).trim().length > 0) {
     technicalNotes = String(canonicalNotes);
   } else {
-    // 显式判断：尝试从 raw 读取
-    const rawNotes = getFieldValue(rawForSummary, "signoff.office_notes_internal") ||
-                     getFieldValue(rawForSummary, "access.notes");
+    const rawNotes = getFieldValue(rawForSummary, "signoff.office_notes_internal") || getFieldValue(rawForSummary, "access.notes");
     if (rawNotes && String(rawNotes).trim().length > 0) {
       technicalNotes = String(rawNotes);
     }
   }
-  
-  // 强制兜底：如果无数据，使用默认文本
   if (!technicalNotes || technicalNotes.trim().length === 0) {
-    technicalNotes = defaultText.TECHNICAL_NOTES || 
-                     "This is a non-invasive visual inspection limited to accessible areas.";
+    technicalNotes = defaultText.TECHNICAL_NOTES || "This is a non-invasive visual inspection limited to accessible areas.";
   }
+  md.push(String(technicalNotes || ""));
+  md.push("");
   
-  // 确保不是 undefined
-  technicalNotes = String(technicalNotes || "");
-  md.push(technicalNotes);
+  // --- Photo Evidence ---
+  md.push("### Photo Evidence");
+  md.push("");
+  const findingsWithPhotos = (inspection.findings || []).filter((f: { photo_ids?: string[] }) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0);
+  if (findingsWithPhotos.length > 0) {
+    findingsWithPhotos.forEach((f: { id: string; title?: string; location?: string; photo_ids?: string[] }) => {
+      const loc = f.location || "";
+      const label = f.title || f.id.replace(/_/g, " ");
+      const ids = (f.photo_ids || []).join(", ");
+      md.push(`- **${label}**${loc ? ` (${loc})` : ""}: ${ids}`);
+    });
+  } else {
+    md.push("No photo evidence was attached to findings for this assessment.");
+  }
   md.push("");
   md.push("---");
   md.push("");

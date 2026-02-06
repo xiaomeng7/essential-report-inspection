@@ -45,6 +45,8 @@ const SECTIONS_WITH_PHOTOS = new Set([
   "S3I_GENERAL_OBSERVATIONS",
   "S9_SOLAR_BATTERY_EV",
   "S9B_POOL_HIGH_LOAD",
+  "S5A_MEASURED_DATA",
+  "S10_SIGNOFF",
 ]);
 
 /** Static technician guidance at top of each section (no form changes). */

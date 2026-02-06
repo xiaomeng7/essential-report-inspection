@@ -7,6 +7,8 @@ export type EmailData = {
   findings: Array<{ id: string; priority: string; title?: string }>;
   limitations: string[];
   review_url: string;
+  /** URL to download Word report (generate on review page first if needed) */
+  download_word_url: string;
   created_at: string;
   raw_data?: Record<string, unknown>; // Full inspection data for manual review
 };
@@ -280,12 +282,15 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
 
     <div style="margin-top: 30px; text-align: center;">
       <a href="${data.review_url}" class="button">View Full Report</a>
+      <a href="${data.download_word_url}" class="button" style="margin-left: 12px; background-color: #27ae60;">Download Word Report</a>
     </div>
 
     <p style="margin-top: 30px; color: #666; font-size: 12px;">
       This is an automated notification from the Electrical Inspection System.
       <br>
-      Report URL: <a href="${data.review_url}">${data.review_url}</a>
+      Review: <a href="${data.review_url}">${data.review_url}</a>
+      <br>
+      Download Word (generate on review page first if needed): <a href="${data.download_word_url}">${data.download_word_url}</a>
     </p>
   </div>
 </body>
@@ -333,6 +338,8 @@ ${JSON.stringify(data.raw_data, null, 2)}
 ` : ""}
 
 View Full Report: ${data.review_url}
+Download Word Report: ${data.download_word_url}
+(Generate the report on the review page first if you have not already.)
 
 This is an automated notification from the Electrical Inspection System.
     `.trim();
