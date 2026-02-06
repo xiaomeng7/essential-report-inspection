@@ -159,7 +159,6 @@ export function ConfigAdmin({ onBack }: Props) {
     findings: Record<string, Record<string, unknown>>;
     missing: Array<{ id: string; missing: string[] }>;
   } | null>(null);
-  const [editedDimensions, setEditedDimensions] = useState<Record<string, Record<string, unknown>>>({});
   const [libraryEntries, setLibraryEntries] = useState<CustomFindingLibraryEntry[] | null>(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [librarySaving, setLibrarySaving] = useState(false);
@@ -167,9 +166,6 @@ export function ConfigAdmin({ onBack }: Props) {
   // 9 维全局（影响所有报告）
   const [globalDimOverrides, setGlobalDimOverrides] = useState<Record<string, Record<string, unknown>>>({});
   const [globalDimLoading, setGlobalDimLoading] = useState(false);
-  const [globalDimSaving, setGlobalDimSaving] = useState(false);
-  const [globalDimEdit, setGlobalDimEdit] = useState<{ finding_id: string; dimensions: FindingDimensionsForm } | null>(null);
-  const [globalDimNewId, setGlobalDimNewId] = useState("");
   // 合并页面的状态：当前选中的 finding ID（用于显示右侧问题描述）
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   // 合并页面的状态：当前编辑的 finding（用于弹窗）
@@ -243,7 +239,6 @@ export function ConfigAdmin({ onBack }: Props) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { findings: Record<string, Record<string, unknown>>; missing: Array<{ id: string; missing: string[] }> };
       setDimensionsData(data);
-      setEditedDimensions(data.findings || {});
     } catch (e) {
       setError((e as Error).message);
     } finally {
