@@ -25,6 +25,7 @@
     "verify:docx-links": "tsx scripts/verify-docx-links.ts",
     "verify:evidence": "tsx scripts/verify-evidence-rules.ts",
     "audit:dimensions": "tsx scripts/audit-finding-dimensions.ts",
+    "sync:dimensions": "tsx scripts/sync-dimensions-to-sources.ts",
     "simulate:inspection": "tsx scripts/simulate-inspection.ts",
     "write-sample-payload": "tsx scripts/simulate-inspection.ts --write-payload",
     "smoke:sanitize": "tsx scripts/smoke-sanitize-anchor.ts",
