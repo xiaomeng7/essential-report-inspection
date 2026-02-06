@@ -1,5 +1,19 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { getWordDoc } from "./lib/store";
+import { getWordDoc, get } from "./lib/store";
+import { normalizeInspection } from "./lib/normalizeInspection";
+
+/** Make a short, filesystem-safe slug from address for use in download filename. */
+function addressToFilenameSlug(address: string | undefined | null, maxLen = 50): string {
+  if (!address || typeof address !== "string") return "";
+  const trimmed = address.trim();
+  if (!trimmed) return "";
+  // Allow letters, digits, space, comma, hyphen, period; replace other chars with hyphen; collapse hyphens/spaces
+  const safe = trimmed
+    .replace(/[^\p{L}\p{N}\s,\-.]/gu, "-")
+    .replace(/[\s\-]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return safe.slice(0, maxLen);
+}
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET") {
@@ -43,12 +57,27 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
 
+    // Download filename: include address when available so files are easier to find
+    let downloadFilename = `${inspectionId}.docx`;
+    try {
+      const inspection = await get(inspectionId, event);
+      if (inspection?.raw) {
+        const { canonical } = normalizeInspection(inspection.raw as Record<string, unknown>, inspectionId);
+        const slug = addressToFilenameSlug(canonical?.property_address);
+        if (slug) {
+          downloadFilename = `${slug}-${inspectionId}.docx`;
+        }
+      }
+    } catch (_) {
+      // Keep default filename if inspection load fails
+    }
+
     // Return file as download with correct headers
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${inspectionId}.docx"`,
+        "Content-Disposition": `attachment; filename="${downloadFilename.replace(/"/g, "")}"`,
         "Content-Length": buffer.length.toString(),
       },
       body: buffer.toString("base64"),

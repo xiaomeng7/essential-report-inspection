@@ -272,13 +272,6 @@ export function Wizard({ onSubmitted }: Props) {
   const currentPageIsRoof = currentStep?.pageId === "roof_space";
   const currentPageIsEarthingExternal = currentStep?.pageId === "earthing_external";
 
-  const address = getValue("job.address");
-  const inspectionId = getValue("inspection_id");
-  const preparedFor =
-    getValue("job.prepared_for") ?? getValue("job.client_name") ?? getValue("client.name");
-  const hasPreparedFor =
-    preparedFor !== undefined && preparedFor !== null && String(preparedFor).trim() !== "";
-
   const saveDraftToStorage = () => {
     try {
       localStorage.setItem("inspection-draft", JSON.stringify(state));
@@ -304,27 +297,24 @@ export function Wizard({ onSubmitted }: Props) {
       {isStartScreen && (
         <div className="start-screen">
           <h1 className="start-screen__title">Start Screen</h1>
-          <div className="start-screen__card">
-            <dl className="start-screen__meta">
-              <div className="start-screen__meta-row">
-                <dt>Property address</dt>
-                <dd>{address != null && String(address).trim() !== "" ? String(address) : "—"}</dd>
-              </div>
-              <div className="start-screen__meta-row">
-                <dt>Inspection ID</dt>
-                <dd>
-                  {inspectionId != null && String(inspectionId).trim() !== ""
-                    ? String(inspectionId)
-                    : "—"}
-                </dd>
-              </div>
-              {hasPreparedFor && (
-                <div className="start-screen__meta-row">
-                  <dt>Prepared for</dt>
-                  <dd>{String(preparedFor)}</dd>
-                </div>
-              )}
-            </dl>
+          <div className="start-screen__card start-screen__card--brief">
+            <h2 className="start-screen__brief-heading">给检测员</h2>
+            <section className="start-screen__brief-section">
+              <h3 className="start-screen__brief-label">任务</h3>
+              <p className="start-screen__brief-text">按流程完成现场电气检查：室内房间 → 配电盘与 RCD → 屋顶空间 → 外部与收尾。逐项填写并拍照留证，有异常或选「Other」时请补充说明。</p>
+            </section>
+            <section className="start-screen__brief-section">
+              <h3 className="start-screen__brief-label">目的</h3>
+              <p className="start-screen__brief-text">为业主/投资人提供一份结构化的电气状况报告，用于风险评估与预算规划；报告将包含优先级、建议时间与 CapEx 区间。</p>
+            </section>
+            <section className="start-screen__brief-section">
+              <h3 className="start-screen__brief-label">注意事项</h3>
+              <ul className="start-screen__brief-list">
+                <li>进入前先填物业地址与委托方，提交后获得 Inspection ID，后续可续传照片。</li>
+                <li>RCD/GPO 等测试结果如实填写，未测项选「未测」勿猜填。</li>
+                <li>每类问题尽量附 1–2 张照片，便于报告引用与客户理解。</li>
+              </ul>
+            </section>
           </div>
           <div className="start-screen__card">
             <p className="start-screen__workflow-heading">Workflow</p>

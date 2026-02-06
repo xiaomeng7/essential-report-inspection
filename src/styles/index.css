@@ -225,6 +225,59 @@ button {
   color: var(--text);
 }
 
+.start-screen__meta-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.start-screen__card--brief .start-screen__brief-heading {
+  margin: 0 0 14px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.start-screen__brief-section {
+  margin-bottom: 14px;
+}
+
+.start-screen__brief-section:last-child {
+  margin-bottom: 0;
+}
+
+.start-screen__brief-label {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.start-screen__brief-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.start-screen__brief-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.start-screen__brief-list li {
+  margin-bottom: 6px;
+}
+
+.start-screen__brief-list li:last-child {
+  margin-bottom: 0;
+}
+
 .start-screen__workflow-heading {
   margin: 0 0 10px;
   font-weight: 600;
