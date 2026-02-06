@@ -416,7 +416,6 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
   }
   
   // Access Information (from test_data if available, otherwise empty)
-  const testData = canonical.test_data || {};
   const switchboardAccessible = (testData as any)?.access?.switchboard_accessible;
   const roofAccessible = (testData as any)?.access?.roof_accessible;
   const underfloorAccessible = (testData as any)?.access?.underfloor_accessible;
