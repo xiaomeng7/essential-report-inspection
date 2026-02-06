@@ -479,7 +479,6 @@ export function ConfigAdmin({ onBack }: Props) {
     setEditMode("visual");
     setSearchTerm("");
     setLibraryEdit(null);
-    setGlobalDimEdit(null);
     if (authToken || newTab === "customLibrary") {
       if (newTab === "customLibrary") {
         loadLibrary();
