@@ -118,6 +118,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         }
       }
     }
+
+    // Generate Word report at submit time so the email link has the file ready when opened
+    const baseUrl = getBaseUrl(event);
+    const generateWordUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspection_id)}`;
+    console.log("Generating Word report at submit time:", generateWordUrl);
+    try {
+      const genRes = await fetch(generateWordUrl, { method: "GET" });
+      if (genRes.ok) {
+        console.log("Word report generated successfully before sending email");
+      } else {
+        const errText = await genRes.text().catch(() => "");
+        console.warn("Word report generation returned", genRes.status, errText.slice(0, 200));
+      }
+    } catch (genErr) {
+      console.warn("Word report generation request failed (download link will generate on-demand):", genErr instanceof Error ? genErr.message : genErr);
+    }
     
     // Extract address and technician name for email
     // Helper function to extract value from Answer object (handles nested Answer objects)
@@ -142,8 +158,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const technicianNameValue = extractValue(technicianName) as string | undefined;
     
     // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
-    // Review URL uses unified getBaseUrl (http for localhost / NETLIFY_DEV)
-    const baseUrl = getBaseUrl(event);
     const reviewUrl = `${baseUrl}/review/${inspection_id}`;
     const downloadWordUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`;
     console.log("Email links - review_url:", reviewUrl, "| download_word_url:", downloadWordUrl);
