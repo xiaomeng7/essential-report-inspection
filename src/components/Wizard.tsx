@@ -176,6 +176,10 @@ export function Wizard({ onSubmitted }: Props) {
   const isLast = !isStartScreen && step === visibleSteps.length;
   const progress = isStartScreen ? 0 : visibleSteps.length ? (step / visibleSteps.length) * 100 : 0;
 
+  /** 最后一步时：未通过完整性校验则禁止提交（必填项、有问题的房间需照片） */
+  const completenessError = isLast ? validatePhotoEvidenceBeforeSubmit(state) : null;
+  const submitDisabled = isLast && completenessError != null;
+
   const goNext = () => {
     if (isStartScreen) {
       setStep(1);
@@ -475,12 +479,17 @@ export function Wizard({ onSubmitted }: Props) {
               </div>
             )}
 
-            {/* Submit / section errors */}
-            {currentStep.sectionIds.some((id) => sectionErrors[id]?._submit) && (
+            {/* Submit / section errors：缺照片等完整性未通过时禁止提交并提示 */}
+            {(completenessError || currentStep.sectionIds.some((id) => sectionErrors[id]?._submit)) && (
               <div className="wizard-page__card">
                 <p className="validation-msg">
-                  {currentStep.sectionIds.map((id) => sectionErrors[id]?._submit).filter(Boolean)[0]}
+                  {completenessError ?? currentStep.sectionIds.map((id) => sectionErrors[id]?._submit).filter(Boolean)[0]}
                 </p>
+                {completenessError && (
+                  <p style={{ fontSize: "13px", color: "#666", marginTop: "8px" }}>
+                    Add at least one photo for each room with an issue, then Submit.
+                  </p>
+                )}
               </div>
             )}
             {currentStep.sectionIds.map((sectionId) => {
@@ -544,7 +553,7 @@ export function Wizard({ onSubmitted }: Props) {
             <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>
               Back
             </button>
-            <button type="button" className="btn-primary" onClick={goNext}>
+            <button type="button" className="btn-primary" onClick={goNext} disabled={submitDisabled} title={submitDisabled ? completenessError ?? undefined : undefined}>
               {isLast ? "Submit Inspection" : "Next"}
             </button>
           </div>
@@ -555,7 +564,7 @@ export function Wizard({ onSubmitted }: Props) {
             <button type="button" className="wizard-nav-fixed__btn btn-secondary" onClick={saveDraftToStorage}>
               Save Draft
             </button>
-            <button type="button" className="wizard-nav-fixed__btn btn-primary" onClick={goNext}>
+            <button type="button" className="wizard-nav-fixed__btn btn-primary" onClick={goNext} disabled={submitDisabled} title={submitDisabled ? completenessError ?? undefined : undefined}>
               {isLast ? "Submit Inspection" : "Next"}
             </button>
           </div>

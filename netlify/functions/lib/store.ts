@@ -33,10 +33,14 @@ export type StoredInspection = {
   report_html: string;
   findings: StoredFinding[];
   limitations: string[];
-  /** Word 报告状态：仅 Blob 写成功后才为 generated */
+  /** Word 报告状态：仅 Blob 写成功后才为 generated；Submit 成功后即锁定，不再重新生成 */
   report_status?: ReportStatus;
+  /** Blob 键，如 reports/{inspection_id}.docx */
   report_blob_key?: string;
+  /** 报告生成时间（Submit 时） */
   report_generated_at?: string;
+  /** 报告文件哈希（如 sha256 hex），用于一致性校验 */
+  report_hash?: string;
 };
 
 /** In local dev / sandbox, strong consistency is not available (BlobsConsistencyError). Use eventual only. */

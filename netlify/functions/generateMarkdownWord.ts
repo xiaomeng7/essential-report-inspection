@@ -251,74 +251,22 @@ export async function generateMarkdownWordBuffer(inspection: StoredInspection, e
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
-  const t0 = Date.now();
-  try {
-    const buildRef = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "?";
-    let pkgVersion = "?";
-    try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
-      pkgVersion = pkg.version ?? "?";
-    } catch {
-      try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8"));
-        pkgVersion = pkg.version ?? "?";
-      } catch {
-        // ignore
-      }
-    }
-    console.log("[report-fp] BUILD COMMIT_REF/CONTEXT/BRANCH:", buildRef, "package.version:", pkgVersion);
-
-    const inspectionId = event.queryStringParameters?.inspection_id;
-    if (!inspectionId) {
-      return {
-        statusCode: 400,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "inspection_id is required" })
-      };
-    }
-
-    console.log("🚀 Generating Markdown-based Word report for:", inspectionId);
-
-    const inspection = await get(inspectionId, event);
-    if (!inspection) {
-      return {
-        statusCode: 404,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Inspection not found" })
-      };
-    }
-
-    const wordBuffer = await generateMarkdownWordBuffer(inspection, event);
-    const filename = `${inspectionId}-report.docx`;
-    logWordReport({ inspection_id: inspectionId, trigger: "review", duration_ms: Date.now() - t0, result: "success" });
-
+  const inspectionId = event.queryStringParameters?.inspection_id;
+  if (!inspectionId) {
     return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Content-Length": wordBuffer.length.toString()
-      },
-      body: wordBuffer.toString("base64"),
-      isBase64Encoded: true
-    };
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    const inspectionIdForLog = event.queryStringParameters?.inspection_id ?? "?";
-    logWordReport({ inspection_id: inspectionIdForLog, trigger: "review", duration_ms: Date.now() - t0, result: "fail", error_message: errorMessage });
-    console.error("❌ Error generating Markdown-based Word report:", error);
-    console.error("Error stack:", errorStack);
-    
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        error: "Failed to generate Word report",
-        message: errorMessage,
-        stack: process.env.NETLIFY_DEV ? errorStack : undefined
-      })
+      statusCode: 400,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      body: JSON.stringify({ error: "inspection_id is required" }),
     };
   }
+
+  // 收口约束：Word 仅在 Submit 时生成，本端点不再生成
+  return {
+    statusCode: 403,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    body: JSON.stringify({
+      error: "word_generation_disabled",
+      message: "Word report can only be generated at Submit. Use the download link (email or Review page) to get the existing report.",
+    }),
+  };
 };

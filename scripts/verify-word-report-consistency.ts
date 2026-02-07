@@ -44,7 +44,7 @@ async function submitInspection(): Promise<string> {
   return json.inspection_id;
 }
 
-async function downloadWordBuffer(inspectionId: string): Promise<{ buffer: Buffer; isDocx: boolean }> {
+async function downloadWordBuffer(inspectionId: string): Promise<{ buffer: Buffer; isDocx: boolean; status: number }> {
   const res = await fetch(
     `${BASE_URL}/api/downloadWord?inspection_id=${encodeURIComponent(inspectionId)}`,
     { method: "GET" }
@@ -52,16 +52,16 @@ async function downloadWordBuffer(inspectionId: string): Promise<{ buffer: Buffe
   const buf = Buffer.from(await res.arrayBuffer());
   const contentType = res.headers.get("content-type") || "";
   const isDocx = contentType.includes("wordprocessingml") || (buf.length > 100 && buf[0] === 80 && buf[1] === 75);
-  return { buffer: buf, isDocx };
+  return { buffer: buf, isDocx, status: res.status };
 }
 
-async function generatePreviewBuffer(inspectionId: string): Promise<Buffer> {
+/** 收口后：generateMarkdownWord 仅返回 403，不再生成 */
+async function generateMarkdownWordReturns403(inspectionId: string): Promise<boolean> {
   const res = await fetch(
     `${BASE_URL}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspectionId)}`,
     { method: "GET" }
   );
-  if (!res.ok) throw new Error(`generateMarkdownWord failed ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  return res.status === 403;
 }
 
 async function wordStatusExists(inspectionId: string): Promise<boolean> {
@@ -118,9 +118,11 @@ async function main() {
       ? `Blob/邮件/Review 三路 sha256 一致: ${h1.slice(0, 16)}...`
       : `isDocx=${dw1.isDocx},${dw2.isDocx},${dw3.isDocx} sha256: ${h1.slice(0, 8)} | ${h2.slice(0, 8)} | ${h3.slice(0, 8)}`,
   });
-  fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-1.docx`), dw1.buffer);
-  fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-2.docx`), dw2.buffer);
-  fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-3.docx`), dw3.buffer);
+  if (dw1.isDocx) {
+    fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-1.docx`), dw1.buffer);
+    fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-2.docx`), dw2.buffer);
+    fs.writeFileSync(path.join(OUT_DIR, `case1-${inspectionId1}-3.docx`), dw3.buffer);
+  }
   console.log(case1Pass ? "  PASS" : "  FAIL", results[results.length - 1].detail);
 
   // ---------- Case 2: 极限时序 ----------
@@ -161,20 +163,18 @@ async function main() {
   });
   console.log(allSame3 ? "  PASS" : "  FAIL", results[results.length - 1].detail);
 
-  // ---------- Case 4: Review 行为 ----------
-  console.log("\n--- Case 4: Review 行为（Blob 下载 vs Generate Preview）---");
+  // ---------- Case 4: Review 行为（收口：仅下载，禁止生成）----------
+  console.log("\n--- Case 4: Review 行为（Blob 可下载；generateMarkdownWord 返回 403）---");
   const exists = await wordStatusExists(inspectionId1);
   const dw4 = await downloadWordBuffer(inspectionId1);
-  const preview4 = await generatePreviewBuffer(inspectionId1);
-  const hBlob = sha256Hex(dw4.buffer);
-  const hPreview = sha256Hex(preview4);
-  const case4Pass = exists && dw4.isDocx && hBlob === hPreview;
+  const gen403 = await generateMarkdownWordReturns403(inspectionId1);
+  const case4Pass = exists && dw4.isDocx && gen403;
   results.push({
     case: "Case 4 Review 行为",
     pass: case4Pass,
     detail: case4Pass
-      ? `wordStatus exists=true, Blob 与 Preview sha256 一致: ${hBlob.slice(0, 16)}...`
-      : `exists=${exists} isDocx=${dw4.isDocx} blob=${hBlob.slice(0, 8)} preview=${hPreview.slice(0, 8)}`,
+      ? `wordStatus exists=true, downloadWord 返回 docx, generateMarkdownWord 返回 403`
+      : `exists=${exists} isDocx=${dw4.isDocx} gen403=${gen403}`,
   });
   console.log(case4Pass ? "  PASS" : "  FAIL", results[results.length - 1].detail);
 
@@ -183,13 +183,21 @@ async function main() {
   const fakeId = "EH-2099-99-999";
   const dwFail = await downloadWordBuffer(fakeId);
   const failStr = dwFail.buffer.toString("utf8");
-  const failOk = !dwFail.isDocx && (failStr.includes("not yet ready") || failStr.includes("Report is not") || failStr.includes("<!DOCTYPE") || failStr.includes("<html"));
+  const failOk =
+    !dwFail.isDocx &&
+    (dwFail.status === 409 ||
+      failStr.includes("report_not_available") ||
+      failStr.includes("No report is available") ||
+      failStr.includes("not yet ready") ||
+      failStr.includes("Report is not") ||
+      failStr.includes("<!DOCTYPE") ||
+      failStr.includes("<html"));
   results.push({
     case: "失败场景 不存在id",
     pass: failOk,
     detail: failOk
-      ? "downloadWord 返回非 docx（HTML 提示页或 404 行为）"
-      : `unexpected: isDocx=${dwFail.isDocx} len=${dwFail.buffer.length}`,
+      ? "downloadWord 返回 409 或非 docx（无报告可用）"
+      : `unexpected: isDocx=${dwFail.isDocx} status=${dwFail.status} len=${dwFail.buffer.length}`,
   });
   console.log(failOk ? "  PASS" : "  FAIL", results[results.length - 1].detail);
 
@@ -202,6 +210,7 @@ async function main() {
   console.log("");
 
   const reportPath = path.join(OUT_DIR, "verification-report.json");
+  const hBlobCase4 = dw4.isDocx ? sha256Hex(dw4.buffer) : null;
   fs.writeFileSync(
     reportPath,
     JSON.stringify(
@@ -212,8 +221,7 @@ async function main() {
         sha256Case1: h1,
         sha256Case2: h2a,
         sha256Case3: hashes3[0],
-        sha256BlobCase4: hBlob,
-        sha256PreviewCase4: hPreview,
+        sha256BlobCase4: hBlobCase4,
         results,
         passed,
         total: results.length,

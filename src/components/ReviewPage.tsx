@@ -31,9 +31,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const [templateHtml, setTemplateHtml] = useState<string | null>(null); // Template HTML with placeholders filled
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
-  // const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null); // Temporarily disabled with AI
-  const [isGeneratingMarkdownWord, setIsGeneratingMarkdownWord] = useState(false);
-  const [markdownWordError, setMarkdownWordError] = useState<string | null>(null);
   const [wordExistsInBlob, setWordExistsInBlob] = useState<boolean | null>(null);
   const [customFindingsToFill, setCustomFindingsToFill] = useState<CustomFindingInput[] | null>(null);
   const [isSavingCustomFindings, setIsSavingCustomFindings] = useState(false);
@@ -113,54 +110,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     return () => { cancelled = true; };
   }, [loadData]);
 
-  const handleGenerateMarkdownWord = async () => {
-    if (!data?.inspection_id) {
-      alert("无法生成 Word 文档：缺少检查 ID");
-      return;
-    }
-
-    setIsGeneratingMarkdownWord(true);
-    setMarkdownWordError(null);
-
-    try {
-      console.log("Generating Markdown-based Word document for:", data.inspection_id);
-      
-      const res = await fetch(`/.netlify/functions/generateMarkdownWord?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
-        method: "GET",
-      });
-
-      if (!res.ok) {
-        let errorMessage = `HTTP ${res.status}`;
-        try {
-          const errorData = await res.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = res.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${data.inspection_id}-report.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      console.log("✅ Word document downloaded successfully");
-      
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
-      setMarkdownWordError(errorMessage);
-      console.error("Error generating Markdown-based Word document:", e);
-      alert(`生成 Word 文档时出错:\n\n${errorMessage}`);
-    } finally {
-      setIsGeneratingMarkdownWord(false);
-    }
-  };
-
   if (loading) return <div className="review-page"><p>Loading…</p></div>;
   if (error) {
     return (
@@ -209,7 +158,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         <div style={{ fontSize: "32px", marginBottom: "8px" }}>✅</div>
         <strong>Inspection Submitted Successfully!</strong>
         <p style={{ margin: "8px 0 0", fontSize: "14px" }}>
-          Add photo evidence below, then generate your report.
+          Word report was generated at submit. Download it below or use the link from your email.
         </p>
       </div>
 
@@ -218,29 +167,24 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           <h1 style={{ margin: 0, flex: 1 }}>
             Report — {data.inspection_id}
           </h1>
-          {/* Word：已生成则直接下载 Blob；否则可实时生成预览（不写 Blob，仅调试/预览） */}
-          <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            {wordExistsInBlob === true && (
+          {/* Word 仅在 Submit 时生成；Review 页仅提供下载，不提供生成 */}
+          {wordExistsInBlob === true && (
+            <div style={{ marginTop: "10px" }}>
               <a
                 href={`/api/downloadWord?inspection_id=${encodeURIComponent(data.inspection_id)}`}
                 className="btn-primary"
                 style={{ backgroundColor: "#2196f3", minWidth: "180px", textDecoration: "none", display: "inline-block", textAlign: "center", lineHeight: "2" }}
                 download={`${data.inspection_id}-report.docx`}
               >
-                Download Generated Word
+                Download Word Report
               </a>
-            )}
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleGenerateMarkdownWord}
-              disabled={isGeneratingMarkdownWord}
-              style={{ backgroundColor: wordExistsInBlob ? "#9e9e9e" : "#4caf50", minWidth: "160px" }}
-              title={wordExistsInBlob ? "实时生成一份预览（不写入 Blob，用于调试）" : "生成 Word 并下载"}
-            >
-              {isGeneratingMarkdownWord ? "生成中..." : "Generate Preview"}
-            </button>
-          </div>
+            </div>
+          )}
+          {wordExistsInBlob === false && (
+            <p style={{ marginTop: "10px", fontSize: "14px", color: "#666" }}>
+              Word report was not generated for this inspection. It is only generated once at Submit.
+            </p>
+          )}
         </div>
         {/* Model info temporarily disabled with AI */}
         {/* {modelInfo && (
@@ -274,17 +218,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         </div>
       )}
 
-      {markdownWordError && (
-        <div style={{ 
-          padding: "12px", 
-          marginBottom: "16px", 
-          backgroundColor: "#ffebee", 
-          color: "#c62828",
-          borderRadius: "4px"
-        }}>
-          <strong>生成 Word 错误:</strong> {markdownWordError}
-        </div>
-      )}
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings &amp; Photo Evidence</h2>

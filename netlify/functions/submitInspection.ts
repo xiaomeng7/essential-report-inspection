@@ -1,5 +1,6 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { save, get, getNextInspectionNumber, saveWordDoc } from "./lib/store";
+import crypto from "crypto";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
@@ -61,6 +62,54 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         message: "Please select a valid address from suggestions. Address must include suburb, state, and postcode.",
       }),
     };
+  }
+
+  // Completeness: required photos for rooms with issues (mirror frontend)
+  const rawPayload = raw as Record<string, unknown>;
+  const gpoRoomsRaw = rawPayload.gpo_tests as Record<string, unknown> | undefined;
+  const gpoRoomsValue = gpoRoomsRaw?.rooms != null ? extractValue(gpoRoomsRaw.rooms) : undefined;
+  const rawGpoRooms = Array.isArray(gpoRoomsValue) ? gpoRoomsValue : [];
+  for (let i = 0; i < rawGpoRooms.length; i++) {
+    const r = rawGpoRooms[i] as Record<string, unknown>;
+    if (!r || String(extractValue(r.room_access) ?? r.room_access ?? "").trim() === "not_accessible") continue;
+    const issue = String(extractValue(r.issue) ?? r.issue ?? "").trim();
+    if (!issue || issue === "none") continue;
+    const pids = (extractValue(r.photo_ids) ?? r.photo_ids) as unknown[] | undefined;
+    const hasPhoto = Array.isArray(pids) && pids.length > 0;
+    if (!hasPhoto) {
+      const label = String(extractValue(r.room_type) ?? r.room_type ?? extractValue(r.room_name_custom) ?? r.room_name_custom ?? `Room ${i + 1}`);
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "incomplete_evidence",
+          message: `Please add at least one photo for the GPO room with an issue: ${label}.`,
+        }),
+      };
+    }
+  }
+  const lightingRaw = rawPayload.lighting as Record<string, unknown> | undefined;
+  const lightingRoomsValue = lightingRaw?.rooms != null ? extractValue(lightingRaw.rooms) : undefined;
+  const rawLightRooms = Array.isArray(lightingRoomsValue) ? lightingRoomsValue : [];
+  for (let i = 0; i < rawLightRooms.length; i++) {
+    const r = rawLightRooms[i] as Record<string, unknown>;
+    if (!r || String(extractValue(r.room_access) ?? r.room_access ?? "").trim() === "not_accessible") continue;
+    const issues = (extractValue(r.issues) ?? r.issues) as unknown[] | undefined;
+    const hasIssue = Array.isArray(issues) && issues.some((x) => x != null && String(x) !== "none" && String(x) !== "other");
+    if (!hasIssue) continue;
+    const pids = (extractValue(r.photo_ids) ?? r.photo_ids) as unknown[] | undefined;
+    const hasPhoto = Array.isArray(pids) && pids.length > 0;
+    if (!hasPhoto) {
+      const label = String(extractValue(r.room_type) ?? r.room_type ?? extractValue(r.room_name_custom) ?? r.room_name_custom ?? `Room ${i + 1}`);
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "incomplete_evidence",
+          message: `Please add at least one photo for the lighting room with an issue: ${label}.`,
+        }),
+      };
+    }
   }
 
   try {
@@ -137,10 +186,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       ]);
       await saveWordDoc(wordBlobKey, wordBuffer, event);
       wordReportGenerated = true;
-      console.log("[submit] Word report saved to blob key=" + wordBlobKey + " size=" + wordBuffer.length);
+      const reportHash = crypto.createHash("sha256").update(wordBuffer).digest("hex");
+      console.log("[submit] Word report saved to blob key=" + wordBlobKey + " size=" + wordBuffer.length + " hash=" + reportHash.slice(0, 16) + "...");
       const existing = await get(inspection_id, event);
       if (existing) {
-        await save(inspection_id, { ...existing, report_status: "generated", report_blob_key: wordBlobKey, report_generated_at: new Date().toISOString() }, event);
+        await save(inspection_id, { ...existing, report_status: "generated", report_blob_key: wordBlobKey, report_generated_at: new Date().toISOString(), report_hash: reportHash }, event);
       }
     } catch (genErr) {
       const msg = genErr instanceof Error ? genErr.message : String(genErr);
