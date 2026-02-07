@@ -67,10 +67,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     if (!buffer) {
+      // Return 200 with HTML so Netlify does NOT serve the site 404 page (index.html = inspection app).
+      const base = getBaseUrl(event);
+      const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
+      const retryUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspectionId)}`;
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Word Report</title></head><body style="font-family:sans-serif;max-width:480px;margin:2rem auto;padding:1rem;text-align:center;"><p>Report is being generated or not yet ready for inspection <strong>${inspectionId}</strong>.</p><p><a href="${retryUrl}" style="display:inline-block;padding:12px 24px;background:#27ae60;color:white;text-decoration:none;border-radius:4px;">Try again (download Word)</a></p><p style="color:#666;font-size:14px;">If the file still does not download, open the review page and use &quot;Generate Word Report&quot; there first.</p></body></html>`;
       return {
-        statusCode: 404,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: `Word document not found for inspection_id: ${inspectionId}. Generate it from the review page first.` })
+        statusCode: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+        body: html,
       };
     }
 
