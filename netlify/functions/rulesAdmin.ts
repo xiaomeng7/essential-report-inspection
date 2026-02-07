@@ -1,5 +1,10 @@
 /**
- * @deprecated No frontend or script calls /api/rulesAdmin. Kept for manual admin or planned removal.
+ * LEGACY – DO NOT USE in new code.
+ * @deprecated API 未被调用，保留或计划下线。
+ *
+ * 原用途：rules 管理 API（读取/更新 rules.yml，需 Bearer ADMIN_TOKEN）。
+ * 为什么不再使用：无任何 fetch('/api/rulesAdmin') 或 import；文档仅提及“修改该文件”。
+ * 推荐新路径：直接修改 rules.yml 或通过 ConfigAdmin 相关能力（如有）。
  */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";

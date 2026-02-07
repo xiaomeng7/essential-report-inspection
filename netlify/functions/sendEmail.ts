@@ -1,6 +1,10 @@
 /**
- * Standalone email trigger: no in-app fetch. Submit uses lib/email.sendEmailNotification directly.
- * @deprecated Kept for ops/manual use; safe to remove if no external callers.
+ * LEGACY – DO NOT USE in new code.
+ * @deprecated 独立发信入口，供运维/手动使用。
+ *
+ * 原用途：独立发信 API（POST body 触发 sendEmailNotification）。
+ * 为什么不再使用：Submit 直接使用 lib/email.sendEmailNotification，无应用内 fetch('/api/sendEmail')。
+ * 推荐新路径：发邮件由 Submit 自动触发；手动发信可保留此端点供运维 curl 使用，或确认无调用后移除。
  */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { sendEmailNotification, type EmailData } from "./lib/email";

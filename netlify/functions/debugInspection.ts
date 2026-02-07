@@ -1,10 +1,11 @@
 /**
- * Debug endpoint: GET /api/debugInspection?inspection_id=...
- * Returns findings with photo_ids for verifying photo write-back.
- * Only available in NETLIFY_DEV or when ?token= matches REPORT_DEBUG_TOKEN env.
- * @deprecated No frontend/script calls; manual debug only.
+ * LEGACY – DO NOT USE in new code.
+ * @deprecated 仅 Debug 手动使用。
+ *
+ * 原用途：Debug 端点 GET /api/debugInspection?inspection_id=... 返回 findings（含 photo_ids），用于验证 photo 回写。
+ * 为什么不再使用：无前端/脚本 fetch；仅 NETLIFY_DEV 或 ?token=REPORT_DEBUG_TOKEN 可用。
+ * 推荐新路径：仅 Debug 时手动 curl；应用内不依赖此 API。
  */
-
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { get } from "./lib/store";
 

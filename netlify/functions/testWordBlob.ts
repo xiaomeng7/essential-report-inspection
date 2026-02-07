@@ -1,6 +1,10 @@
 /**
- * Dev-only: README documents curl to /api/testWordBlob for Word/Blob sanity check.
- * @deprecated Not used by app; safe to remove from deployment if desired (update README).
+ * LEGACY – DO NOT USE in new code.
+ * @deprecated 仅开发/手动测试，生产可禁用。
+ *
+ * 原用途：开发/手动测试 Word Blob 写入与读取（README 中 curl /api/testWordBlob）。
+ * 为什么不再使用：应用不调用；仅文档约定用于手动测试。
+ * 推荐新路径：权威 Word 流程见 generateMarkdownWord + downloadWord；若移除本端点需同步更新 README 中 curl 说明。
  */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";

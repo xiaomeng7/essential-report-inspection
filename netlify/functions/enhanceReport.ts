@@ -1,5 +1,10 @@
 /**
- * @deprecated No frontend or script calls /api/enhanceReport. Kept for manual/ops or future removal.
+ * LEGACY – DO NOT USE in new code.
+ * @deprecated 无前端/脚本调用，仅保留供人工触发或后续下线。
+ *
+ * 原用途：报告 AI 增强（历史接口，POST inspection_id 等触发增强）。
+ * 为什么不再使用：无任何 fetch('/api/enhanceReport') 或 import；仅在文档中被提及。
+ * 推荐新路径：无。需发信/报告走 Submit → generateMarkdownWordBuffer → downloadWord 权威链路。
  */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";
