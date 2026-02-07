@@ -25,12 +25,18 @@ export type StoredFinding = {
   budget_high?: number;
 };
 
+export type ReportStatus = "pending" | "generated" | "failed";
+
 export type StoredInspection = {
   inspection_id: string;
   raw: Record<string, unknown>;
   report_html: string;
   findings: StoredFinding[];
   limitations: string[];
+  /** Word 报告状态：仅 Blob 写成功后才为 generated */
+  report_status?: ReportStatus;
+  report_blob_key?: string;
+  report_generated_at?: string;
 };
 
 /** In local dev / sandbox, strong consistency is not available (BlobsConsistencyError). Use eventual only. */
@@ -346,4 +352,54 @@ export async function getWordDoc(
   }
   
   return undefined;
+}
+
+const WORDGEN_LOCK_TTL_MS = 60_000;
+const WORDGEN_LOCK_PREFIX = "lock/wordgen/";
+
+/** 检查是否被他人持有：存在且未过期则返回 true */
+export async function isWordGenLocked(inspectionId: string, event?: HandlerEvent): Promise<boolean> {
+  try {
+    const store = getWordStore(event);
+    const key = WORDGEN_LOCK_PREFIX + inspectionId;
+    const data = await store.get(key, { type: "text" });
+    if (!data) return false;
+    const parsed = JSON.parse(data) as { expires_at?: string };
+    const expiresAt = parsed?.expires_at ? new Date(parsed.expires_at).getTime() : 0;
+    return expiresAt > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+/** 尝试获取生成锁，成功返回 true；已被占用或未过期返回 false */
+export async function tryAcquireWordGenLock(inspectionId: string, event?: HandlerEvent): Promise<boolean> {
+  if (await isWordGenLocked(inspectionId, event)) return false;
+  try {
+    const store = getWordStore(event);
+    const key = WORDGEN_LOCK_PREFIX + inspectionId;
+    const expiresAt = new Date(Date.now() + WORDGEN_LOCK_TTL_MS).toISOString();
+    await store.set(key, JSON.stringify({ expires_at: expiresAt }), { metadata: { expires_at: expiresAt } });
+    return true;
+  } catch (e) {
+    console.error("tryAcquireWordGenLock failed:", e);
+    return false;
+  }
+}
+
+/** 释放生成锁 */
+export async function releaseWordGenLock(inspectionId: string, event?: HandlerEvent): Promise<void> {
+  try {
+    const store = getWordStore(event);
+    const key = WORDGEN_LOCK_PREFIX + inspectionId;
+    await store.set(key, JSON.stringify({ expires_at: "1970-01-01T00:00:00.000Z" }), { metadata: {} });
+  } catch (e) {
+    console.error("releaseWordGenLock failed:", e);
+  }
+}
+
+/** 检查 Word 报告是否已存在于 Blob（用于 Review 页“下载已生成”判断） */
+export async function hasWordDoc(key: string, event?: HandlerEvent): Promise<boolean> {
+  const buf = await getWordDoc(key, event);
+  return buf != null && buf.length > 0;
 }

@@ -8,6 +8,21 @@
 /** Developer-facing phrases that must never appear in customer reports */
 const DEV_PHRASES = /fallback profile|unmapped IDs?|ensure new IDs? are added|add.*to profiles/i;
 
+/** Mock/demo phrases that must not appear in production reports (e.g. from sample payloads) */
+const MOCK_DEMO_PHRASES = /模拟测试数据|Technician Notes:\s*模拟测试数据/i;
+
+/**
+ * Replace known mock/demo text so production reports never show placeholder text from test data.
+ */
+export function replaceMockTextForProduction(text: string | undefined | null): string {
+  if (!text || typeof text !== "string") return "";
+  const t = text.trim();
+  if (!t) return "";
+  if (MOCK_DEMO_PHRASES.test(t)) return "";
+  if (t === "模拟测试数据") return "";
+  return t;
+}
+
 /**
  * Sanitize messaging text for client reports. Returns undefined if text contains developer-facing phrases
  * (so caller uses fallback), otherwise returns trimmed text.

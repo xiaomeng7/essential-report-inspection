@@ -1,6 +1,10 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { getWordDoc, saveWordDoc } from "./lib/store";
+import { getWordDoc, saveWordDoc, tryAcquireWordGenLock, releaseWordGenLock } from "./lib/store";
 import { getBaseUrl } from "./lib/baseUrl";
+import { logWordReport } from "./lib/wordReportLog";
+
+const FALLBACK_POLL_MS = 2000;
+const FALLBACK_POLL_ATTEMPTS = 15;
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET") {
@@ -36,22 +40,49 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       buffer = await getWordDoc(blobKey, event);
     }
 
-    // If still no doc, use same pipeline as Review page (generateMarkdownWord) so file is identical
+    // 幂等锁：Blob 不存在时仅一个请求执行生成，其余轮询 getWordDoc 等待
     if (!buffer) {
-      const base = getBaseUrl(event);
-      const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
-      const generateUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspectionId)}`;
-      console.log("Word doc not in blob; generating on-demand (same as Review page):", generateUrl);
-      try {
-        const genRes = await fetch(generateUrl, { method: "GET" });
-        if (genRes.ok) {
-          const arrayBuffer = await genRes.arrayBuffer();
-          buffer = Buffer.from(arrayBuffer);
-          blobKey = `reports/${inspectionId}.docx`;
-          await saveWordDoc(blobKey, buffer, event);
+      const blobKeyNew = `reports/${inspectionId}.docx`;
+      const acquired = await tryAcquireWordGenLock(inspectionId, event);
+      if (!acquired) {
+        for (let i = 0; i < FALLBACK_POLL_ATTEMPTS; i++) {
+          await new Promise((r) => setTimeout(r, FALLBACK_POLL_MS));
+          buffer = await getWordDoc(blobKeyNew, event);
+          if (buffer) {
+            blobKey = blobKeyNew;
+            break;
+          }
+          buffer = await getWordDoc(`word/${inspectionId}.docx`, event);
+          if (buffer) {
+            blobKey = `word/${inspectionId}.docx`;
+            break;
+          }
         }
-      } catch (genErr) {
-        console.error("On-demand Word generation failed:", genErr);
+      }
+      if (!buffer && acquired) {
+        const base = getBaseUrl(event);
+        const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
+        const generateUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspectionId)}`;
+        console.log("Word doc not in blob; generating on-demand (same as Review page):", generateUrl);
+        const t0 = Date.now();
+        try {
+          const genRes = await fetch(generateUrl, { method: "GET" });
+          if (genRes.ok) {
+            const arrayBuffer = await genRes.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+            blobKey = blobKeyNew;
+            await saveWordDoc(blobKey, buffer, event);
+            logWordReport({ inspection_id: inspectionId, trigger: "download_fallback", duration_ms: Date.now() - t0, result: "success", blob_key: blobKey });
+          } else {
+            logWordReport({ inspection_id: inspectionId, trigger: "download_fallback", duration_ms: Date.now() - t0, result: "fail", error_message: `HTTP ${genRes.status}` });
+          }
+        } catch (genErr) {
+          const msg = genErr instanceof Error ? genErr.message : String(genErr);
+          console.error("On-demand Word generation failed:", genErr);
+          logWordReport({ inspection_id: inspectionId, trigger: "download_fallback", duration_ms: Date.now() - t0, result: "fail", error_message: msg });
+        } finally {
+          await releaseWordGenLock(inspectionId, event);
+        }
       }
     }
 

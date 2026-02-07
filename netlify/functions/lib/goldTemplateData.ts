@@ -11,7 +11,8 @@ import { loadTermsAndConditions } from "./defaultTextLoader";
 import { getFindingProfile, generateBudgetRangeFromBand } from "./findingProfilesLoader";
 import { normalizeInspection } from "./normalizeInspection";
 import { calibrateReportCopy } from "./reportCopyCalibration";
-import { buildAppendixSection } from "./buildReportMarkdown";
+import { buildAppendixSection, appendixMarkdownToDocxSafeText } from "./buildReportMarkdown";
+import { replaceMockTextForProduction } from "./sanitizeText";
 
 /** Gold 模板占位符键（45 个） */
 export const GOLD_PLACEHOLDER_KEYS = [
@@ -155,8 +156,10 @@ export async function buildGoldTemplateData(
   const appendixLimitations = inspection.limitations?.length
     ? "Limitations:\n" + inspection.limitations.map((l: string) => `• ${l}`).join("\n") + "\n\n"
     : "";
-  const technicalNotes = emptyStr(reportData.TECHNICAL_NOTES ?? defaultText.TECHNICAL_NOTES ?? "Technical notes: as per inspection.");
-  const appendixContent = appendixLimitations + appendixTestSection + (technicalNotes ? "\n\n" + technicalNotes : "");
+  const technicalNotesRaw = reportData.TECHNICAL_NOTES ?? defaultText.TECHNICAL_NOTES ?? "Technical notes: as per inspection.";
+  const technicalNotes = emptyStr(replaceMockTextForProduction(technicalNotesRaw) || defaultText.TECHNICAL_NOTES || "Technical notes: as per inspection.");
+  // Convert appendix markdown/HTML to docx-safe plain text (no raw <h2> or | table | in output)
+  const appendixContent = appendixLimitations + appendixMarkdownToDocxSafeText(appendixTestSection) + (technicalNotes ? "\n\n" + technicalNotes : "");
 
   let legalDisclaimer = "";
   try {
@@ -166,6 +169,11 @@ export async function buildGoldTemplateData(
   }
   // 简化为纯文本（去掉 Markdown 标题等）
   legalDisclaimer = legalDisclaimer.replace(/^#+\s*/gm, "").trim();
+  // Section 10 已有标题 "Terms, limitations and legal framework"，避免重复第一行 "TERMS & CONDITIONS OF ASSESSMENT"
+  const firstLine = legalDisclaimer.split("\n")[0]?.trim() ?? "";
+  if (firstLine === "TERMS & CONDITIONS OF ASSESSMENT" || firstLine.startsWith("TERMS & CONDITIONS OF ASSESSMENT")) {
+    legalDisclaimer = legalDisclaimer.split("\n").slice(1).join("\n").trim();
+  }
 
   const overallRiskLabel = (reportData.OVERALL_STATUS || reportData.RISK_RATING || "MODERATE")
     .replace(/🟢|🟡|🔴/g, "").trim() || "MODERATE";

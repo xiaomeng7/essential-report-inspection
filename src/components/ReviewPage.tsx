@@ -34,6 +34,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   // const [modelInfo, setModelInfo] = useState<{ model: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } | null>(null); // Temporarily disabled with AI
   const [isGeneratingMarkdownWord, setIsGeneratingMarkdownWord] = useState(false);
   const [markdownWordError, setMarkdownWordError] = useState<string | null>(null);
+  const [wordExistsInBlob, setWordExistsInBlob] = useState<boolean | null>(null);
   const [customFindingsToFill, setCustomFindingsToFill] = useState<CustomFindingInput[] | null>(null);
   const [isSavingCustomFindings, setIsSavingCustomFindings] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,13 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         );
       } else {
         setCustomFindingsToFill(null);
+      }
+      const statusRes = await fetch(`/api/wordStatus?inspection_id=${encodeURIComponent(inspectionId)}`);
+      if (statusRes.ok) {
+        const statusJson = (await statusRes.json()) as { exists?: boolean };
+        setWordExistsInBlob(!!statusJson.exists);
+      } else {
+        setWordExistsInBlob(false);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -210,16 +218,27 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           <h1 style={{ margin: 0, flex: 1 }}>
             Report — {data.inspection_id}
           </h1>
-          {/* 生成 Word：基于模板与规则，不使用 OpenAI/任何 AI API（测试阶段） */}
+          {/* Word：已生成则直接下载 Blob；否则可实时生成预览（不写 Blob，仅调试/预览） */}
           <div style={{ marginTop: "10px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            {wordExistsInBlob === true && (
+              <a
+                href={`/api/downloadWord?inspection_id=${encodeURIComponent(data.inspection_id)}`}
+                className="btn-primary"
+                style={{ backgroundColor: "#2196f3", minWidth: "180px", textDecoration: "none", display: "inline-block", textAlign: "center", lineHeight: "2" }}
+                download={`${data.inspection_id}-report.docx`}
+              >
+                Download Generated Word
+              </a>
+            )}
             <button
               type="button"
               className="btn-primary"
               onClick={handleGenerateMarkdownWord}
               disabled={isGeneratingMarkdownWord}
-              style={{ backgroundColor: "#4caf50", minWidth: "160px" }}
+              style={{ backgroundColor: wordExistsInBlob ? "#9e9e9e" : "#4caf50", minWidth: "160px" }}
+              title={wordExistsInBlob ? "实时生成一份预览（不写入 Blob，用于调试）" : "生成 Word 并下载"}
             >
-              {isGeneratingMarkdownWord ? "生成中..." : "生成 Word"}
+              {isGeneratingMarkdownWord ? "生成中..." : "Generate Preview"}
             </button>
           </div>
         </div>

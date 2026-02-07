@@ -24,6 +24,7 @@
     "report:diff": "tsx scripts/compareDocx.ts",
     "verify:docx-links": "tsx scripts/verify-docx-links.ts",
     "verify:evidence": "tsx scripts/verify-evidence-rules.ts",
+    "verify:word-report": "tsx scripts/verify-word-report-consistency.ts",
     "audit:dimensions": "tsx scripts/audit-finding-dimensions.ts",
     "sync:dimensions": "tsx scripts/sync-dimensions-to-sources.ts",
     "simulate:inspection": "tsx scripts/simulate-inspection.ts",

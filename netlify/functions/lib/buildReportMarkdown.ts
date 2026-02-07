@@ -14,7 +14,7 @@ import type { CanonicalInspection } from "./normalizeInspection";
 import { loadDefaultText } from "./defaultTextLoader";
 import { loadFindingProfiles, getFindingProfile } from "./findingProfilesLoader";
 import { getAssetDisplayTitle } from "./assetTitles";
-import { sanitizeForClientReport } from "./sanitizeText";
+import { sanitizeForClientReport, replaceMockTextForProduction } from "./sanitizeText";
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
 import { buildComputedFields } from "./buildComputedFields";
 import { dedupeSentences } from "./textDedupe";
@@ -948,6 +948,38 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 }
 
 /**
+ * Convert appendix markdown (with raw HTML and pipe tables) to docx-safe plain text.
+ * Removes raw tags so Word does not show <h2...> or |---|; converts tables to tab-separated lines.
+ */
+export function appendixMarkdownToDocxSafeText(md: string): string {
+  let out = md
+    .replace(/^###\s+/gm, "") // strip Markdown ### headings so Word does not show "### "
+    .replace(/^##\s+/gm, "")
+    .replace(/<h2[^>]*>([^<]*)<\/h2>/gi, "$1\n")
+    .replace(/<h3[^>]*>([^<]*)<\/h3>/gi, "$1\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+  const lines = out.split("\n");
+  const result: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^\|.+\|$/.test(trimmed)) {
+      const parts = trimmed.split("|").map((c) => c.trim());
+      const cells = parts.length > 2 ? parts.slice(1, -1) : parts;
+      if (cells.some((c) => c.length > 0)) {
+        result.push(cells.join("\t"));
+      }
+      continue;
+    }
+    result.push(trimmed);
+  }
+  return result.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
  * Section 12: Appendix – Test Data & Technical Notes
  * Exported for use in Gold template APPENDIX_CONTENT (full test details).
  */
@@ -1113,10 +1145,12 @@ export function buildAppendixSection(canonical: CanonicalInspection, defaultText
   });
   md.push("");
   
-  // Technical Notes (filter placeholder-like values such as "call to confirm")
+  // Technical Notes (filter placeholder-like values; remove mock/demo text for production)
   md.push("### Technical Notes");
   md.push("");
-  const rawTechnicalNotes = canonical.technician_notes || defaultText.TECHNICAL_NOTES ||
+  let rawTechnicalNotes = canonical.technician_notes || defaultText.TECHNICAL_NOTES ||
+    "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.";
+  rawTechnicalNotes = replaceMockTextForProduction(rawTechnicalNotes) || defaultText.TECHNICAL_NOTES ||
     "This assessment is based on a visual inspection and limited electrical testing of accessible areas only. Some areas may not have been accessible during the inspection.";
   const isPlaceholderOnly = rawTechnicalNotes && /^(call to confirm|tbc|to be confirmed|pending|n\/a|\s*)$/i.test(String(rawTechnicalNotes).trim());
   const technicalNotes = (rawTechnicalNotes?.trim() && !isPlaceholderOnly)

@@ -94,7 +94,20 @@
 
 ---
 
-## 四、关键文件索引
+## 四、工程加固（6 项）
+
+| 项 | 说明 | 关键文件 |
+|----|------|----------|
+| 1 元信息 | docx 内写入 docProps/custom.xml：inspection_id、data_version、template_version、generator_version | `generateMarkdownWord.ts`（injectDocxReportMetadata） |
+| 2 超时与降级 | Submit 内生成超时 12s；失败则 report_status=failed，邮件中 download_word_url 指向 review 页 | `submitInspection.ts` |
+| 3 幂等锁 | downloadWord 按需生成前 tryAcquireWordGenLock，未抢到则轮询 getWordDoc | `downloadWord.ts`、`lib/store.ts`（lock/wordgen/{id}） |
+| 4 Review 区分 | wordStatus API 返回 exists；Review 页“Download Generated Word”下 Blob，“Generate Preview”实时生成不写 Blob | `wordStatus.ts`、`ReviewPage.tsx` |
+| 5 原子性 | 仅 saveWordDoc 成功后才 save inspection 的 report_status=generated、report_blob_key | `submitInspection.ts` |
+| 6 结构化日志 | 三条路径均打 logWordReport：inspection_id、trigger、duration_ms、result、error_message、blob_key | `lib/wordReportLog.ts`，submitInspection / downloadWord / generateMarkdownWord |
+
+---
+
+## 五、关键文件索引
 
 | 用途 | 文件路径 |
 |------|----------|
@@ -104,3 +117,5 @@
 | 邮件发送 | `netlify/functions/lib/email.ts`（sendEmailNotification，download_word_url） |
 | Blob 存/取 Word | `netlify/functions/lib/store.ts`（saveWordDoc / getWordDoc，store 名 `word-documents`） |
 | 下载 Word 接口 | `netlify/functions/downloadWord.ts` |
+| Word 是否已生成 | `netlify/functions/wordStatus.ts`（GET ?inspection_id=） |
+| 报告元信息/日志 | `netlify/functions/lib/wordReportLog.ts` |

@@ -1,10 +1,13 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { save, getNextInspectionNumber, saveWordDoc } from "./lib/store";
+import { save, get, getNextInspectionNumber, saveWordDoc } from "./lib/store";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
 import { getBaseUrl } from "./lib/baseUrl";
 import { generateMarkdownWordBuffer } from "./generateMarkdownWord";
+import { logWordReport } from "./lib/wordReportLog";
+
+const WORD_GENERATE_TIMEOUT_MS = 12_000;
 
 async function genId(event: HandlerEvent): Promise<string> {
   const now = new Date();
@@ -106,6 +109,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       report_html,
       findings,
       limitations,
+      report_status: "pending",
     }, event);
     console.log("Inspection saved successfully");
 
@@ -120,19 +124,36 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
     }
 
-    // 单一权威路径：同进程调用 generateMarkdownWordBuffer，避免 fetch 跨请求 + Blob 读写时序导致 404/超时
+    // 单一权威路径：同进程调用 generateMarkdownWordBuffer，超时 12s，失败不阻断提交
     const inspectionForReport = { inspection_id, raw, report_html, findings, limitations };
     const wordBlobKey = `reports/${inspection_id}.docx`;
+    let wordReportGenerated = false;
+    const wordGenStart = Date.now();
     try {
       console.log("[submit] Generating Word in-process for", inspection_id);
-      const wordBuffer = await generateMarkdownWordBuffer(inspectionForReport, event);
+      const wordBuffer = await Promise.race([
+        generateMarkdownWordBuffer(inspectionForReport, event),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("Word generation timeout (12s)")), WORD_GENERATE_TIMEOUT_MS)),
+      ]);
       await saveWordDoc(wordBlobKey, wordBuffer, event);
+      wordReportGenerated = true;
       console.log("[submit] Word report saved to blob key=" + wordBlobKey + " size=" + wordBuffer.length);
+      const existing = await get(inspection_id, event);
+      if (existing) {
+        await save(inspection_id, { ...existing, report_status: "generated", report_blob_key: wordBlobKey, report_generated_at: new Date().toISOString() }, event);
+      }
     } catch (genErr) {
       const msg = genErr instanceof Error ? genErr.message : String(genErr);
       console.error("[submit] Word generation at submit failed (download link will generate on-demand):", msg);
       if (genErr instanceof Error && genErr.stack) console.error("[submit] stack:", genErr.stack);
-      // 不阻断提交；downloadWord 会在点击邮件链接时按需生成并写入 Blob
+      const existing = await get(inspection_id, event);
+      if (existing) {
+        await save(inspection_id, { ...existing, report_status: "failed" }, event);
+      }
+      logWordReport({ inspection_id, trigger: "submit", duration_ms: Date.now() - wordGenStart, result: "fail", error_message: msg });
+    }
+    if (wordReportGenerated) {
+      logWordReport({ inspection_id, trigger: "submit", duration_ms: Date.now() - wordGenStart, result: "success", blob_key: wordBlobKey });
     }
 
     const baseUrlRaw = getBaseUrl(event);
@@ -160,10 +181,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const technicianName = (raw.signoff as Record<string, unknown>)?.technician_name;
     const technicianNameValue = extractValue(technicianName) as string | undefined;
     
-    // Send email notification — MUST use absolute URLs so the email client does not resolve to the wrong page
+    // Send email notification — 仅当 Word 已成功写入 Blob 时提供下载链接，否则不提供或指向“生成中/失败”页
     const reviewUrl = `${baseUrl}/review/${inspection_id}`;
-    const downloadWordUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`;
-    console.log("Email links (absolute) - download_word_url:", downloadWordUrl);
+    const downloadWordUrl = wordReportGenerated
+      ? `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`
+      : `${baseUrl}/review/${inspection_id}`;
+    console.log("Email links (absolute) - download_word_url:", downloadWordUrl, "wordReportGenerated:", wordReportGenerated);
     console.log("Preparing to send email notification...");
     try {
       await sendEmailNotification({

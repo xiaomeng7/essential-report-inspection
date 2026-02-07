@@ -22,6 +22,7 @@ import { loadResponses, buildReportData, type ReportData } from "../generateWord
 import { normalizeInspection, type CanonicalInspection } from "./normalizeInspection";
 import { getFindingProfile } from "./findingProfilesLoader";
 import { tagFindingsWithOTR, getCoveredOTRCategories, getCoveredOTRTests, type FindingWithOTR } from "./otrMapping";
+import { replaceMockTextForProduction } from "./sanitizeText";
 
 export type GenerateReportParams = {
   inspection: StoredInspection;
@@ -756,6 +757,7 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       technicalNotes = String(rawNotes);
     }
   }
+  technicalNotes = replaceMockTextForProduction(technicalNotes) || defaultText.TECHNICAL_NOTES || "This is a non-invasive visual inspection limited to accessible areas.";
   if (!technicalNotes || technicalNotes.trim().length === 0) {
     technicalNotes = defaultText.TECHNICAL_NOTES || "This is a non-invasive visual inspection limited to accessible areas.";
   }

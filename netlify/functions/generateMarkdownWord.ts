@@ -18,6 +18,7 @@ import PizZip from "pizzip";
 import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
 import { loadDefaultText } from "./lib/defaultTextLoader";
 import { normalizeInspection } from "./lib/normalizeInspection";
+import { logWordReport } from "./lib/wordReportLog";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -106,9 +107,61 @@ function loadWordTemplate(): Buffer {
   throw new Error("Could not find report-template-md.docx");
 }
 
+/** 可追溯元信息：写入 docx 的 docProps/custom.xml，供生产排错与一致性校验 */
+export type DocxReportMeta = {
+  inspection_id: string;
+  data_version: string;
+  template_version: string;
+  generator_version: string;
+};
+
+function escapeXml(str: string): string {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/** 向已生成的 docx buffer 注入 docProps/custom.xml（inspection_id / data_version / template_version / generator_version） */
+function injectDocxReportMetadata(docxBuffer: Buffer, meta: DocxReportMeta): Buffer {
+  const zip = new PizZip(docxBuffer);
+  const customXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="inspection_id"><vt:lpwstr>${escapeXml(meta.inspection_id)}</vt:lpwstr></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="3" name="data_version"><vt:lpwstr>${escapeXml(meta.data_version)}</vt:lpwstr></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="4" name="template_version"><vt:lpwstr>${escapeXml(meta.template_version)}</vt:lpwstr></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="5" name="generator_version"><vt:lpwstr>${escapeXml(meta.generator_version)}</vt:lpwstr></property>
+</Properties>`;
+  zip.file("docProps/custom.xml", customXml);
+
+  const ct = zip.files["[Content_Types].xml"];
+  if (ct) {
+    let ctStr = ct.asText();
+    if (!ctStr.includes("docProps/custom.xml")) {
+      ctStr = ctStr.replace("</Types>", '  <Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>\n</Types>');
+      zip.file("[Content_Types].xml", ctStr);
+    }
+  }
+
+  const rels = zip.files["_rels/.rels"];
+  if (rels) {
+    let relsStr = rels.asText();
+    if (!relsStr.includes("docProps/custom.xml")) {
+      const relId = "rIdReportMeta";
+      relsStr = relsStr.replace("</Relationships>", `  <Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml" Id="${relId}"/>\n</Relationships>`);
+      zip.file("_rels/.rels", relsStr);
+    }
+  }
+
+  return zip.generate({ type: "nodebuffer" }) as Buffer;
+}
+
 /**
  * 单一权威路径：根据已保存的 inspection 生成 Word buffer。
  * 供 Submit 同进程调用（避免 fetch 跨请求 + Blob 读写时序）和 Generate Word 接口使用。
+ * 生成后注入可追溯元信息（inspection_id / data_version / template_version / generator_version）。
  */
 export async function generateMarkdownWordBuffer(inspection: StoredInspection, event?: HandlerEvent): Promise<Buffer> {
   resetSanitizeFingerprint();
@@ -126,6 +179,7 @@ export async function generateMarkdownWordBuffer(inspection: StoredInspection, e
   console.log("✅ Loaded responses.yml");
 
   const goldTemplateBuffer = loadGoldTemplate();
+  const templateVersion = goldTemplateBuffer ? "gold" : "fallback";
   let wordBuffer: Buffer;
 
   if (goldTemplateBuffer) {
@@ -185,10 +239,19 @@ export async function generateMarkdownWordBuffer(inspection: StoredInspection, e
     console.log(`✅ Word document generated (fallback): ${wordBuffer.length} bytes`);
   }
 
-  return wordBuffer;
+  const dataVersion = (inspection as { updated_at?: string }).updated_at ?? sha1(JSON.stringify(inspection.raw)).slice(0, 12);
+  const generatorVersion = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "dev";
+  const withMeta = injectDocxReportMetadata(wordBuffer, {
+    inspection_id: inspection.inspection_id,
+    data_version: dataVersion,
+    template_version: templateVersion,
+    generator_version: generatorVersion,
+  });
+  return withMeta;
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
+  const t0 = Date.now();
   try {
     const buildRef = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "?";
     let pkgVersion = "?";
@@ -227,6 +290,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
 
     const wordBuffer = await generateMarkdownWordBuffer(inspection, event);
     const filename = `${inspectionId}-report.docx`;
+    logWordReport({ inspection_id: inspectionId, trigger: "review", duration_ms: Date.now() - t0, result: "success" });
 
     return {
       statusCode: 200,
@@ -242,7 +306,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+    const inspectionIdForLog = event.queryStringParameters?.inspection_id ?? "?";
+    logWordReport({ inspection_id: inspectionIdForLog, trigger: "review", duration_ms: Date.now() - t0, result: "fail", error_message: errorMessage });
     console.error("❌ Error generating Markdown-based Word report:", error);
     console.error("Error stack:", errorStack);
     
