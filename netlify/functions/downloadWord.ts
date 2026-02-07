@@ -70,11 +70,20 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       // Return 200 with HTML so Netlify does NOT serve the site 404 page (index.html = inspection app).
       const base = getBaseUrl(event);
       const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
-      const retryUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspectionId)}`;
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Word Report</title></head><body style="font-family:sans-serif;max-width:480px;margin:2rem auto;padding:1rem;text-align:center;"><p>Report is being generated or not yet ready for inspection <strong>${inspectionId}</strong>.</p><p><a href="${retryUrl}" style="display:inline-block;padding:12px 24px;background:#27ae60;color:white;text-decoration:none;border-radius:4px;">Try again (download Word)</a></p><p style="color:#666;font-size:14px;">If the file still does not download, open the review page and use &quot;Generate Word Report&quot; there first.</p></body></html>`;
+      const retryUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspectionId)}&_=${Date.now()}`;
+      const generateUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspectionId)}`;
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-store"><title>Word Report</title></head><body style="font-family:sans-serif;max-width:520px;margin:2rem auto;padding:1rem;text-align:center;">
+<p>Report is not yet ready for inspection <strong>${inspectionId}</strong>.</p>
+<p><a href="${retryUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#27ae60;color:white;text-decoration:none;border-radius:4px;margin:4px;">Try again (opens in new tab, download will start if ready)</a></p>
+<p><a href="${generateUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#2c3e50;color:white;text-decoration:none;border-radius:4px;margin:4px;">Generate report now</a></p>
+<p style="color:#666;font-size:14px;">Click &quot;Generate report now&quot; first, wait a few seconds, then &quot;Try again&quot;. Or open the <a href="${baseUrl}/review/${inspectionId}">review page</a> and use Generate Word there.</p>
+</body></html>`;
       return {
         statusCode: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
         body: html,
       };
     }
