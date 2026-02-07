@@ -101,33 +101,32 @@ function extractBodyFragment(html: string): string {
 }
 
 /**
- * Extract style attribute from a tag's attribute string; return empty string if none.
- */
-function getStyleAttr(attrs: string): string {
-  const m = /style\s*=\s*["']([^"']*)["']/i.exec(attrs);
-  return m ? m[1].trim() : "";
-}
-
-/**
  * Preprocess HTML to avoid html-to-docx bugs (e.g. Invalid XML name: @w in buildTableCellWidth).
- * Strips attributes from table elements except style (so inlined CSS is preserved for Word).
+ * Strips ALL attributes from table elements and removes width everywhere so the converter never sees them.
  */
 function cleanHtmlForDocx(html: string): string {
   if (!html || typeof html !== "string") return html;
   let out = html;
+  // Remove width="..." and width:... from entire document so html-to-docx never builds invalid XML
+  out = out.replace(/\swidth\s*=\s*["'][^"']*["']/gi, " ");
+  out = out.replace(/\swidth\s*:\s*[^;}"']+;?/gi, " ");
   const tableTags = ["table", "thead", "tbody", "tfoot", "tr", "th", "td"];
   for (const tag of tableTags) {
     const re = new RegExp(`<${tag}([^>]*)>`, "gi");
-    out = out.replace(re, (_, attrs) => {
-      const style = getStyleAttr(attrs);
-      if (!style) return `<${tag}>`;
-      const safe = style.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-      return `<${tag} style="${safe}">`;
-    });
+    out = out.replace(re, () => `<${tag}>`);
   }
   out = out.replace(/<colgroup[^>]*>/gi, "<colgroup>");
   out = out.replace(/<col[^>]*\/?>/gi, "<col/>");
+  out = out.replace(/\s@(\w+)=/gi, " ");
   return out;
+}
+
+/**
+ * Fallback: replace tables with simple paragraphs so html-to-docx can complete (avoids Invalid XML name bugs).
+ */
+function stripTablesForDocx(html: string): string {
+  if (!html || typeof html !== "string") return html;
+  return html.replace(/<table[\s\S]*?<\/table>/gi, "<p>[Table]</p>");
 }
 
 /**
@@ -239,14 +238,33 @@ ${bodyInner}
   // Preprocess: strip table attributes that trigger html-to-docx bug (Invalid XML name: @w)
   htmlForConversion = cleanHtmlForDocx(htmlForConversion);
   console.log("[docx-diag][RUN_ID=" + RID + "] htmlForConversion length=" + htmlForConversion.length + " (after cleanHtmlForDocx)");
-  
-  const bodyBuffer = await HTMLtoDOCX(htmlForConversion, null, {
-    table: { row: { cantSplit: true } },
-    footer: false,
-    pageNumber: false,
-    font: "Calibri",
-    fontSize: 11,
-  });
+
+  let bodyBuffer: Buffer;
+  try {
+    bodyBuffer = await HTMLtoDOCX(htmlForConversion, null, {
+      table: { row: { cantSplit: true } },
+      footer: false,
+      pageNumber: false,
+      font: "Calibri",
+      fontSize: 11,
+    });
+  } catch (htmlToDocxErr: unknown) {
+    const errMsg = htmlToDocxErr instanceof Error ? htmlToDocxErr.message : String(htmlToDocxErr);
+    const isInvalidXml = /Invalid XML name|invalid character|InvalidCharacterError/i.test(errMsg);
+    if (isInvalidXml) {
+      console.warn("[docx-diag][RUN_ID=" + RID + "] html-to-docx failed with XML error, retrying without tables:", errMsg.slice(0, 120));
+      const fallbackHtml = stripTablesForDocx(htmlForConversion);
+      bodyBuffer = await HTMLtoDOCX(fallbackHtml, null, {
+        table: { row: { cantSplit: true } },
+        footer: false,
+        pageNumber: false,
+        font: "Calibri",
+        fontSize: 11,
+      });
+    } else {
+      throw htmlToDocxErr;
+    }
+  }
   
   // 4. Merge cover + body manually (docx-merger has issues with html-to-docx output)
   // Strategy: Take cover DOCX structure, append body content to document.xml
