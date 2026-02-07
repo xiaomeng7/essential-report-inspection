@@ -117,8 +117,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     try {
       console.log("Generating Markdown-based Word document for:", data.inspection_id);
       
-      // Use generateWordReport so the doc is saved to blob — email "Generate Word" link will then work
-      const res = await fetch(`/api/generateWordReport?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
+      const res = await fetch(`/.netlify/functions/generateMarkdownWord?inspection_id=${encodeURIComponent(data.inspection_id)}`, {
         method: "GET",
       });
 
@@ -133,13 +132,16 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         throw new Error(errorMessage);
       }
 
-      const json = (await res.json()) as { ok?: boolean };
-      if (!json?.ok) throw new Error("Generation did not return ok");
-
-      // Trigger download (doc is now in blob)
-      const downloadUrl = `/api/downloadWord?inspection_id=${encodeURIComponent(data.inspection_id)}`;
-      window.open(downloadUrl, "_blank", "noopener,noreferrer");
-      console.log("✅ Word report generated and download started");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.inspection_id}-report.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      console.log("✅ Word document downloaded successfully");
       
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error occurred";
