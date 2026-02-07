@@ -7,7 +7,7 @@
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { get } from "./lib/store";
+import { get, type StoredInspection } from "./lib/store";
 import { buildMarkdownReport } from "./lib/generateReport";
 import { loadResponses } from "./generateWordReport";
 import { markdownToHtml } from "./lib/markdownToHtml";
@@ -106,9 +106,90 @@ function loadWordTemplate(): Buffer {
   throw new Error("Could not find report-template-md.docx");
 }
 
+/**
+ * 单一权威路径：根据已保存的 inspection 生成 Word buffer。
+ * 供 Submit 同进程调用（避免 fetch 跨请求 + Blob 读写时序）和 Generate Word 接口使用。
+ */
+export async function generateMarkdownWordBuffer(inspection: StoredInspection, event?: HandlerEvent): Promise<Buffer> {
+  resetSanitizeFingerprint();
+  const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
+  const photosByFinding: Record<string, number> = {};
+  for (const f of inspection.findings || []) {
+    photosByFinding[f.id] = Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
+  }
+  console.log("[report-fp] generateMarkdownWordBuffer id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos + " photos_by_finding=" + JSON.stringify(photosByFinding));
+
+  const { canonical } = normalizeInspection(inspection.raw, inspection.inspection_id);
+  console.log("✅ Normalized inspection data");
+
+  const responses = await loadResponses(event);
+  console.log("✅ Loaded responses.yml");
+
+  const goldTemplateBuffer = loadGoldTemplate();
+  let wordBuffer: Buffer;
+
+  if (goldTemplateBuffer) {
+    console.log("📄 Using Gold_Report_Template.docx (placeholder fill)");
+    const templateData = await buildGoldTemplateData(inspection, event);
+    const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
+    if (undefinedKeys.length > 0) {
+      console.warn("[report-fp] Gold templateData undefined keys:", undefinedKeys.slice(0, 10).join(", "), "(total", undefinedKeys.length, ")");
+    }
+    wordBuffer = renderDocxGoldTemplate(goldTemplateBuffer, templateData);
+    console.log(`✅ Word document generated (Gold template): ${wordBuffer.length} bytes`);
+  } else {
+    console.log("📝 Generating Markdown report (fallback)...");
+    const markdown = await buildMarkdownReport({
+      inspection,
+      findings: inspection.findings || [],
+      responses,
+      event
+    });
+    console.log(`✅ Markdown report generated: ${markdown.length} characters`);
+
+    console.log("🔄 Converting Markdown to HTML...");
+    const html = markdownToHtml(markdown);
+    console.log(`✅ HTML generated: ${html.length} characters`);
+
+    const templateBuffer = loadWordTemplate();
+    const zip = new PizZip(templateBuffer);
+    const documentXml = zip.files["word/document.xml"]?.asText() || "";
+    const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || documentXml.includes("report_body_html") || documentXml.includes("Report_Body_Html");
+    if (!hasPlaceholder) {
+      const sampleXml = documentXml.substring(0, 2000);
+      throw new Error(`Template missing required placeholder: REPORT_BODY_HTML. buffer.length=${templateBuffer.length} document.xml[0:2000]=${JSON.stringify(sampleXml)}`);
+    }
+    const defaultText = await loadDefaultText(event);
+    let assessmentDate = canonical.assessment_date || new Date().toISOString();
+    let formattedDate = defaultText.ASSESSMENT_DATE;
+    try {
+      const date = new Date(assessmentDate);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" });
+      } else {
+        formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
+      }
+    } catch (e) {
+      formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
+    }
+    const coverData = {
+      INSPECTION_ID: canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID,
+      ASSESSMENT_DATE: formattedDate,
+      PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR,
+      PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY,
+      PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS,
+      PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
+    };
+    const templateData = { ...coverData, REPORT_BODY_HTML: html };
+    wordBuffer = await renderDocx(templateBuffer, templateData);
+    console.log(`✅ Word document generated (fallback): ${wordBuffer.length} bytes`);
+  }
+
+  return wordBuffer;
+}
+
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   try {
-    resetSanitizeFingerprint();
     const buildRef = process.env.COMMIT_REF ?? process.env.CONTEXT ?? process.env.BRANCH ?? "?";
     let pkgVersion = "?";
     try {
@@ -124,9 +205,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     console.log("[report-fp] BUILD COMMIT_REF/CONTEXT/BRANCH:", buildRef, "package.version:", pkgVersion);
 
-    // 获取 inspection_id
     const inspectionId = event.queryStringParameters?.inspection_id;
-    
     if (!inspectionId) {
       return {
         statusCode: 400,
@@ -137,7 +216,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
 
     console.log("🚀 Generating Markdown-based Word report for:", inspectionId);
 
-    // 1. 获取检查数据
     const inspection = await get(inspectionId, event);
     if (!inspection) {
       return {
@@ -146,86 +224,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         body: JSON.stringify({ error: "Inspection not found" })
       };
     }
-    const findingsWithPhotos = (inspection.findings || []).filter((f: any) => Array.isArray(f.photo_ids) && f.photo_ids.length > 0).length;
-    const photosByFinding: Record<string, number> = {};
-    for (const f of inspection.findings || []) {
-      photosByFinding[f.id] = Array.isArray((f as any).photo_ids) ? (f as any).photo_ids.length : 0;
-    }
-    console.log("[report-fp] inspection loaded id=" + inspection.inspection_id + " findings=" + (inspection.findings?.length ?? 0) + " findings_with_photos=" + findingsWithPhotos + " photos_by_finding=" + JSON.stringify(photosByFinding));
 
-    // 2. 规范化检查数据（canonical layer）
-    const { canonical } = normalizeInspection(inspection.raw, inspection.inspection_id);
-    console.log("✅ Normalized inspection data");
-
-    // 3. 加载 responses.yml
-    const responses = await loadResponses(event);
-    console.log("✅ Loaded responses.yml");
-
-    // 4. 优先使用 Gold_Report_Template.docx（占位符填充）
-    const goldTemplateBuffer = loadGoldTemplate();
-    let wordBuffer: Buffer;
-
-    if (goldTemplateBuffer) {
-      console.log("📄 Using Gold_Report_Template.docx (placeholder fill)");
-      const templateData = await buildGoldTemplateData(inspection, event);
-      const undefinedKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);
-      if (undefinedKeys.length > 0) {
-        console.warn("[report-fp] Gold templateData undefined keys:", undefinedKeys.slice(0, 10).join(", "), "(total", undefinedKeys.length, ")");
-      }
-      wordBuffer = renderDocxGoldTemplate(goldTemplateBuffer, templateData);
-      console.log(`✅ Word document generated (Gold template): ${wordBuffer.length} bytes`);
-    } else {
-      // 回退：Markdown → HTML → report-template-md.docx + REPORT_BODY_HTML
-      console.log("📝 Generating Markdown report (fallback)...");
-      const markdown = await buildMarkdownReport({
-        inspection,
-        findings: inspection.findings || [],
-        responses,
-        event
-      });
-      console.log(`✅ Markdown report generated: ${markdown.length} characters`);
-
-      console.log("🔄 Converting Markdown to HTML...");
-      const html = markdownToHtml(markdown);
-      console.log(`✅ HTML generated: ${html.length} characters`);
-
-      const templateBuffer = loadWordTemplate();
-      const zip = new PizZip(templateBuffer);
-      const documentXml = zip.files["word/document.xml"]?.asText() || "";
-      const hasPlaceholder = documentXml.includes("REPORT_BODY_HTML") || documentXml.includes("report_body_html") || documentXml.includes("Report_Body_Html");
-      if (!hasPlaceholder) {
-        const sampleXml = documentXml.substring(0, 2000);
-        throw new Error(`Template missing required placeholder: REPORT_BODY_HTML. buffer.length=${templateBuffer.length} document.xml[0:2000]=${JSON.stringify(sampleXml)}`);
-      }
-      const defaultText = await loadDefaultText(event);
-      let assessmentDate = canonical.assessment_date || new Date().toISOString();
-      let formattedDate = defaultText.ASSESSMENT_DATE;
-      try {
-        const date = new Date(assessmentDate);
-        if (!isNaN(date.getTime())) {
-          formattedDate = date.toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" });
-        } else {
-          formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
-        }
-      } catch (e) {
-        formattedDate = assessmentDate || defaultText.ASSESSMENT_DATE;
-      }
-      const coverData = {
-        INSPECTION_ID: canonical.inspection_id || inspection.inspection_id || defaultText.INSPECTION_ID,
-        ASSESSMENT_DATE: formattedDate,
-        PREPARED_FOR: canonical.prepared_for || defaultText.PREPARED_FOR,
-        PREPARED_BY: canonical.prepared_by || defaultText.PREPARED_BY,
-        PROPERTY_ADDRESS: canonical.property_address || defaultText.PROPERTY_ADDRESS,
-        PROPERTY_TYPE: canonical.property_type || defaultText.PROPERTY_TYPE
-      };
-      const templateData = { ...coverData, REPORT_BODY_HTML: html };
-      wordBuffer = await renderDocx(templateBuffer, templateData);
-      console.log(`✅ Word document generated (fallback): ${wordBuffer.length} bytes`);
-    }
-
-    // 9. 返回 Word 文档
+    const wordBuffer = await generateMarkdownWordBuffer(inspection, event);
     const filename = `${inspectionId}-report.docx`;
-    
+
     return {
       statusCode: 200,
       headers: {

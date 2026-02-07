@@ -4,6 +4,7 @@ import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } f
 import { sendEmailNotification } from "./lib/email";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
 import { getBaseUrl } from "./lib/baseUrl";
+import { generateMarkdownWordBuffer } from "./generateMarkdownWord";
 
 async function genId(event: HandlerEvent): Promise<string> {
   const now = new Date();
@@ -119,25 +120,23 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
     }
 
-    // Generate Word with same pipeline as Review page (generateMarkdownWord) and save to blob so email link returns identical file
+    // 单一权威路径：同进程调用 generateMarkdownWordBuffer，避免 fetch 跨请求 + Blob 读写时序导致 404/超时
+    const inspectionForReport = { inspection_id, raw, report_html, findings, limitations };
+    const wordBlobKey = `reports/${inspection_id}.docx`;
+    try {
+      console.log("[submit] Generating Word in-process for", inspection_id);
+      const wordBuffer = await generateMarkdownWordBuffer(inspectionForReport, event);
+      await saveWordDoc(wordBlobKey, wordBuffer, event);
+      console.log("[submit] Word report saved to blob key=" + wordBlobKey + " size=" + wordBuffer.length);
+    } catch (genErr) {
+      const msg = genErr instanceof Error ? genErr.message : String(genErr);
+      console.error("[submit] Word generation at submit failed (download link will generate on-demand):", msg);
+      if (genErr instanceof Error && genErr.stack) console.error("[submit] stack:", genErr.stack);
+      // 不阻断提交；downloadWord 会在点击邮件链接时按需生成并写入 Blob
+    }
+
     const baseUrlRaw = getBaseUrl(event);
     const baseUrl = baseUrlRaw && String(baseUrlRaw).startsWith("http") ? String(baseUrlRaw).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
-    const generateWordUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspection_id)}`;
-    console.log("Generating Word at submit time (same as Review page):", generateWordUrl);
-    try {
-      const genRes = await fetch(generateWordUrl, { method: "GET" });
-      if (genRes.ok) {
-        const arrayBuffer = await genRes.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        await saveWordDoc(`reports/${inspection_id}.docx`, buffer, event);
-        console.log("Word report saved to blob (generateMarkdownWord)");
-      } else {
-        const errText = await genRes.text().catch(() => "");
-        console.warn("Word generation returned", genRes.status, errText.slice(0, 200));
-      }
-    } catch (genErr) {
-      console.warn("Word generation at submit failed (download link will generate on-demand):", genErr instanceof Error ? genErr.message : genErr);
-    }
     
     // Extract address and technician name for email
     // Helper function to extract value from Answer object (handles nested Answer objects)
