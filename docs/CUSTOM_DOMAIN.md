@@ -57,11 +57,63 @@
 
 ---
 
-## 七、SSL 证书错误排查（"Your connection is not private" / ERR_CERT_COMMON_NAME_INVALID）
+## 七、DNS verification failed（含 DNSSEC 提示）
+
+若 Netlify 提示 **DNS verification failed**，且出现：
+
+- **"inspection.bhtechnology.com.au is not resolvable with a resolver that validates DNSSEC"**
+
+表示 Netlify 用「会做 DNSSEC 校验」的解析器去查你的域名时解析失败。按下面顺序处理。
+
+### 1. 先确认 CNAME 已生效（与 DNSSEC 无关）
+
+1. 打开 [https://www.whatsmydns.net](https://www.whatsmydns.net)，查 **inspection.bhtechnology.com.au**，类型选 **CNAME**。
+2. 结果应为你站点的 **\<站点>.netlify.app**（与 Netlify → Domain management 里显示一致）。
+3. 若不对或为空：
+   - 在域名服务商（如 GoDaddy）确认已添加：名称 **inspection**，类型 **CNAME**，目标 **\<站点>.netlify.app**。
+   - 保存后把 TTL 调低（如 300）便于尽快生效，等 10 分钟～24 小时再在 Netlify 重试验证。
+
+### 2. 若 CNAME 已正确但仍报 “DNSSEC” 错误
+
+说明父域 **bhtechnology.com.au** 很可能开启了 DNSSEC，但当前 DNS 在 DNSSEC 校验下不可用（签名链或 DS 记录有问题）。可选两种做法：
+
+**方案 A：改用 Netlify DNS（推荐）**
+
+由 Netlify 托管 **bhtechnology.com.au** 的 DNS，Netlify 会自己处理 DNSSEC 与证书验证：
+
+1. Netlify → **Site configuration** → **Domain management** → **Options** → **Set up Netlify DNS for bhtechnology.com.au**（或添加主域后按提示“Use Netlify DNS”）。
+2. 按页面提示，到域名注册商（如 GoDaddy）把 **bhtechnology.com.au** 的 **NS（nameserver）** 改成 Netlify 给出的两个，例如：
+   - `dns1.p01.nsone.net`
+   - `dns2.p01.nsone.net`  
+   （以 Netlify 实际显示的为准。）
+3. 在 Netlify DNS 里为 **inspection** 添加 CNAME 指向 **\<站点>.netlify.app**。
+4. NS 生效后（最多 24–48 小时），Netlify 的 DNS 校验和证书申请会通过。
+
+**方案 B：在现有 DNS 服务商修好或暂时关闭 DNSSEC**
+
+- 若 **bhtechnology.com.au** 的 DNS 在 GoDaddy/Cloudflare 等且开启了 DNSSEC：
+  - **修好 DNSSEC**：保证该 zone 正确签名，且注册商处填写的 **DS 记录** 与 DNS 服务商提供的一致（一般在其“DNSSEC”或“DS 记录”页面可查）。  
+  - 或 **暂时关闭 DNSSEC**：在注册商或 DNS 服务商处关闭 DNSSEC，等 Netlify 验证通过、证书下发后再考虑重新开启（需确保 DS/签名正确）。
+
+### 3. 使用 Netlify 自检工具
+
+- Netlify 提供的 **DNS setup navigator** 与 **Check DNS propagation** 可再确认解析是否正确、是否已全球生效。
+- 若工具显示 CNAME 已指向 Netlify 但证书仍报 “DNSSEC” 错误，优先按上面 **2. 方案 A** 改用 Netlify DNS。
+
+### 4. 小结
+
+| 情况 | 建议 |
+|------|------|
+| CNAME 未生效或指错 | 在域名商修正 CNAME，等传播后重试 |
+| CNAME 已对，但报 DNSSEC 错误 | 改用 Netlify DNS（改 NS），或修好/暂时关闭 DNSSEC |
+
+---
+
+## 八、SSL 证书错误排查（"Your connection is not private" / ERR_CERT_COMMON_NAME_INVALID）
 
 出现 **Your connection is not private** 或 **net::ERR_CERT_COMMON_NAME_INVALID** 说明浏览器拿到的证书与 `inspection.bhtechnology.com.au` 不一致（例如仍是 `*.netlify.app`）。按下面顺序检查。
 
-### 1. 确认 DNS 已正确指向 Netlify
+### 8.1 确认 DNS 已正确指向 Netlify
 
 - 在本地或 [whatsmydns.net](https://www.whatsmydns.net) 查询 **inspection.bhtechnology.com.au** 的 CNAME：
   - 应解析到 **\<你的站点>.netlify.app**（与 Netlify 域名管理里显示一致）。
@@ -69,7 +121,7 @@
   - 在域名服务商修正 CNAME：名称 `inspection`，目标 `\<站点>.netlify.app`。
   - 等待 DNS 生效（TTL 内，最多约 48 小时）。
 
-### 2. 在 Netlify 确认域名与 HTTPS 状态
+### 8.2 在 Netlify 确认域名与 HTTPS 状态
 
 1. 打开 **Site configuration** → **Domain management**。
 2. 确认 **inspection.bhtechnology.com.au** 已添加且状态为 **Verified**（不是 “Pending” 或 “Failed”）。
@@ -78,7 +130,7 @@
    - 若显示 “Certificate error” / “Failed”：通常与 DNS 未指向 Netlify 或未验证通过有关，先完成第 1 步再重试。
 4. 开启 **Force HTTPS**（推荐）。
 
-### 3. 不要用其他代理接管 TLS（如 Cloudflare “Proxied”）
+### 8.3 不要用其他代理接管 TLS（如 Cloudflare “Proxied”）
 
 - 若 **inspection.bhtechnology.com.au** 前面还有 Cloudflare 等代理，且开启了“代理 / Proxied”（橙云）：
   - 证书可能是代理的，与 Netlify 不一致，容易触发 ERR_CERT_COMMON_NAME_INVALID。
@@ -86,12 +138,12 @@
   - **方案 A**：在 DNS 里把该记录的代理关掉（灰云 **DNS only**），让流量直接到 Netlify，由 Netlify 提供 HTTPS；或  
   - **方案 B**：完全不用该代理，直接 CNAME 到 `\<站点>.netlify.app`。
 
-### 4. 证书生效后仍报错时
+### 8.4 证书生效后仍报错时
 
 - 清除浏览器缓存或使用无痕窗口再访问 `https://inspection.bhtechnology.com.au`。
 - 若曾用其他域名或 IP 访问同一站点，可先关闭所有该站点标签页再重新打开。
 
-### 5. 快速检查清单
+### 8.5 快速检查清单
 
 | 检查项 | 说明 |
 |--------|------|
