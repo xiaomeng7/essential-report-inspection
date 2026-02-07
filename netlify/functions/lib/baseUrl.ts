@@ -5,7 +5,7 @@
 
 import type { HandlerEvent } from "@netlify/functions";
 
-const FALLBACK_BASE_URL = "https://inspetionreport.netlify.app";
+const FALLBACK_BASE_URL = "https://inspection.bhtechnology.com.au";
 
 function isLocalHost(host: string): boolean {
   const h = host.toLowerCase();

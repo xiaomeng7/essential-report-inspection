@@ -124,22 +124,17 @@ Netlify 会自动检测 `netlify.toml`，但请确认以下设置：
 
 ## 配置自定义域名（可选）
 
-### 步骤 1：添加域名
+本项目使用的自定义域名为 **inspection.bhtechnology.com.au**。详细步骤见 **[docs/CUSTOM_DOMAIN.md](docs/CUSTOM_DOMAIN.md)**。
 
-1. 在 Netlify Dashboard，进入 **Site settings** → **Domain management**
-2. 点击 **"Add custom domain"**
-3. 输入你的域名（如 `inspection.yourdomain.com`）
-4. 按照提示配置 DNS 记录
+### 简要步骤
 
-### 步骤 2：配置 DNS
-
-根据 Netlify 的提示，在你的域名提供商处添加 DNS 记录：
-
-- **类型**: CNAME
-- **名称**: `inspection`（或你想要的子域名）
-- **值**: `your-site-name.netlify.app`
-
-或使用 A 记录指向 Netlify 的 IP（Netlify 会提供）。
+1. 在 Netlify Dashboard，进入 **Site configuration** → **Domain management**
+2. 点击 **"Add custom domain"**，输入 `inspection.bhtechnology.com.au`
+3. 在域名服务商（如 GoDaddy）为 `bhtechnology.com.au` 添加 DNS 记录：
+   - **类型**: CNAME
+   - **名称**: `inspection`
+   - **值**: `<你的站点>.netlify.app`（在 Netlify 域名管理页会显示）
+4. 等待 DNS 生效后，在 Netlify 中验证域名并开启 **Force HTTPS**
 
 ---
 
