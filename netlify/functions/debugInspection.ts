@@ -1,8 +1,8 @@
 /**
  * Debug endpoint: GET /api/debugInspection?inspection_id=...
- *
  * Returns findings with photo_ids for verifying photo write-back.
  * Only available in NETLIFY_DEV or when ?token= matches REPORT_DEBUG_TOKEN env.
+ * @deprecated No frontend/script calls; manual debug only.
  */
 
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";

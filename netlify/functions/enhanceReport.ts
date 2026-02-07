@@ -1,3 +1,6 @@
+/**
+ * @deprecated No frontend or script calls /api/enhanceReport. Kept for manual/ops or future removal.
+ */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";
 import path from "path";

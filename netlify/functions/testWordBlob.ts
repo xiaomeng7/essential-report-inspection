@@ -1,3 +1,7 @@
+/**
+ * Dev-only: README documents curl to /api/testWordBlob for Word/Blob sanity check.
+ * @deprecated Not used by app; safe to remove from deployment if desired (update README).
+ */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";
 import path from "path";

@@ -1,3 +1,6 @@
+/**
+ * @deprecated No frontend or script calls /api/rulesAdmin. Kept for manual admin or planned removal.
+ */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import fs from "fs";
 import path from "path";

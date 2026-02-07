@@ -1,3 +1,7 @@
+/**
+ * Standalone email trigger: no in-app fetch. Submit uses lib/email.sendEmailNotification directly.
+ * @deprecated Kept for ops/manual use; safe to remove if no external callers.
+ */
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { sendEmailNotification, type EmailData } from "./lib/email";
 
