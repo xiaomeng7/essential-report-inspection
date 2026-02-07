@@ -120,7 +120,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
 
     // Generate Word report at submit time so the email link has the file ready when opened
-    const baseUrl = getBaseUrl(event);
+    const baseUrlRaw = getBaseUrl(event);
+    const baseUrl = baseUrlRaw && String(baseUrlRaw).startsWith("http") ? String(baseUrlRaw).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
     const generateWordUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspection_id)}`;
     console.log("Generating Word report at submit time:", generateWordUrl);
     try {
@@ -157,10 +158,10 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const technicianName = (raw.signoff as Record<string, unknown>)?.technician_name;
     const technicianNameValue = extractValue(technicianName) as string | undefined;
     
-    // Send email notification — MUST await so Netlify doesn't kill the process before Resend completes
+    // Send email notification — MUST use absolute URLs so the email client does not resolve to the wrong page
     const reviewUrl = `${baseUrl}/review/${inspection_id}`;
     const downloadWordUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`;
-    console.log("Email links - review_url:", reviewUrl, "| download_word_url:", downloadWordUrl);
+    console.log("Email links (absolute) - download_word_url:", downloadWordUrl);
     console.log("Preparing to send email notification...");
     try {
       await sendEmailNotification({

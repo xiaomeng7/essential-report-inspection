@@ -173,8 +173,11 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     const recommended = data.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS");
     const planMonitor = data.findings.filter(f => f.priority === "PLAN_MONITOR");
 
-    // Single CTA: Generate/Download Word — use only download_word_url (API link to .docx)
-    const wordDownloadUrl = String(data.download_word_url ?? "").trim();
+    // Single CTA: Generate/Download Word — must be absolute URL so the button does not open the inspection page
+    let wordDownloadUrl = String(data.download_word_url ?? "").trim();
+    if (!wordDownloadUrl.startsWith("http://") && !wordDownloadUrl.startsWith("https://")) {
+      wordDownloadUrl = ""; // avoid relative URL being resolved to wrong host
+    }
 
     // Build email HTML
     const emailHtml = `
@@ -284,13 +287,15 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     ` : ""}
 
     <div style="margin-top: 30px; text-align: center;">
-      <a href="${wordDownloadUrl}" class="button" style="background-color: #27ae60;">Generate Word Report</a>
+      ${wordDownloadUrl ? `<a href="${wordDownloadUrl}" class="button" style="background-color: #27ae60;">Generate Word Report (.docx)</a>` : ""}
     </div>
 
     <p style="margin-top: 30px; color: #666; font-size: 12px;">
       This is an automated notification from the Electrical Inspection System.
       <br>
-      Generate Word Report: <a href="${wordDownloadUrl}">${wordDownloadUrl}</a>
+      Download Word report (if the button above opens the wrong page, copy this link into your browser):
+      <br>
+      <a href="${wordDownloadUrl}">${wordDownloadUrl || "(link not available)"}</a>
     </p>
   </div>
 </body>
@@ -337,7 +342,8 @@ ${JSON.stringify(data.raw_data, null, 2)}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ` : ""}
 
-Generate Word Report: ${wordDownloadUrl}
+Generate Word Report (copy this link if the button opens the wrong page):
+${wordDownloadUrl || "(link not available)"}
 
 This is an automated notification from the Electrical Inspection System.
     `.trim();

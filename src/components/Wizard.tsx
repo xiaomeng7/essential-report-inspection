@@ -84,6 +84,54 @@ type VisibleStep = { pageId: string; pageTitle: string; sectionIds: string[] };
 
 type Props = { onSubmitted: (inspectionId: string, address?: string, technicianName?: string) => void };
 
+/** Require at least one photo for every room/section that has an issue. Returns error message or null if valid. */
+function validatePhotoEvidenceBeforeSubmit(state: Record<string, unknown>): string | null {
+  const getVal = (path: string): unknown => {
+    const parts = path.split(".");
+    let v: unknown = state;
+    for (const p of parts) {
+      if (v == null || typeof v !== "object") return undefined;
+      const next = (v as Record<string, unknown>)[p];
+      if (next != null && typeof next === "object" && "value" in (next as object)) {
+        v = (next as { value: unknown }).value;
+      } else {
+        v = next;
+      }
+    }
+    return v;
+  };
+  const gpoRooms = getVal("gpo_tests.rooms");
+  const gpoList = Array.isArray(gpoRooms) ? gpoRooms : [];
+  for (let i = 0; i < gpoList.length; i++) {
+    const r = gpoList[i] as Record<string, unknown>;
+    if (!r || r.room_access === "not_accessible") continue;
+    const issue = typeof r.issue === "string" ? r.issue.trim() : "";
+    if (!issue || issue === "none") continue;
+    const pids = r.photo_ids;
+    const hasPhoto = Array.isArray(pids) && pids.length > 0;
+    if (!hasPhoto) {
+      const label = (r.room_type as string) || (r.room_name_custom as string) || `Room ${i + 1}`;
+      return `请为有问题的 GPO 房间「${label}」上传至少一张照片证据后再提交。`;
+    }
+  }
+  const lightingRooms = getVal("lighting.rooms");
+  const lightList = Array.isArray(lightingRooms) ? lightingRooms : [];
+  for (let i = 0; i < lightList.length; i++) {
+    const r = lightList[i] as Record<string, unknown>;
+    if (!r || r.room_access === "not_accessible") continue;
+    const issues = (r.issues as string[]) || [];
+    const hasIssue = issues.some((x) => x && x !== "none" && x !== "other");
+    if (!hasIssue) continue;
+    const pids = r.photo_ids;
+    const hasPhoto = Array.isArray(pids) && pids.length > 0;
+    if (!hasPhoto) {
+      const label = (r.room_type as string) || (r.room_name_custom as string) || `Room ${i + 1}`;
+      return `请为有问题的灯具/开关房间「${label}」上传至少一张照片证据后再提交。`;
+    }
+  }
+  return null;
+}
+
 export function Wizard({ onSubmitted }: Props) {
   const [oneClickTestLoading, setOneClickTestLoading] = useState(false);
   const [oneClickTestError, setOneClickTestError] = useState<string | null>(null);
@@ -156,6 +204,13 @@ export function Wizard({ onSubmitted }: Props) {
       return next;
     });
     if (isLast) {
+      const photoErr = validatePhotoEvidenceBeforeSubmit(state);
+      if (photoErr) {
+        const firstId = sectionsToValidate[0];
+        setSectionErrors((prev) => ({ ...prev, [firstId]: { _submit: photoErr } }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
       submitInspection();
       return;
     }
