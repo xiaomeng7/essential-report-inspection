@@ -1,20 +1,6 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { getWordDoc, get } from "./lib/store";
-import { normalizeInspection } from "./lib/normalizeInspection";
+import { getWordDoc, saveWordDoc } from "./lib/store";
 import { getBaseUrl } from "./lib/baseUrl";
-
-/** Make a short, filesystem-safe slug from address for use in download filename. */
-function addressToFilenameSlug(address: string | undefined | null, maxLen = 50): string {
-  if (!address || typeof address !== "string") return "";
-  const trimmed = address.trim();
-  if (!trimmed) return "";
-  // Allow letters, digits, space, comma, hyphen, period; replace other chars with hyphen; collapse hyphens/spaces
-  const safe = trimmed
-    .replace(/[^\p{L}\p{N}\s,\-.]/gu, "-")
-    .replace(/[\s\-]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return safe.slice(0, maxLen);
-}
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET") {
@@ -50,19 +36,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       buffer = await getWordDoc(blobKey, event);
     }
 
-    // If still no doc, generate on-demand so the email link works without visiting the review page first
+    // If still no doc, use same pipeline as Review page (generateMarkdownWord) so file is identical
     if (!buffer) {
-      const baseUrl = getBaseUrl(event);
-      const generateUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspectionId)}`;
-      console.log("Word doc not in blob; triggering on-demand generation:", generateUrl);
+      const base = getBaseUrl(event);
+      const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
+      const generateUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspectionId)}`;
+      console.log("Word doc not in blob; generating on-demand (same as Review page):", generateUrl);
       try {
         const genRes = await fetch(generateUrl, { method: "GET" });
         if (genRes.ok) {
+          const arrayBuffer = await genRes.arrayBuffer();
+          buffer = Buffer.from(arrayBuffer);
           blobKey = `reports/${inspectionId}.docx`;
-          buffer = await getWordDoc(blobKey, event);
+          await saveWordDoc(blobKey, buffer, event);
         }
       } catch (genErr) {
-        console.error("On-demand Word generation request failed:", genErr);
+        console.error("On-demand Word generation failed:", genErr);
       }
     }
 
@@ -71,11 +60,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const base = getBaseUrl(event);
       const baseUrl = base && String(base).startsWith("http") ? String(base).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
       const retryUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspectionId)}&_=${Date.now()}`;
-      const generateUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspectionId)}`;
+      const generateUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspectionId)}`;
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-store"><title>Word Report</title></head><body style="font-family:sans-serif;max-width:520px;margin:2rem auto;padding:1rem;text-align:center;">
 <p>Report is not yet ready for inspection <strong>${inspectionId}</strong>.</p>
 <p><a href="${retryUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#27ae60;color:white;text-decoration:none;border-radius:4px;margin:4px;">Try again (opens in new tab, download will start if ready)</a></p>
-<p><a href="${generateUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#2c3e50;color:white;text-decoration:none;border-radius:4px;margin:4px;">Generate report now</a></p>
+<p><a href="${generateUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#2c3e50;color:white;text-decoration:none;border-radius:4px;margin:4px;">Generate report now (same as Review page)</a></p>
 <p style="color:#666;font-size:14px;">Click &quot;Generate report now&quot; first, wait a few seconds, then &quot;Try again&quot;. Or open the <a href="${baseUrl}/review/${inspectionId}">review page</a> and use Generate Word there.</p>
 </body></html>`;
       return {
@@ -88,20 +77,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       };
     }
 
-    // Download filename: include address when available so files are easier to find
-    let downloadFilename = `${inspectionId}.docx`;
-    try {
-      const inspection = await get(inspectionId, event);
-      if (inspection?.raw) {
-        const { canonical } = normalizeInspection(inspection.raw as Record<string, unknown>, inspectionId);
-        const slug = addressToFilenameSlug(canonical?.property_address);
-        if (slug) {
-          downloadFilename = `${slug}-${inspectionId}.docx`;
-        }
-      }
-    } catch (_) {
-      // Keep default filename if inspection load fails
-    }
+    // Same filename as Review page so email download matches
+    const downloadFilename = `${inspectionId}-report.docx`;
 
     // Return file as download with correct headers
     return {

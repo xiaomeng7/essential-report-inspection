@@ -1,5 +1,5 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { save, getNextInspectionNumber } from "./lib/store";
+import { save, getNextInspectionNumber, saveWordDoc } from "./lib/store";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
@@ -119,21 +119,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
     }
 
-    // Generate Word report at submit time so the email link has the file ready when opened
+    // Generate Word with same pipeline as Review page (generateMarkdownWord) and save to blob so email link returns identical file
     const baseUrlRaw = getBaseUrl(event);
     const baseUrl = baseUrlRaw && String(baseUrlRaw).startsWith("http") ? String(baseUrlRaw).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
-    const generateWordUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspection_id)}`;
-    console.log("Generating Word report at submit time:", generateWordUrl);
+    const generateWordUrl = `${baseUrl}/api/generateMarkdownWord?inspection_id=${encodeURIComponent(inspection_id)}`;
+    console.log("Generating Word at submit time (same as Review page):", generateWordUrl);
     try {
       const genRes = await fetch(generateWordUrl, { method: "GET" });
       if (genRes.ok) {
-        console.log("Word report generated successfully before sending email");
+        const arrayBuffer = await genRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        await saveWordDoc(`reports/${inspection_id}.docx`, buffer, event);
+        console.log("Word report saved to blob (generateMarkdownWord)");
       } else {
         const errText = await genRes.text().catch(() => "");
-        console.warn("Word report generation returned", genRes.status, errText.slice(0, 200));
+        console.warn("Word generation returned", genRes.status, errText.slice(0, 200));
       }
     } catch (genErr) {
-      console.warn("Word report generation request failed (download link will generate on-demand):", genErr instanceof Error ? genErr.message : genErr);
+      console.warn("Word generation at submit failed (download link will generate on-demand):", genErr instanceof Error ? genErr.message : genErr);
     }
     
     // Extract address and technician name for email
