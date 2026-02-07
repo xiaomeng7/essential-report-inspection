@@ -173,9 +173,8 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     const recommended = data.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS");
     const planMonitor = data.findings.filter(f => f.priority === "PLAN_MONITOR");
 
-    // Explicit URLs: Word download must point to /api/downloadWord, not the review page
-    const wordDownloadUrl = String(data.download_word_url ?? "").trim() || data.review_url;
-    const reviewPageUrl = data.review_url;
+    // Single CTA: Generate/Download Word — use only download_word_url (API link to .docx)
+    const wordDownloadUrl = String(data.download_word_url ?? "").trim();
 
     // Build email HTML
     const emailHtml = `
@@ -285,16 +284,13 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     ` : ""}
 
     <div style="margin-top: 30px; text-align: center;">
-      <a href="${wordDownloadUrl}" class="button" style="background-color: #27ae60;">Download Word Report (.docx)</a>
-      <a href="${reviewPageUrl}" class="button" style="margin-left: 12px;">View Full Report (Review Page)</a>
+      <a href="${wordDownloadUrl}" class="button" style="background-color: #27ae60;">Generate Word Report</a>
     </div>
 
     <p style="margin-top: 30px; color: #666; font-size: 12px;">
       This is an automated notification from the Electrical Inspection System.
       <br>
-      Download Word: <a href="${wordDownloadUrl}">${wordDownloadUrl}</a>
-      <br>
-      Review page: <a href="${reviewPageUrl}">${reviewPageUrl}</a>
+      Generate Word Report: <a href="${wordDownloadUrl}">${wordDownloadUrl}</a>
     </p>
   </div>
 </body>
@@ -341,9 +337,7 @@ ${JSON.stringify(data.raw_data, null, 2)}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ` : ""}
 
-Download Word Report: ${wordDownloadUrl}
-View Full Report (review page): ${reviewPageUrl}
-(Generate the report on the review page first if you have not already.)
+Generate Word Report: ${wordDownloadUrl}
 
 This is an automated notification from the Electrical Inspection System.
     `.trim();
