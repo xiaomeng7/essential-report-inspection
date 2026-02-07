@@ -1,6 +1,7 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { getWordDoc, get } from "./lib/store";
 import { normalizeInspection } from "./lib/normalizeInspection";
+import { getBaseUrl } from "./lib/baseUrl";
 
 /** Make a short, filesystem-safe slug from address for use in download filename. */
 function addressToFilenameSlug(address: string | undefined | null, maxLen = 50): string {
@@ -48,12 +49,28 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       console.log("Trying fallback path:", blobKey);
       buffer = await getWordDoc(blobKey, event);
     }
-    
+
+    // If still no doc, generate on-demand so the email link works without visiting the review page first
+    if (!buffer) {
+      const baseUrl = getBaseUrl(event);
+      const generateUrl = `${baseUrl}/api/generateWordReport?inspection_id=${encodeURIComponent(inspectionId)}`;
+      console.log("Word doc not in blob; triggering on-demand generation:", generateUrl);
+      try {
+        const genRes = await fetch(generateUrl, { method: "GET" });
+        if (genRes.ok) {
+          blobKey = `reports/${inspectionId}.docx`;
+          buffer = await getWordDoc(blobKey, event);
+        }
+      } catch (genErr) {
+        console.error("On-demand Word generation request failed:", genErr);
+      }
+    }
+
     if (!buffer) {
       return {
         statusCode: 404,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: `Word document not found for inspection_id: ${inspectionId}` })
+        body: JSON.stringify({ error: `Word document not found for inspection_id: ${inspectionId}. Generate it from the review page first.` })
       };
     }
 
