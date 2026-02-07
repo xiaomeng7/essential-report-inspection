@@ -173,6 +173,10 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     const recommended = data.findings.filter(f => f.priority === "RECOMMENDED_0_3_MONTHS");
     const planMonitor = data.findings.filter(f => f.priority === "PLAN_MONITOR");
 
+    // Explicit URLs: Word download must point to /api/downloadWord, not the review page
+    const wordDownloadUrl = String(data.download_word_url ?? "").trim() || data.review_url;
+    const reviewPageUrl = data.review_url;
+
     // Build email HTML
     const emailHtml = `
 <!DOCTYPE html>
@@ -281,16 +285,16 @@ export async function sendEmailNotification(data: EmailData): Promise<void> {
     ` : ""}
 
     <div style="margin-top: 30px; text-align: center;">
-      <a href="${data.review_url}" class="button">View Full Report</a>
-      <a href="${data.download_word_url}" class="button" style="margin-left: 12px; background-color: #27ae60;">Download Word Report</a>
+      <a href="${wordDownloadUrl}" class="button" style="background-color: #27ae60;">Download Word Report (.docx)</a>
+      <a href="${reviewPageUrl}" class="button" style="margin-left: 12px;">View Full Report (Review Page)</a>
     </div>
 
     <p style="margin-top: 30px; color: #666; font-size: 12px;">
       This is an automated notification from the Electrical Inspection System.
       <br>
-      Review: <a href="${data.review_url}">${data.review_url}</a>
+      Download Word: <a href="${wordDownloadUrl}">${wordDownloadUrl}</a>
       <br>
-      Download Word (generate on review page first if needed): <a href="${data.download_word_url}">${data.download_word_url}</a>
+      Review page: <a href="${reviewPageUrl}">${reviewPageUrl}</a>
     </p>
   </div>
 </body>
@@ -337,8 +341,8 @@ ${JSON.stringify(data.raw_data, null, 2)}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ` : ""}
 
-View Full Report: ${data.review_url}
-Download Word Report: ${data.download_word_url}
+Download Word Report: ${wordDownloadUrl}
+View Full Report (review page): ${reviewPageUrl}
 (Generate the report on the review page first if you have not already.)
 
 This is an automated notification from the Electrical Inspection System.

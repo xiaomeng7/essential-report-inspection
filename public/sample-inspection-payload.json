@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-02-02T09:58:13.433Z",
+  "created_at": "2026-02-07T06:14:21.234Z",
   "job": {
     "address": {
       "value": "123 Example St, Sydney NSW 2000",
@@ -83,7 +83,7 @@
       "status": "answered"
     },
     "water_ingress": {
-      "value": "no",
+      "value": "yes",
       "status": "answered"
     },
     "asbestos_suspected": {
@@ -98,15 +98,15 @@
       "status": "answered"
     },
     "board_at_capacity": {
-      "value": false,
-      "status": "answered"
-    },
-    "spare_ways_available": {
       "value": "yes",
       "status": "answered"
     },
+    "spare_ways_available": {
+      "value": "no",
+      "status": "answered"
+    },
     "labelling_quality": {
-      "value": "good",
+      "value": "poor",
       "status": "answered"
     },
     "non_standard_or_diy_observed": {
@@ -125,7 +125,7 @@
     },
     "summary": {
       "total_tested": {
-        "value": 4,
+        "value": 6,
         "status": "answered"
       },
       "total_pass": {
@@ -133,7 +133,7 @@
         "status": "answered"
       },
       "total_fail": {
-        "value": 1,
+        "value": 3,
         "status": "answered"
       }
     },
@@ -149,6 +149,22 @@
           "trip_time_ms": 350,
           "result": "fail",
           "notes": "Trip >300ms",
+          "photo_ids": []
+        },
+        {
+          "location": "Bathroom",
+          "test_current_ma": 30,
+          "trip_time_ms": 420,
+          "result": "fail",
+          "notes": "No trip",
+          "photo_ids": []
+        },
+        {
+          "location": "Laundry",
+          "test_current_ma": 30,
+          "trip_time_ms": 380,
+          "result": "fail",
+          "notes": "Slow trip",
           "photo_ids": []
         }
       ],
@@ -166,24 +182,24 @@
     },
     "summary": {
       "total_gpo_tested": {
-        "value": 12,
+        "value": 24,
         "status": "answered"
       },
       "polarity_pass": {
-        "value": 12,
+        "value": 22,
         "status": "answered"
       },
       "earth_present_pass": {
-        "value": 11,
+        "value": 21,
         "status": "answered"
       },
       "rcd_protection_confirmed": {
-        "value": 12,
+        "value": 24,
         "status": "answered"
       }
     },
     "any_warm_loose_damaged": {
-      "value": false,
+      "value": true,
       "status": "answered"
     },
     "rooms": {
@@ -209,9 +225,79 @@
           "gpo_count": 2,
           "tested_count": 2,
           "pass_count": 1,
-          "issue": "other",
-          "issue_other": "插座发热、有烧焦味",
-          "note": "需更换",
+          "issue": "overheating",
+          "issue_other": "",
+          "note": "插座发热",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "bathroom",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 2,
+          "tested_count": 2,
+          "pass_count": 2,
+          "issue": "damage",
+          "issue_other": "",
+          "note": "面板破损",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "laundry",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 2,
+          "tested_count": 2,
+          "pass_count": 1,
+          "issue": "surface_warm",
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "living_room",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 6,
+          "tested_count": 6,
+          "pass_count": 5,
+          "issue": "cracks_visible",
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "bedroom_2",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "gpo_count": 2,
+          "tested_count": 2,
+          "pass_count": 0,
+          "issue": "missing_earth",
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "other",
+          "room_name_custom": "Study",
+          "room_access": "accessible",
+          "gpo_count": 4,
+          "tested_count": 4,
+          "pass_count": 3,
+          "issue": "burn_marks",
+          "issue_other": "",
+          "note": "",
           "photo_ids": [
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
           ]
@@ -226,7 +312,7 @@
   },
   "earthing": {
     "men_link_confirmed": {
-      "value": "yes",
+      "value": "no",
       "status": "answered"
     },
     "main_earth_conductor_intact": {
@@ -255,9 +341,62 @@
           "room_access": "accessible",
           "issues": [
             "fitting_overheat",
-            "other"
+            "switch_loose"
           ],
-          "issue_other": "灯罩松动",
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "kitchen",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "issues": [
+            "fitting_not_working"
+          ],
+          "issue_other": "",
+          "note": "吊灯不亮",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "bedroom_1",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "issues": [
+            "switch_arcing"
+          ],
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "bathroom",
+          "room_name_custom": "",
+          "room_access": "accessible",
+          "issues": [
+            "fitting_overheat",
+            "switch_loose"
+          ],
+          "issue_other": "",
+          "note": "",
+          "photo_ids": [
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          ]
+        },
+        {
+          "room_type": "other",
+          "room_name_custom": "Hallway",
+          "room_access": "accessible",
+          "issues": [
+            "dimmer_not_working"
+          ],
+          "issue_other": "",
           "note": "",
           "photo_ids": [
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="

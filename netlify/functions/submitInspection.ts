@@ -146,7 +146,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const baseUrl = getBaseUrl(event);
     const reviewUrl = `${baseUrl}/review/${inspection_id}`;
     const downloadWordUrl = `${baseUrl}/api/downloadWord?inspection_id=${encodeURIComponent(inspection_id)}`;
-    console.log("Generated review URL:", reviewUrl, "from baseUrl:", baseUrl);
+    console.log("Email links - review_url:", reviewUrl, "| download_word_url:", downloadWordUrl);
     console.log("Preparing to send email notification...");
     try {
       await sendEmailNotification({
