@@ -1220,7 +1220,7 @@ SENTINEL_DECISION_V1
 
 ## 12. Appendix (photos and test notes)
 
-{{TEST_DATA_SECTION}}
+{{TEST_DATA_SECTION_HTML}}
 
 ### Technical Notes
 {{TECHNICAL_NOTES}}

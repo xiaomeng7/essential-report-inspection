@@ -178,7 +178,7 @@ export function assertEvidenceStructure(
  */
 const FALLBACK_EXECUTIVE_SIGNALS = "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.\n• If not addressed, conditions may affect long-term reliability.\n• Manageable risk, not emergency.";
 const FALLBACK_CAPEX_DISCLAIMER = "Provided for financial provisioning only. Not a quotation or scope of works.";
-const FALLBACK_TERMS = `# TERMS & CONDITIONS OF ASSESSMENT (Default)
+const FALLBACK_TERMS = `# TERMS & CONDITIONS OF ASSESSMENT
 
 ## 1. Australian Consumer Law (ACL) Acknowledgement
 Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL). Nothing in this Report or these Terms seeks to exclude, restrict, or modify any consumer guarantees that cannot lawfully be excluded.

@@ -692,7 +692,7 @@ async function loadTermsAndConditions(): Promise<string> {
   
   // Fallback to hardcoded default Terms and Conditions (from DEFAULT_TERMS.md)
   console.warn("⚠️ DEFAULT_TERMS.md not found, using hardcoded fallback");
-  return `# TERMS & CONDITIONS OF ASSESSMENT (Default)
+  return `# TERMS & CONDITIONS OF ASSESSMENT
 
 ## 1. Australian Consumer Law (ACL) Acknowledgement
 Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL).  

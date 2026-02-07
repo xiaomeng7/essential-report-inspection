@@ -1,4 +1,4 @@
-# TERMS & CONDITIONS OF ASSESSMENT (Default)
+# TERMS & CONDITIONS OF ASSESSMENT
 
 ## 1. Australian Consumer Law (ACL) Acknowledgement
 Our services come with guarantees that cannot be excluded under the Australian Consumer Law (ACL).  
