@@ -23,6 +23,7 @@
     "test:property-signals": "tsx scripts/test-property-signals.ts",
     "test:executive-signals": "tsx scripts/test-executive-signals.ts",
     "test:generate-report": "tsx scripts/test-generate-report.ts",
+    "test:data-source-mode": "tsx scripts/test-data-source-mode.ts",
     "report:diff": "tsx scripts/compareDocx.ts",
     "verify:docx-links": "tsx scripts/verify-docx-links.ts",
     "verify:evidence": "tsx scripts/verify-evidence-rules.ts",

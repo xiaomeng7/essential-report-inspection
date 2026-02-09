@@ -1,13 +1,15 @@
 /**
  * DB-first, YAML-fallback loader for finding messages.
- * - Tries finding_messages table first (if DB configured).
- * - Falls back to responses.yml if DB not available or record not found.
+ * - Respects DATA_SOURCE_MODE env var (db_only, db_prefer, yml_only).
+ * - Tries finding_messages table first (if DB configured and mode allows).
+ * - Falls back to responses.yml if mode allows and DB not available or record not found.
  * - Normalizes DB result to match responses.yml message shape.
  * - In-memory cache with TTL ~60s.
  */
 
 import { isDbConfigured, sql } from "./db";
 import { loadResponses } from "../generateWordReport";
+import { getDataSourceMode, isDbOnly, isYmlOnly, allowsDb, allowsYaml } from "./dataSourceMode";
 
 type FindingMessage = {
   title?: string;
@@ -35,6 +37,7 @@ const dbErrorLogged = new Set<string>(); // Track logged DB errors per (findingI
  */
 export async function getFindingMessage(findingId: string, lang = "en-AU"): Promise<FindingMessage | null> {
   const cacheKey = `${findingId}|${lang}`;
+  const mode = getDataSourceMode();
   const isDev = process.env.NODE_ENV !== "production" || process.env.NETLIFY_DEV === "true";
 
   // Check cache
@@ -46,8 +49,8 @@ export async function getFindingMessage(findingId: string, lang = "en-AU"): Prom
   let message: FindingMessage | null = null;
   let source: "db" | "yaml" | null = null;
 
-  // Try DB first
-  if (isDbConfigured()) {
+  // Try DB if mode allows
+  if (allowsDb() && isDbConfigured() && !isYmlOnly()) {
     try {
       const q = sql();
       const rows = await q`
@@ -98,7 +101,13 @@ export async function getFindingMessage(findingId: string, lang = "en-AU"): Prom
         };
       }
     } catch (e) {
-      // Log DB error once per (findingId|lang) to avoid spam
+      // In db_only mode, DB errors must throw
+      if (isDbOnly()) {
+        const errorMsg = `[getFindingMessage] db_only mode: DB query failed for ${findingId}/${lang}: ${e instanceof Error ? e.message : String(e)}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+      // Log DB error once per (findingId|lang) to avoid spam (db_prefer mode)
       const errorKey = `${findingId}|${lang}`;
       if (!dbErrorLogged.has(errorKey)) {
         console.warn(`[getFindingMessage] DB query failed for ${findingId}/${lang}, falling back to YAML:`, e instanceof Error ? e.message : String(e));
@@ -107,8 +116,8 @@ export async function getFindingMessage(findingId: string, lang = "en-AU"): Prom
     }
   }
 
-  // Fallback to YAML if DB didn't return a message
-  if (!message) {
+  // Fallback to YAML if mode allows and DB didn't return a message
+  if (!message && allowsYaml() && !isDbOnly()) {
     try {
       const responses = await loadResponses();
       const yamlMessage = responses.findings?.[findingId] as FindingMessage | undefined;
@@ -117,14 +126,27 @@ export async function getFindingMessage(findingId: string, lang = "en-AU"): Prom
         source = "yaml";
       }
     } catch (e) {
+      if (isDbOnly()) {
+        // Should not reach here in db_only mode, but defensive check
+        const errorMsg = `[getFindingMessage] db_only mode: YAML fallback attempted but not allowed for ${findingId}/${lang}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
       console.warn(`[getFindingMessage] Failed to load from YAML for ${findingId}:`, e instanceof Error ? e.message : String(e));
       return null;
     }
   }
 
-  // Debug log: show source per finding_id (dev-only)
-  if (isDev && source && message) {
-    console.log(`[getFindingMessage] ${findingId}: source=${source}`);
+  // In db_only mode, missing data must throw
+  if (isDbOnly() && !message) {
+    const errorMsg = `[getFindingMessage] db_only mode: No message found in DB for finding_id=${findingId}, lang=${lang}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  // Log: show mode, lang, source (always log in dev, log in production for db_only errors)
+  if (isDev || (isDbOnly() && !message)) {
+    console.log(`[getFindingMessage] mode=${mode} lang=${lang} finding_id=${findingId} source=${source || "none"}${!message ? " (missing)" : ""}`);
   }
 
   // Cache result (even if null, to avoid repeated DB/YAML lookups)
@@ -148,10 +170,11 @@ export async function getFindingMessagesBatch(
   lang = "en-AU"
 ): Promise<Record<string, FindingMessage>> {
   const result: Record<string, FindingMessage> = {};
+  const mode = getDataSourceMode();
   const isDev = process.env.NODE_ENV !== "production" || process.env.NETLIFY_DEV === "true";
 
-  // Try DB first for all findings
-  if (isDbConfigured()) {
+  // Try DB if mode allows
+  if (allowsDb() && isDbConfigured() && !isYmlOnly()) {
     try {
       const q = sql();
       const rows = await q`
@@ -193,19 +216,32 @@ export async function getFindingMessagesBatch(
         };
 
         if (isDev) {
-          console.log(`[getFindingMessage] ${findingId}: source=db`);
+          console.log(`[getFindingMessage] mode=${mode} lang=${lang} finding_id=${findingId} source=db`);
         }
       }
 
-      // Mark which ones need YAML fallback
-      for (const findingId of findingIds) {
-        if (!dbFound.has(findingId)) {
-          if (isDev) {
-            console.log(`[getFindingMessage] ${findingId}: source=yaml (not in DB)`);
-          }
+      // Check for missing findings
+      const missingIds = findingIds.filter((id) => !dbFound.has(id));
+      if (missingIds.length > 0) {
+        if (isDbOnly()) {
+          // In db_only mode, missing data must throw
+          const errorMsg = `[getFindingMessage] db_only mode: Missing messages in DB for finding_ids=[${missingIds.join(", ")}], lang=${lang}`;
+          console.error(errorMsg);
+          throw new Error(errorMsg);
+        }
+        // In db_prefer mode, log missing ones (will fallback to YAML)
+        if (isDev) {
+          console.log(`[getFindingMessage] mode=${mode} lang=${lang} missing_in_db=[${missingIds.join(", ")}] (will fallback to YAML)`);
         }
       }
     } catch (e) {
+      // In db_only mode, DB errors must throw
+      if (isDbOnly()) {
+        const errorMsg = `[getFindingMessage] db_only mode: Batch DB query failed: ${e instanceof Error ? e.message : String(e)}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+      // Log DB error once (db_prefer mode)
       const errorKey = `batch-db-error`;
       if (!dbErrorLogged.has(errorKey)) {
         console.warn(`[getFindingMessage] Batch DB query failed, falling back to YAML:`, e instanceof Error ? e.message : String(e));
@@ -214,23 +250,46 @@ export async function getFindingMessagesBatch(
     }
   }
 
-  // Fallback to YAML for missing findings
+  // Fallback to YAML for missing findings if mode allows
   const missingIds = findingIds.filter((id) => !result[id]);
-  if (missingIds.length > 0) {
+  if (missingIds.length > 0 && allowsYaml() && !isDbOnly()) {
     try {
       const responses = await loadResponses();
       for (const findingId of missingIds) {
         const yamlMessage = responses.findings?.[findingId] as FindingMessage | undefined;
         if (yamlMessage) {
           result[findingId] = yamlMessage;
-          if (isDev && !isDbConfigured()) {
-            console.log(`[getFindingMessage] ${findingId}: source=yaml`);
+          if (isDev) {
+            console.log(`[getFindingMessage] mode=${mode} lang=${lang} finding_id=${findingId} source=yaml`);
           }
         }
       }
     } catch (e) {
+      if (isDbOnly()) {
+        // Should not reach here in db_only mode, but defensive check
+        const errorMsg = `[getFindingMessage] db_only mode: YAML fallback attempted but not allowed`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
       console.warn(`[getFindingMessage] Failed to load YAML fallback:`, e instanceof Error ? e.message : String(e));
     }
+  }
+
+  // In db_only mode, check if any findings are still missing
+  const stillMissing = findingIds.filter((id) => !result[id]);
+  if (isDbOnly() && stillMissing.length > 0) {
+    const errorMsg = `[getFindingMessage] db_only mode: Missing messages in DB for finding_ids=[${stillMissing.join(", ")}], lang=${lang}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  // Log summary in dev mode
+  if (isDev) {
+    const dbCount = Object.keys(result).filter((id) => {
+      // We can't easily track source per ID in batch mode, so just log summary
+      return true; // Simplified for batch mode
+    }).length;
+    console.log(`[getFindingMessage] mode=${mode} lang=${lang} batch_size=${findingIds.length} found=${Object.keys(result).length} missing=${stillMissing.length}`);
   }
 
   return result;
