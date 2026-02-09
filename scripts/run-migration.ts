@@ -1,6 +1,7 @@
 /**
- * 执行 migrations/001_init.sql（需先配置 .env 中的 NEON_DATABASE_URL）
- * 使用方式：npm run db:migrate
+ * Auto-discover and run all SQL migrations in migrations/ directory.
+ * Tracks applied migrations in schema_migrations table to avoid re-running.
+ * Usage: npm run db:migrate (requires NEON_DATABASE_URL in .env)
  */
 import path from "path";
 import fs from "fs";
@@ -17,21 +18,78 @@ if (!url || !url.trim()) {
 }
 
 const migrationsDir = path.join(projectRoot, "migrations");
-const migrationFiles = ["001_init.sql", "002_dimension_presets.sql", "003_findings_management.sql"].filter((f) =>
-  fs.existsSync(path.join(migrationsDir, f))
-);
 
 async function run() {
   const client = new Client({ connectionString: url });
   try {
     await client.connect();
-    for (const f of migrationFiles) {
-      const sql = fs.readFileSync(path.join(migrationsDir, f), "utf8");
-      await client.query(sql);
-      console.log("执行完成:", f);
+
+    // 1. Create schema_migrations table if not exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        filename TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log("✅ schema_migrations table ready");
+
+    // 2. Read all .sql files from migrations/ directory
+    const allFiles = fs.readdirSync(migrationsDir);
+    const sqlFiles = allFiles
+      .filter((f) => f.endsWith(".sql"))
+      .sort(); // 3. Sort lexicographically
+
+    if (sqlFiles.length === 0) {
+      console.log("⚠️  No .sql files found in migrations/ directory");
+      return;
     }
+
+    console.log(`📋 Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(", ")}`);
+
+    // 4. Get already applied migrations
+    const appliedResult = await client.query<{ filename: string }>(
+      "SELECT filename FROM schema_migrations ORDER BY filename"
+    );
+    const appliedSet = new Set(appliedResult.rows.map((r) => r.filename));
+
+    const toApply = sqlFiles.filter((f) => !appliedSet.has(f));
+    const skipped = sqlFiles.filter((f) => appliedSet.has(f));
+
+    if (toApply.length === 0) {
+      console.log(`✅ All migrations already applied (${skipped.length} skipped)`);
+      return;
+    }
+
+    console.log(`📦 Applying ${toApply.length} migration(s), skipping ${skipped.length} already applied`);
+
+    // 5. Run each unapplied migration in a transaction
+    for (const filename of toApply) {
+      const filePath = path.join(migrationsDir, filename);
+      const sql = fs.readFileSync(filePath, "utf8");
+
+      if (!sql.trim()) {
+        console.warn(`⚠️  Skipping empty file: ${filename}`);
+        continue;
+      }
+
+      await client.query("BEGIN");
+      try {
+        await client.query(sql);
+        await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [filename]);
+        await client.query("COMMIT");
+        console.log(`✅ Applied: ${filename}`);
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
+    }
+
+    console.log(`\n✅ Migration complete: applied ${toApply.length}, skipped ${skipped.length}`);
   } catch (e) {
-    console.error("迁移失败:", e instanceof Error ? e.message : e);
+    console.error("❌ Migration failed:", e instanceof Error ? e.message : e);
+    if (e instanceof Error && e.stack) {
+      console.error(e.stack);
+    }
     process.exit(1);
   } finally {
     await client.end();

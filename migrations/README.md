@@ -3,14 +3,29 @@
 ## Apply schema
 
 1. Create a Neon project at [console.neon.tech](https://console.neon.tech) and get the connection string.
-2. Set `NEON_DATABASE_URL=postgres://user:pass@host/db?sslmode=require`.
-3. Run the initial schema (one-off):
+2. Set `NEON_DATABASE_URL=postgres://user:pass@host/db?sslmode=require` in `.env`.
+3. Run migrations (auto-applies all `.sql` files in `migrations/`):
+
+```bash
+npm run db:migrate
+```
+
+The migration runner (`scripts/run-migration.ts`) automatically:
+- Discovers all `.sql` files in `migrations/` directory
+- Sorts them lexicographically
+- Tracks applied migrations in `schema_migrations` table
+- Only runs migrations that haven't been applied yet
+- Runs each migration in a transaction (rolls back on error)
+
+**Note:** Safe to run multiple times; already-applied migrations are skipped.
+
+Alternatively, you can run migrations manually:
 
 ```bash
 psql "$NEON_DATABASE_URL" -f migrations/001_initial_schema.sql
 ```
 
-Or use the Neon SQL Editor: paste contents of `001_initial_schema.sql` and run.
+Or use the Neon SQL Editor: paste contents of migration files and run.
 
 ## Seed data
 

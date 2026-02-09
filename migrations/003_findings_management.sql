@@ -1,9 +1,11 @@
 -- Full Neon findings management schema (replaces 001 finding_definitions / finding_custom_dimensions for this flow).
 -- Run after 001/002 if you need dimension_presets; this migration drops and recreates finding_* tables.
 
-drop table if exists finding_custom_dimensions;
-drop table if exists finding_dimensions_seed;
-drop table if exists finding_definitions;
+-- Drop dependent objects first (view, then tables with foreign keys, then parent table)
+drop view if exists finding_effective_dimensions cascade;
+drop table if exists finding_custom_dimensions cascade;
+drop table if exists finding_dimensions_seed cascade;
+drop table if exists finding_definitions cascade;
 
 create table finding_definitions (
   finding_id text primary key,
