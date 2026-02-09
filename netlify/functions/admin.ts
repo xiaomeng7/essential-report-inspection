@@ -55,10 +55,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const index = await getEffectiveFindingIndex();
       let effectiveDimsMap = new Map<string, { dimensions_source: string; override_version: number | null }>();
       let defs003Map = new Map<string, { updated_at: Date }>();
+      const previewDraft = params.preview === "draft" || process.env.PREVIEW_DRAFT_DIMENSIONS === "true";
       if (isDbConfigured()) {
         try {
           if (await has003Schema()) {
-            const ed = await getEffectiveDimensionsMap();
+            const ed = await getEffectiveDimensionsMap(previewDraft);
             for (const [id, v] of ed) {
               effectiveDimsMap.set(id, { dimensions_source: v.dimensions_source, override_version: v.override_version });
             }
@@ -188,7 +189,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           const defs = await getFindingDefinitionsMap();
           const def = defs.get(finding_id);
           if (!def) return json({ error: "Not found" }, 404);
-          const effectiveMap = await getEffectiveDimensionsMap();
+          const previewDraft = event.queryStringParameters?.preview === "draft" || process.env.PREVIEW_DRAFT_DIMENSIONS === "true";
+          const effectiveMap = await getEffectiveDimensionsMap(previewDraft);
           const ed = effectiveMap.get(finding_id);
           const seed = await getSeedDimensions(finding_id);
           const historyRows = await getOverrideHistory(finding_id);

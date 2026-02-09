@@ -71,10 +71,64 @@ export async function getFindingDefinitionsMap(): Promise<Map<string, FindingDef
 }
 
 /** Returns effective dimensions from view (override ?? seed) and dimensions_source. */
-export async function getEffectiveDimensionsMap(): Promise<
+export async function getEffectiveDimensionsMap(previewDraft = false): Promise<
   Map<string, { dimensions: CustomNine; dimensions_source: string; override_version: number | null }>
 > {
   const q = getSql();
+  
+  if (previewDraft) {
+    // Preview mode: prefer draft, then published, then seed
+    const rows = (await q`
+      SELECT DISTINCT ON (fd.finding_id)
+        fd.finding_id,
+        coalesce(fcd_draft.safety, fcd_pub.safety, fds.safety) as safety,
+        coalesce(fcd_draft.urgency, fcd_pub.urgency, fds.urgency) as urgency,
+        coalesce(fcd_draft.liability, fcd_pub.liability, fds.liability) as liability,
+        coalesce(fcd_draft.budget_low, fcd_pub.budget_low, fds.budget_low) as budget_low,
+        coalesce(fcd_draft.budget_high, fcd_pub.budget_high, fds.budget_high) as budget_high,
+        coalesce(fcd_draft.priority, fcd_pub.priority, fds.priority) as priority,
+        coalesce(fcd_draft.severity, fcd_pub.severity, fds.severity) as severity,
+        coalesce(fcd_draft.likelihood, fcd_pub.likelihood, fds.likelihood) as likelihood,
+        coalesce(fcd_draft.escalation, fcd_pub.escalation, fds.escalation) as escalation,
+        case 
+          when fcd_draft.id is not null then 'override'
+          when fcd_pub.id is not null then 'override'
+          else 'seed'
+        end as dimensions_source,
+        coalesce(fcd_draft.version, fcd_pub.version) as override_version
+      FROM finding_definitions fd
+      LEFT JOIN finding_dimensions_seed fds ON fds.finding_id = fd.finding_id
+      LEFT JOIN finding_custom_dimensions fcd_draft ON fcd_draft.finding_id = fd.finding_id 
+        AND fcd_draft.active = true 
+        AND fcd_draft.status = 'draft'
+      LEFT JOIN finding_custom_dimensions fcd_pub ON fcd_pub.finding_id = fd.finding_id 
+        AND fcd_pub.active = true 
+        AND fcd_pub.status = 'published'
+        AND fcd_draft.id IS NULL
+      ORDER BY fd.finding_id, CASE WHEN fcd_draft.id IS NOT NULL THEN 0 ELSE 1 END
+    `) as EffectiveDimensionsRow[];
+    const map = new Map();
+    for (const r of rows) {
+      map.set(r.finding_id, {
+        dimensions: {
+          safety: r.safety ?? undefined,
+          urgency: r.urgency ?? undefined,
+          liability: r.liability ?? undefined,
+          budget_low: r.budget_low ?? undefined,
+          budget_high: r.budget_high ?? undefined,
+          priority: r.priority ?? undefined,
+          severity: r.severity ?? undefined,
+          likelihood: r.likelihood ?? undefined,
+          escalation: r.escalation ?? undefined,
+        },
+        dimensions_source: r.dimensions_source,
+        override_version: r.override_version,
+      });
+    }
+    return map;
+  }
+  
+  // Production mode: use view (published only)
   const rows = (await q`
     SELECT finding_id, safety, urgency, liability, budget_low, budget_high,
            priority, severity, likelihood, escalation, dimensions_source, override_version
