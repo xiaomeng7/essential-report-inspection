@@ -564,9 +564,10 @@ async function buildObservedConditionsSection(
     return md.join("\n");
   }
   
-  // Load profiles and responses
-  const responses = await loadResponses(event);
-  const responsesMap: Record<string, Response> = responses.findings || {};
+  // Load profiles and messages (DB-first, YAML-fallback)
+  const findingIds = findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./getFindingMessage");
+  const responsesMap: Record<string, Response> = await getFindingMessagesBatch(findingIds);
   const profilesMap = loadFindingProfiles();
   
   // Convert findings to Finding type (preserve photo_ids, location for custom title "Asset–Condition" display)
@@ -1438,6 +1439,13 @@ export async function buildStructuredReport(
 export async function buildReportHtml(params: BuildReportMarkdownParams): Promise<string> {
   const { inspection, canonical, findings, computed, event } = params;
   
+  // Load messages: DB-first, YAML-fallback
+  const findingIds = findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./getFindingMessage");
+  const responsesMap = await getFindingMessagesBatch(findingIds);
+  // Create responses object matching expected shape for backward compatibility
+  const responses = { findings: responsesMap, defaults: params.responses?.defaults };
+  
   // Load default text
   const defaultText = await loadDefaultText(event);
   
@@ -1460,7 +1468,7 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   sections.push(PAGE_BREAK);
   
   // 3A. What This Means for You (NEW - Gold Sample inspired)
-  sections.push(buildWhatThisMeansSection(findings, params.responses, defaultText));
+  sections.push(buildWhatThisMeansSection(findings, responses, defaultText));
   sections.push(PAGE_BREAK);
   
   // 4. Priority Overview (Single Table)
@@ -1473,7 +1481,7 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   
   // 6. Observed Conditions & Risk Interpretation (Dynamic Pages)
   // This section already contains HTML from generateFindingPages
-  const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event, baseUrl, signingSecret);
+  const observedConditions = await buildObservedConditionsSection(inspection, canonical, findings, event);
   sections.push(observedConditions);
   sections.push(PAGE_BREAK);
   
@@ -1486,7 +1494,7 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   sections.push(PAGE_BREAK);
   
   // 9. 5-Year Capital Expenditure (CapEx) Roadmap
-  sections.push(buildCapExRoadmapSection(computed, defaultText, findings, params.responses));
+  sections.push(buildCapExRoadmapSection(computed, defaultText, findings, responses));
   sections.push(PAGE_BREAK);
   
   // 10. Decision Pathways (was Investor Options & Next Steps)

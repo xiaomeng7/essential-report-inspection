@@ -396,8 +396,10 @@ export async function generateDynamicFindingPages(
   baseUrl?: string,
   signingSecret?: string
 ): Promise<string> {
-  const responses = await loadResponses(event);
-  const responsesMap: Record<string, Response> = responses.findings || {};
+  // Load messages: DB-first, YAML-fallback
+  const findingIds = inspection.findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./getFindingMessage");
+  const responsesMap: Record<string, Response> = await getFindingMessagesBatch(findingIds);
   
   // Load finding profiles
   const profilesMap = loadFindingProfiles();

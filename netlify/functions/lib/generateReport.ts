@@ -210,7 +210,11 @@ function generateExecutiveDecisionSignals(
  */
 export async function buildMarkdownReport(params: GenerateReportParams): Promise<string> {
   const { inspection, findings, responses, event } = params;
-  const findingsMap = responses.findings || {};
+  
+  // Load messages: DB-first, YAML-fallback
+  const findingIds = findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./getFindingMessage");
+  const findingsMap = await getFindingMessagesBatch(findingIds);
   
   // Normalize inspection raw data to canonical fields
   const { canonical, missingFields } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
@@ -615,9 +619,11 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
       };
       
       // 如果 responses.yml 中有 budgetary_range，优先使用（向后兼容）
-      if (response.budgetary_range) {
-        if (typeof response.budgetary_range === "object" && response.budgetary_range !== null) {
-          const range = response.budgetary_range as { low?: number; high?: number; currency?: string; note?: string };
+      // Note: budgetary_range is not part of FindingMessage type, but may exist in YAML fallback
+      const responseAny = response as any;
+      if (responseAny.budgetary_range) {
+        if (typeof responseAny.budgetary_range === "object" && responseAny.budgetary_range !== null) {
+          const range = responseAny.budgetary_range as { low?: number; high?: number; currency?: string; note?: string };
           const currency = range.currency || "AUD";
           const low = range.low;
           const high = range.high;
@@ -638,7 +644,7 @@ export async function buildMarkdownReport(params: GenerateReportParams): Promise
             }
           }
         } else {
-          budgetaryRangeText = String(response.budgetary_range);
+          budgetaryRangeText = String(responseAny.budgetary_range);
         }
       } else {
         // 使用 budget level 映射

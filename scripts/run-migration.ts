@@ -33,10 +33,11 @@ async function run() {
     `);
     console.log("✅ schema_migrations table ready");
 
-    // 2. Read all .sql files from migrations/ directory
+    // 2. Read all .sql files from migrations/ directory (exclude legacy/manual files)
     const allFiles = fs.readdirSync(migrationsDir);
     const sqlFiles = allFiles
       .filter((f) => f.endsWith(".sql"))
+      .filter((f) => !f.includes("initial_schema")) // Exclude legacy/manual migration files
       .sort(); // 3. Sort lexicographically
 
     if (sqlFiles.length === 0) {

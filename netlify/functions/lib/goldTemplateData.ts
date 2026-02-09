@@ -142,9 +142,12 @@ export async function buildGoldTemplateData(
   const defaultText = await loadDefaultText(event);
   const coverData = await buildCoverData(inspection, event);
   const reportData = await buildReportData(inspection, event, { forGoldTemplate: true });
-  const responses = await loadResponses(event);
-  const findingsMap = responses.findings || {};
   const findings = inspection.findings || [];
+  
+  // Load messages: DB-first, YAML-fallback
+  const findingIds = findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./getFindingMessage");
+  const findingsMap = await getFindingMessagesBatch(findingIds);
   const { canonical } = normalizeInspection(inspection.raw || {}, inspection.inspection_id);
 
   const summaries = buildActionSummaries(findings, findingsMap);

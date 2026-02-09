@@ -1160,7 +1160,9 @@ function calculateCapExSummary(
       rangeCurrency = "AUD";
     } else {
       const response = findingsMap[finding.id];
-      const range = response?.budgetary_range;
+      // Note: budgetary_range is not part of FindingMessage type, but may exist in YAML fallback
+      const responseAny = response as any;
+      const range = responseAny?.budgetary_range;
       if (typeof range === "object" && range !== null) {
         low = typeof range.low === "number" ? range.low : 0;
         high = typeof range.high === "number" ? range.high : 0;
@@ -1214,9 +1216,6 @@ export async function buildReportData(
   event?: HandlerEvent,
   options?: BuildReportDataOptions
 ): Promise<PlaceholderReportData & Pick<InternalReportData, "capex_low_total" | "capex_high_total" | "capex_currency" | "capex_note">> {
-  const responses = await loadResponses(event);
-  const findingsMap = responses.findings || {};
-  
   // Global 9-dim overrides (Config → 9 维全局) apply to all reports
   const globalOverrides = event ? await loadFindingDimensionsGlobal(event) : {};
   // Enrich findings with priority_calculated (custom) and priority_final (all); use for report
@@ -1224,6 +1223,11 @@ export async function buildReportData(
   const effectivePriority = (f: { priority_final?: string; priority?: string }) => f.priority_final ?? f.priority ?? "PLAN_MONITOR";
   /** Findings with .priority set to effective (for functions that only read .priority) */
   const findingsWithEffectivePriority = findings.map(f => ({ ...f, priority: effectivePriority(f) }));
+
+  // Load messages: DB-first, YAML-fallback
+  const { getFindingMessagesBatch } = await import("./lib/getFindingMessage");
+  const findingIds = findings.map((f) => f.id);
+  const findingsMap = await getFindingMessagesBatch(findingIds);
 
   // Effective data: DB override first, else YAML/responses (for copy and 9 dims)
   const effectiveMap = new Map<string, Awaited<ReturnType<typeof getEffectiveFinding>>>();
@@ -1310,6 +1314,8 @@ export async function buildReportData(
     const response = findingsMap[finding.id];
     const effective = effectiveMap.get(finding.id);
     const scoringProfile = convertProfileForScoring(profile);
+    // Note: budgetary_range is not part of FindingMessage type, but may exist in YAML fallback
+    const responseAny = response as any;
 
     if (typeof finding.budget_low === "number" && typeof finding.budget_high === "number") {
       scoringProfile.budget = { low: finding.budget_low, high: finding.budget_high };
@@ -1318,8 +1324,8 @@ export async function buildReportData(
         low: typeof effective.dimensions.budget_low === "number" ? effective.dimensions.budget_low : 0,
         high: typeof effective.dimensions.budget_high === "number" ? effective.dimensions.budget_high : 0,
       };
-    } else if (response?.budgetary_range && typeof response.budgetary_range === "object") {
-      const range = response.budgetary_range;
+    } else if (responseAny?.budgetary_range && typeof responseAny.budgetary_range === "object") {
+      const range = responseAny.budgetary_range;
       if (range.low !== undefined || range.high !== undefined) {
         scoringProfile.budget = {
           low: typeof range.low === "number" ? range.low : 0,
@@ -1780,9 +1786,13 @@ export async function buildWordTemplateData(
 ): Promise<WordTemplateData> {
   // Load all data sources
   const defaultText = await loadDefaultText(event);
-  const responses = await loadResponses(event);
-  const findingsMap = responses.findings || {};
   const raw = inspection.raw;
+
+  // Load messages: DB-first, YAML-fallback
+  const findings = reportData.findings || [];
+  const findingIds = findings.map((f) => f.id);
+  const { getFindingMessagesBatch } = await import("./lib/getFindingMessage");
+  const findingsMap = await getFindingMessagesBatch(findingIds);
   
   // ========================================================================
   // PRIORITY 1: inspection.raw (basic fields)
@@ -2197,13 +2207,17 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const scoringProfile = convertProfileForScoring(profile);
       if (typeof (finding as any).budget_low === "number" && typeof (finding as any).budget_high === "number") {
         scoringProfile.budget = { low: (finding as any).budget_low, high: (finding as any).budget_high };
-      } else if (response?.budgetary_range && typeof response.budgetary_range === "object") {
-        const range = response.budgetary_range;
-        if (range.low !== undefined || range.high !== undefined) {
-          scoringProfile.budget = {
-            low: typeof range.low === "number" ? range.low : 0,
-            high: typeof range.high === "number" ? range.high : 0,
-          };
+      } else {
+        // Note: budgetary_range is not part of FindingMessage type, but may exist in YAML fallback
+        const responseAny = response as any;
+        if (responseAny?.budgetary_range && typeof responseAny.budgetary_range === "object") {
+          const range = responseAny.budgetary_range;
+          if (range.low !== undefined || range.high !== undefined) {
+            scoringProfile.budget = {
+              low: typeof range.low === "number" ? range.low : 0,
+              high: typeof range.high === "number" ? range.high : 0,
+            };
+          }
         }
       }
       profilesForScoring[finding.id] = scoringProfile;

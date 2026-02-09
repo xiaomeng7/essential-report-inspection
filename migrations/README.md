@@ -12,14 +12,15 @@ npm run db:migrate
 
 The migration runner (`scripts/run-migration.ts`) automatically:
 - Discovers all `.sql` files in `migrations/` directory
-- Sorts them lexicographically
+- **Excludes legacy/manual files:** files containing `initial_schema` in filename (e.g., `001_initial_schema.sql`) are skipped
+- Sorts remaining files lexicographically
 - Tracks applied migrations in `schema_migrations` table
 - Only runs migrations that haven't been applied yet
 - Runs each migration in a transaction (rolls back on error)
 
 **Note:** Safe to run multiple times; already-applied migrations are skipped.
 
-Alternatively, you can run migrations manually:
+**Legacy migrations:** Files like `001_initial_schema.sql` are legacy/manual migrations and will NOT be applied by the runner. If you need to run them, use `psql` or the Neon SQL Editor directly:
 
 ```bash
 psql "$NEON_DATABASE_URL" -f migrations/001_initial_schema.sql
