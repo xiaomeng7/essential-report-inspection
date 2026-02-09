@@ -511,6 +511,98 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       return json({ presets });
     }
 
+    // Publish finding messages: copy draft to published
+    if (segments[0] === "findings" && segments[1] === "messages" && segments[2] === "publish" && method === "POST") {
+      if (!isDbConfigured()) {
+        return json({ error: "Database not configured" }, 503);
+      }
+      let body: { version?: string; finding_ids?: string[]; lang?: string } = {};
+      try {
+        body = JSON.parse(event.body ?? "{}");
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const version = (body.version ?? "").trim() || new Date().toISOString().split("T")[0]; // Default to today's date
+      const findingIds = body.finding_ids ?? []; // Empty = all drafts
+      const lang = (body.lang ?? "en-AU").trim();
+
+      try {
+        const q = sql();
+        let published = 0;
+        let skipped = 0;
+        let errors: string[] = [];
+
+        // Get draft messages to publish
+        let draftQuery = q`
+          SELECT finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                 planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source
+          FROM finding_messages
+          WHERE status = 'draft' AND lang = ${lang} AND is_active = true
+        `;
+        
+        if (findingIds.length > 0) {
+          draftQuery = q`
+            SELECT finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                   planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source
+            FROM finding_messages
+            WHERE status = 'draft' AND lang = ${lang} AND finding_id = ANY(${findingIds}) AND is_active = true
+          `;
+        }
+
+        const drafts = await draftQuery;
+
+        for (const draft of drafts) {
+          const findingId = draft.finding_id as string;
+          try {
+            // Upsert: copy draft to published (replace if exists)
+            await q`
+              INSERT INTO finding_messages (
+                finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source,
+                status, version, updated_at, updated_by, is_active
+              )
+              VALUES (
+                ${findingId}, ${lang}, ${draft.title}, ${draft.observed_condition}, ${draft.why_it_matters}, ${draft.recommended_action},
+                ${draft.planning_guidance}, ${draft.priority_rationale}, ${draft.risk_interpretation}, ${draft.disclaimer_line}, ${draft.source},
+                'published', ${version}, now(), 'admin', true
+              )
+              ON CONFLICT (finding_id, lang, status) DO UPDATE SET
+                title = EXCLUDED.title,
+                observed_condition = EXCLUDED.observed_condition,
+                why_it_matters = EXCLUDED.why_it_matters,
+                recommended_action = EXCLUDED.recommended_action,
+                planning_guidance = EXCLUDED.planning_guidance,
+                priority_rationale = EXCLUDED.priority_rationale,
+                risk_interpretation = EXCLUDED.risk_interpretation,
+                disclaimer_line = EXCLUDED.disclaimer_line,
+                source = EXCLUDED.source,
+                version = EXCLUDED.version,
+                updated_at = EXCLUDED.updated_at,
+                updated_by = EXCLUDED.updated_by,
+                is_active = EXCLUDED.is_active
+            `;
+            published++;
+          } catch (e) {
+            errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+            skipped++;
+          }
+        }
+
+        return json({
+          ok: true,
+          version,
+          lang,
+          published,
+          skipped,
+          total_drafts: drafts.length,
+          errors: errors.length > 0 ? errors : undefined,
+        });
+      } catch (e) {
+        console.error("Publish messages error:", e);
+        return json({ error: "Internal server error", message: e instanceof Error ? e.message : String(e) }, 500);
+      }
+    }
+
     return json({ error: "Not found", path, method }, 404);
   } catch (e) {
     console.error("Admin API error:", e);

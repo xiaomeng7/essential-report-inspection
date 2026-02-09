@@ -75,9 +75,9 @@ async function run() {
       const result = await client.query(
         `INSERT INTO finding_messages (
           finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
-          planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source
-        ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (finding_id, lang) DO NOTHING`,
+          planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source, status
+        ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, 'published')
+        ON CONFLICT (finding_id, lang, status) DO NOTHING`,
         [
           finding_id,
           lang,

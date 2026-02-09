@@ -48,7 +48,16 @@ Optional (for admin API and Config Admin):
 
 - **ADMIN_TOKEN**: secret token for `Authorization: Bearer <token>` on `/api/admin/*` and config admin.
 
+## Migration files
+
+- `004_finding_messages.sql`: Creates `finding_messages` table for multi-language copy fields.
+- `005_finding_messages_versioning.sql`: Adds draft/published versioning to `finding_messages`:
+  - Adds `status` column ('draft'/'published')
+  - Adds `version` column for tracking published versions
+  - Changes PK to `(finding_id, lang, status)` to allow draft + published per finding
+  - Adds indexes for efficient queries
+
 ## Data flow (short)
 
 - **Blobs**: raw inspection JSON, photos, generated DOCX. Unchanged; still the source for report generation.
-- **DB**: `inspections` (metadata + `report_docx_key`), `inspection_findings` (per-finding refs), `finding_definitions` (149 findings), `finding_custom_dimensions` (Custom 9, versioned). Admin UI edits dimensions in DB; report pipeline can keep reading from Blob/config until you wire DB dimensions into it.
+- **DB**: `inspections` (metadata + `report_docx_key`), `inspection_findings` (per-finding refs), `finding_definitions` (149 findings), `finding_custom_dimensions` (Custom 9, versioned), `finding_messages` (copy fields with draft/published versioning). Admin UI edits dimensions in DB; report pipeline reads messages from DB (published only in production, draft preview in dev).
