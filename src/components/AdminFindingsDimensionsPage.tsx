@@ -69,15 +69,41 @@ export function AdminFindingsDimensionsPage({ onBack }: { onBack: () => void }) 
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (query) params.set("query", query);
+      if (query) params.set("q", query);
       if (systemGroup) params.set("system_group", systemGroup);
-      if (tagFilter) params.set("tag", tagFilter);
+      if (tagFilter) params.set("tags", tagFilter);
       const res = await fetch(`/api/admin/findings?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { findings: FindingRow[] };
-      setFindings(data.findings ?? []);
+      const data = (await res.json()) as { findings?: FindingRow[]; items?: Array<Record<string, unknown>> };
+      if (Array.isArray(data.items)) {
+        const rows: FindingRow[] = data.items.map((it) => {
+          const dims = (it.dimensions_effective as Record<string, unknown>) ?? {};
+          return {
+            finding_id: String(it.finding_id ?? ""),
+            title_en: String(it.title ?? ""),
+            system_group: (it.system_group as string) ?? null,
+            space_group: (it.space_group as string) ?? null,
+            tags: Array.isArray(it.tags) ? (it.tags as string[]) : null,
+            safety: (dims.safety as string) ?? null,
+            urgency: (dims.urgency as string) ?? null,
+            liability: (dims.liability as string) ?? null,
+            budget_low: dims.budget_low != null ? Number(dims.budget_low) : null,
+            budget_high: dims.budget_high != null ? Number(dims.budget_high) : null,
+            priority: (dims.priority as string) ?? null,
+            severity: dims.severity != null ? Number(dims.severity) : null,
+            likelihood: dims.likelihood != null ? Number(dims.likelihood) : null,
+            escalation: (dims.escalation as string) ?? null,
+            needs_review: null,
+            version: (it.override_version as number) ?? null,
+            is_active: (it.dimensions_source as string) === "override" ? true : null,
+          };
+        });
+        setFindings(rows);
+      } else {
+        setFindings(data.findings ?? []);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setFindings([]);

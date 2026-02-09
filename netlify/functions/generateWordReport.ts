@@ -17,6 +17,7 @@ import { sha1 } from "./lib/fingerprint";
 import { getSanitizeFingerprint, resetSanitizeFingerprint } from "./lib/sanitizeText";
 import { normalizeInspection, type CanonicalInspection } from "./lib/normalizeInspection";
 import { loadFindingProfiles, getFindingProfile, type FindingProfile } from "./lib/findingProfilesLoader";
+import { getEffectiveFinding } from "./lib/getEffectiveFindingData";
 import { computeOverall, convertProfileForScoring, findingScore, type FindingForScoring } from "./lib/scoring";
 import { generateExecutiveSignals, type TopFinding } from "./lib/executiveSignals";
 import { generateDynamicFindingPages } from "./lib/generateDynamicFindingPages";
@@ -1208,7 +1209,11 @@ export type BuildReportDataOptions = {
  * Returns all placeholders used in Gold_Sample_Ideal_Report_Template.docx
  * All fields are guaranteed to be strings (never undefined)
  */
-export async function buildReportData(inspection: StoredInspection, event?: HandlerEvent, options?: BuildReportDataOptions): Promise<PlaceholderReportData> {
+export async function buildReportData(
+  inspection: StoredInspection,
+  event?: HandlerEvent,
+  options?: BuildReportDataOptions
+): Promise<PlaceholderReportData & Pick<InternalReportData, "capex_low_total" | "capex_high_total" | "capex_currency" | "capex_note">> {
   const responses = await loadResponses(event);
   const findingsMap = responses.findings || {};
   
@@ -1220,10 +1225,23 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
   /** Findings with .priority set to effective (for functions that only read .priority) */
   const findingsWithEffectivePriority = findings.map(f => ({ ...f, priority: effectivePriority(f) }));
 
-  // Load finding profiles
+  // Effective data: DB override first, else YAML/responses (for copy and 9 dims)
+  const effectiveMap = new Map<string, Awaited<ReturnType<typeof getEffectiveFinding>>>();
+  try {
+    for (const f of findings) {
+      if (!effectiveMap.has(f.id)) {
+        const ef = await getEffectiveFinding(f.id);
+        if (ef) effectiveMap.set(f.id, ef);
+      }
+    }
+  } catch (e) {
+    console.warn("[buildReportData] getEffectiveFinding fallback to YAML:", e);
+  }
+
+  // Load finding profiles (fallback when effective missing)
   const profiles = loadFindingProfiles();
   
-  // Group findings by priority and use standardized text from responses.yml
+  // Group findings by priority and use standardized text from responses.yml or effective definition
   const immediate: string[] = [];
   const recommended: string[] = [];
   const plan: string[] = [];
@@ -1237,29 +1255,30 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     const findingCode = finding.id;
     const priority = effectivePriority(finding);
     const findingResponse = findingsMap[findingCode];
+    const effective = effectiveMap.get(findingCode);
     
-    // Use standardized text from responses.yml if available, otherwise fallback to title or id
+    // Copy/title: effective definition first, else responses.yml, else profile
     let findingText: string;
-    if (findingResponse && findingResponse.title) {
+    if (effective?.definition?.title_en) {
+      findingText = effective.definition.title_en;
+    } else if (findingResponse && findingResponse.title) {
       findingText = findingResponse.title;
     } else {
       findingText = finding.title || findingCode.replace(/_/g, " ");
     }
     
-    // Get profile for this finding (new structure)
     const profile = getFindingProfile(findingCode);
+    const findingTitle = effective?.definition?.title_en ?? profile.messaging?.title ?? findingText;
+    const dims = effective?.dimensions;
     
-    // Use profile.messaging.title if available
-    const findingTitle = profile.messaging?.title || findingText;
-    
-    // Create extended finding (use priority_final for report)
+    // Create extended finding (use priority_final for report); 9 dims from effective else profile
     const extendedFinding: ExtendedFinding = {
       id: findingCode,
       priority,
       title: findingTitle,
-      risk_safety: profile.risk?.safety || "LOW",
-      risk_compliance: profile.risk?.compliance || "LOW",
-      risk_escalation: profile.risk?.escalation || "LOW",
+      risk_safety: dims?.safety ?? profile.risk?.safety ?? "LOW",
+      risk_compliance: dims?.liability ?? profile.risk?.compliance ?? "LOW",
+      risk_escalation: dims?.escalation ?? profile.risk?.escalation ?? "LOW",
       budget: profile.budget || "horizon",
       category: profile.category || "OTHER",
     };
@@ -1284,15 +1303,21 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     priority: effectivePriority(f),
   }));
   
-  // Convert profiles to scoring format; prefer custom budget_low/high, else responses.yml
+  // Convert profiles to scoring format; prefer effective/custom budget_low/high, else responses.yml
   const profilesForScoring: Record<string, any> = {};
   for (const finding of findings) {
     const profile = getFindingProfile(finding.id);
     const response = findingsMap[finding.id];
+    const effective = effectiveMap.get(finding.id);
     const scoringProfile = convertProfileForScoring(profile);
 
     if (typeof finding.budget_low === "number" && typeof finding.budget_high === "number") {
       scoringProfile.budget = { low: finding.budget_low, high: finding.budget_high };
+    } else if (effective?.dimensions?.budget_low != null || effective?.dimensions?.budget_high != null) {
+      scoringProfile.budget = {
+        low: typeof effective.dimensions.budget_low === "number" ? effective.dimensions.budget_low : 0,
+        high: typeof effective.dimensions.budget_high === "number" ? effective.dimensions.budget_high : 0,
+      };
     } else if (response?.budgetary_range && typeof response.budgetary_range === "object") {
       const range = response.budgetary_range;
       if (range.low !== undefined || range.high !== undefined) {
@@ -1623,7 +1648,13 @@ export async function buildReportData(inspection: StoredInspection, event?: Hand
     }
   }
   
-  return sanitized as PlaceholderReportData;
+  // Attach capex totals for consumers (e.g. generateReport Markdown)
+  (sanitized as Record<string, unknown>).capex_low_total = capexSummaryEarly.low_total;
+  (sanitized as Record<string, unknown>).capex_high_total = capexSummaryEarly.high_total;
+  (sanitized as Record<string, unknown>).capex_currency = capexSummaryEarly.currency || "AUD";
+  (sanitized as Record<string, unknown>).capex_note = capexSummaryEarly.note ?? "";
+  
+  return sanitized as PlaceholderReportData & Pick<InternalReportData, "capex_low_total" | "capex_high_total" | "capex_currency" | "capex_note">;
 }
 
 /**

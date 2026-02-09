@@ -95,6 +95,8 @@ function loadOTRMapping(): OTRMapping {
  * Extended finding type with OTR metadata (backward compatible)
  */
 export type FindingWithOTR = StoredFinding & {
+  observed?: string;
+  facts?: string;
   otr_category?: string;
   as3000_reference?: string;
 };

@@ -40,7 +40,8 @@ export const handler: Handler = async () => {
   try {
     const sql = neon(url);
     const rows = await sql`select now() as now, current_database() as db`;
-    return json({ ok: true, rows });
+    const t = await sql`select tablename from pg_tables where schemaname='public' and tablename like 'finding_%'`;
+    return json({ ok: true, rows, finding_tables: t });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
     return json(

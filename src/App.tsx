@@ -4,6 +4,7 @@ import { ReviewPage } from "./components/ReviewPage";
 import { SuccessPage } from "./components/SuccessPage";
 import { ConfigAdmin } from "./components/ConfigAdmin";
 import { AdminFindingsDimensionsPage } from "./components/AdminFindingsDimensionsPage";
+import { AdminFindingsPage } from "./components/AdminFindingsPage";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -81,6 +82,7 @@ function App() {
   const isSuccessRoute = pathname.startsWith("/success/");
   const isFindingsDebugRoute = pathname === "/admin/findings-debug" || pathname.startsWith("/admin/findings-debug");
   const isFindingsDimsRoute = pathname === "/admin/findings-dims" || pathname.startsWith("/admin/findings-dims");
+  const isAdminFindingsRoute = pathname === "/admin/findings" || pathname.startsWith("/admin/findings/");
   const isConfigAdminRoute = pathname === "/admin/config" || pathname.startsWith("/admin/config/");
   const isAdminRoute = pathname === "/admin/rules" || pathname.startsWith("/admin/rules/");
   const idFromRoute = isReviewRoute ? pathname.replace(/^\/review\//, "") : null;
@@ -132,6 +134,17 @@ function App() {
     }
     return (
       <ConfigAdmin
+        onBack={() => {
+          window.history.replaceState(null, "", "/");
+          setPathname("/");
+        }}
+      />
+    );
+  }
+
+  if (isAdminFindingsRoute) {
+    return (
+      <AdminFindingsPage
         onBack={() => {
           window.history.replaceState(null, "", "/");
           setPathname("/");
