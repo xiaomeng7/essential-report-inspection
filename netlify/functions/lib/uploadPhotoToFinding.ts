@@ -6,6 +6,8 @@
 
 import type { HandlerEvent } from "@netlify/functions";
 import { get, save, savePhoto, allocatePhotoId, photoKeyExists, type PhotoMetadata } from "./store";
+import { upsertInspectionPhotos, touchInspectionUpdatedAt } from "./dbInspectionsCore";
+import { isDbConfigured } from "./db";
 
 const MAX_PHOTOS_PER_FINDING = 2;
 const ALLOCATE_RETRIES = 3;
@@ -63,6 +65,22 @@ export async function uploadPhotoToFinding(
   const newPhotoIds = [...existingPhotoIds, photoId];
   (finding as any).photo_ids = newPhotoIds;
   await save(inspection_id, inspection, event);
+
+  // Best-effort DB persistence (non-blocking)
+  try {
+    if (isDbConfigured()) {
+      await upsertInspectionPhotos(inspection_id, [{
+        photo_id: photoId,
+        finding_id: finding_id,
+        room_name: (finding as any).location || null,
+        caption: metadata.caption || null,
+        blob_key: metadata.blob_key || null,
+      }]);
+      await touchInspectionUpdatedAt(inspection_id);
+    }
+  } catch (e) {
+    console.error("[db-inspections] upsertInspectionPhotos failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
 
   return photoId;
 }

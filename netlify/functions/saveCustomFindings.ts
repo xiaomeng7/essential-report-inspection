@@ -3,6 +3,8 @@ import { get, save } from "./lib/store";
 import { getRoomLocationAndPhotos } from "./lib/deriveCustomFindings";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
 import { upsertInspectionFindings } from "./lib/dbInspection";
+import { upsertInspectionFindings as upsertInspectionFindingsCore, upsertInspectionPhotos, touchInspectionUpdatedAt } from "./lib/dbInspectionsCore";
+import { isDbConfigured } from "./lib/db";
 
 type CustomFindingInput = {
   id: string;
@@ -131,7 +133,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
   }
 
+  // Best-effort DB persistence (non-blocking)
   try {
+    // Legacy DB call (keep for backward compatibility)
     await upsertInspectionFindings(
       inspection_id,
       customFindings.map((cf) => {
@@ -147,8 +151,44 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         };
       })
     );
+    
+    // New DB core tables (008 schema)
+    if (isDbConfigured()) {
+      // Upsert custom findings
+      const customFindingsData = customFindings.map((cf) => ({
+        finding_id: cf.id,
+        priority: cf.priority ?? null,
+        is_custom: true,
+      }));
+      const findingsCount = await upsertInspectionFindingsCore(inspection_id, customFindingsData);
+      
+      // Update photos mapping for custom findings
+      const photosData: Array<{ photo_id: string; finding_id?: string | null; room_name?: string | null; caption?: string | null; blob_key?: string | null }> = [];
+      for (const cf of customFindings) {
+        const existingF = mergedFindings.find((x) => x.id === cf.id);
+        const photoIds = existingF?.photo_ids ?? [];
+        const { location } = getRoomLocationAndPhotos(raw, cf.id);
+        for (const photoId of photoIds) {
+          if (typeof photoId === 'string' && photoId.trim()) {
+            photosData.push({
+              photo_id: photoId,
+              finding_id: cf.id,
+              room_name: location || null,
+              caption: null,
+              blob_key: `photos/${inspection_id}/${photoId}.jpg`,
+            });
+          }
+        }
+      }
+      const photosCount = await upsertInspectionPhotos(inspection_id, photosData);
+      
+      // Touch updated_at
+      await touchInspectionUpdatedAt(inspection_id);
+      
+      console.log(`[db-inspections] updated inspection_id=${inspection_id} findings=${findingsCount} photos=${photosCount}`);
+    }
   } catch (e) {
-    console.error("[saveCustomFindings] DB upsert inspection_findings failed (non-fatal):", e);
+    console.error("[db-inspections] DB persistence failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 
   return {

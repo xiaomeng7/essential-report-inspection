@@ -8,6 +8,9 @@ import { getBaseUrl } from "./lib/baseUrl";
 import { generateMarkdownWordBuffer } from "./generateMarkdownWord";
 import { logWordReport } from "./lib/wordReportLog";
 import { upsertInspection, updateInspectionReportKey, upsertInspectionFindings } from "./lib/dbInspection";
+import { upsertInspectionCore, upsertInspectionFindings as upsertInspectionFindingsCore, upsertInspectionPhotos } from "./lib/dbInspectionsCore";
+import { normalizeInspection } from "./lib/normalizeInspection";
+import { isDbConfigured } from "./lib/db";
 
 const WORD_GENERATE_TIMEOUT_MS = 12_000;
 
@@ -163,6 +166,79 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }, event);
     console.log("Inspection saved successfully");
 
+    // Best-effort DB persistence (non-blocking)
+    try {
+      if (isDbConfigured()) {
+        const { canonical } = normalizeInspection(raw, inspection_id);
+        const jobRaw = raw.job as Record<string, unknown> | undefined;
+        const signoffRaw = raw.signoff as Record<string, unknown> | undefined;
+        
+        // Extract basic fields
+        const preparedBy = signoffRaw?.technician_name != null ? extractValue(signoffRaw.technician_name) : undefined;
+        const preparedFor = jobRaw?.address != null ? extractValue(jobRaw.address) : undefined;
+        const propertyAddress = canonical.property_address || (preparedFor ? String(preparedFor) : null);
+        const propertyType = canonical.property_type || (jobRaw?.property_type != null ? String(extractValue(jobRaw.property_type)) : null);
+        
+        // Calculate overall_status and risk_rating from findings
+        const hasImmediate = findings.some(f => f.priority === "IMMEDIATE" || f.priority === "URGENT");
+        const hasRecommended = findings.some(f => f.priority === "RECOMMENDED_0_3_MONTHS");
+        const overallStatus = hasImmediate ? "HIGH RISK" : hasRecommended ? "MODERATE RISK" : "LOW RISK";
+        const riskRating = hasImmediate ? "HIGH" : hasRecommended ? "MODERATE" : "LOW";
+        
+        // Calculate capex (simplified - will be recalculated in report generation)
+        // For now, set to null; can be updated later when report is generated
+        const capexLow = null;
+        const capexHigh = null;
+        
+        // Upsert inspection core
+        const inspectionCoreCount = await upsertInspectionCore({
+          inspection_id,
+          assessment_date: canonical.assessment_date || (raw.created_at as string) || new Date().toISOString().split('T')[0],
+          prepared_for: preparedFor != null ? String(preparedFor) : null,
+          prepared_by: preparedBy != null ? String(preparedBy) : null,
+          property_address: propertyAddress,
+          property_type: propertyType,
+          overall_status: overallStatus,
+          risk_rating: riskRating,
+          capex_low: capexLow,
+          capex_high: capexHigh,
+          source: 'netlify',
+          raw_json: raw,
+        });
+        
+        // Upsert findings
+        const findingsData = findings.map((f) => ({
+          finding_id: f.id,
+          priority: f.priority ?? null,
+          is_custom: false,
+        }));
+        const findingsCount = await upsertInspectionFindingsCore(inspection_id, findingsData);
+        
+        // Collect photos from findings
+        const photosData: Array<{ photo_id: string; finding_id?: string | null; room_name?: string | null; caption?: string | null; blob_key?: string | null }> = [];
+        for (const f of findings) {
+          const photoIds = f.photo_ids ?? [];
+          for (const photoId of photoIds) {
+            if (typeof photoId === 'string' && photoId.trim()) {
+              photosData.push({
+                photo_id: photoId,
+                finding_id: f.id,
+                room_name: f.location || null,
+                caption: null, // Can be enriched later from photo metadata
+                blob_key: `photos/${inspection_id}/${photoId}.jpg`, // Default extension
+              });
+            }
+          }
+        }
+        const photosCount = await upsertInspectionPhotos(inspection_id, photosData);
+        
+        console.log(`[db-inspections] inserted inspection_id=${inspection_id} core=${inspectionCoreCount} findings=${findingsCount} photos=${photosCount}`);
+      }
+    } catch (dbErr) {
+      console.error("[db-inspections] DB persistence failed (non-fatal):", dbErr instanceof Error ? dbErr.message : String(dbErr));
+    }
+
+    // Legacy DB calls (keep for backward compatibility)
     const jobRaw = raw.job as Record<string, unknown> | undefined;
     const signoffRaw = raw.signoff as Record<string, unknown> | undefined;
     const preparedBy = signoffRaw?.technician_name != null ? extractValue(signoffRaw.technician_name) : undefined;
