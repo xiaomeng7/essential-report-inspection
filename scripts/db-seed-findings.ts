@@ -78,6 +78,11 @@ async function run() {
       {};
 
     const classification = classifyFinding(finding_id);
+    // Ensure non-empty values: defaults if classification returns empty/null
+    const system_group = classification.system_group && classification.system_group.trim() ? classification.system_group.trim() : "other";
+    const space_group = classification.space_group && classification.space_group.trim() ? classification.space_group.trim() : "general";
+    const tags = Array.isArray(classification.tags) && classification.tags.length > 0 ? classification.tags : [];
+    
     const title = nonEmpty(resp.title) ?? nonEmpty(msg.title) ?? finding_id.replace(/_/g, " ");
     const why_it_matters = nonEmpty(resp.why_it_matters) ?? nonEmpty(msg.why_it_matters);
     const recommended_action = nonEmpty(resp.recommended_action);
@@ -100,9 +105,21 @@ async function run() {
           finding_id, system_group, space_group, tags, title, why_it_matters, recommended_action, planning_guidance, source, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'seed', now())
         ON CONFLICT (finding_id) DO UPDATE SET
-          system_group = CASE WHEN finding_definitions.source = 'manual' THEN finding_definitions.system_group ELSE EXCLUDED.system_group END,
-          space_group = CASE WHEN finding_definitions.source = 'manual' THEN finding_definitions.space_group ELSE EXCLUDED.space_group END,
-          tags = CASE WHEN finding_definitions.source = 'manual' THEN finding_definitions.tags ELSE EXCLUDED.tags END,
+          system_group = CASE 
+            WHEN finding_definitions.source = 'manual' THEN finding_definitions.system_group 
+            WHEN finding_definitions.system_group IS NULL OR TRIM(finding_definitions.system_group) = '' THEN COALESCE(NULLIF(TRIM(EXCLUDED.system_group), ''), 'other')
+            ELSE COALESCE(NULLIF(TRIM(EXCLUDED.system_group), ''), finding_definitions.system_group)
+          END,
+          space_group = CASE 
+            WHEN finding_definitions.source = 'manual' THEN finding_definitions.space_group 
+            WHEN finding_definitions.space_group IS NULL OR TRIM(finding_definitions.space_group) = '' THEN COALESCE(NULLIF(TRIM(EXCLUDED.space_group), ''), 'general')
+            ELSE COALESCE(NULLIF(TRIM(EXCLUDED.space_group), ''), finding_definitions.space_group)
+          END,
+          tags = CASE 
+            WHEN finding_definitions.source = 'manual' THEN finding_definitions.tags 
+            WHEN finding_definitions.tags IS NULL OR array_length(finding_definitions.tags, 1) IS NULL THEN EXCLUDED.tags
+            ELSE EXCLUDED.tags
+          END,
           title = COALESCE(NULLIF(TRIM(finding_definitions.title), ''), EXCLUDED.title),
           why_it_matters = COALESCE(NULLIF(TRIM(finding_definitions.why_it_matters), ''), EXCLUDED.why_it_matters),
           recommended_action = COALESCE(NULLIF(TRIM(finding_definitions.recommended_action), ''), EXCLUDED.recommended_action),
@@ -110,9 +127,9 @@ async function run() {
           updated_at = now()`,
         [
           finding_id,
-          classification.system_group,
-          classification.space_group,
-          classification.tags,
+          system_group,
+          space_group,
+          tags,
           title,
           why_it_matters,
           recommended_action,
