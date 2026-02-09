@@ -8,6 +8,7 @@ import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { sql, isDbConfigured, getActiveDimensionsMetaMap } from "./lib/db";
 import { has003Schema, getFindingDefinitionsMap, getEffectiveDimensionsMap, getOverrideHistory, getSeedDimensions } from "./lib/dbFindings";
 import { getEffectiveFindingIndex, clearEffectiveFindingCache } from "./lib/getEffectiveFindingData";
+import { logChange } from "./lib/audit";
 
 function checkAuth(event: HandlerEvent): boolean {
   const auth = event.headers.authorization || event.headers.Authorization;
@@ -556,6 +557,47 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         for (const draft of drafts) {
           const findingId = draft.finding_id as string;
           try {
+            // Load current published row (if exists) for audit log
+            const currentPublished = await q`
+              SELECT finding_id, version, safety, urgency, liability, budget_low, budget_high,
+                     priority, severity, likelihood, escalation, note, updated_by, version_text
+              FROM finding_custom_dimensions
+              WHERE finding_id = ${findingId} AND status = 'published' AND active = true
+              LIMIT 1
+            `;
+            
+            const beforeSnapshot = currentPublished.length > 0 ? {
+              version: currentPublished[0].version,
+              safety: currentPublished[0].safety,
+              urgency: currentPublished[0].urgency,
+              liability: currentPublished[0].liability,
+              budget_low: currentPublished[0].budget_low,
+              budget_high: currentPublished[0].budget_high,
+              priority: currentPublished[0].priority,
+              severity: currentPublished[0].severity,
+              likelihood: currentPublished[0].likelihood,
+              escalation: currentPublished[0].escalation,
+              note: currentPublished[0].note,
+              updated_by: currentPublished[0].updated_by,
+              version_text: currentPublished[0].version_text,
+            } : null;
+            
+            const afterSnapshot = {
+              version: draft.version,
+              safety: draft.safety,
+              urgency: draft.urgency,
+              liability: draft.liability,
+              budget_low: draft.budget_low,
+              budget_high: draft.budget_high,
+              priority: draft.priority,
+              severity: draft.severity,
+              likelihood: draft.likelihood,
+              escalation: draft.escalation,
+              note: draft.note,
+              updated_by: draft.updated_by ?? 'admin',
+              version_text: versionText,
+            };
+            
             // Deactivate existing published override for this finding
             await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${findingId} AND status = 'published'`;
             
@@ -572,6 +614,21 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
                 ${draft.note}, ${draft.updated_by ?? 'admin'}, 'published', ${versionText}, now(), now()
               )
             `;
+            
+            // Log audit entry
+            await logChange({
+              entity_type: "dimensions",
+              finding_id: findingId,
+              action: "publish",
+              from_version: beforeSnapshot?.version_text ?? null,
+              to_version: versionText,
+              actor: draft.updated_by ?? 'admin',
+              diff_json: {
+                before: beforeSnapshot,
+                after: afterSnapshot,
+              },
+            });
+            
             published++;
           } catch (e) {
             errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
@@ -637,6 +694,41 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         for (const draft of drafts) {
           const findingId = draft.finding_id as string;
           try {
+            // Load current published row (if exists) for audit log
+            const currentPublished = await q`
+              SELECT finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                     planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source, version
+              FROM finding_messages
+              WHERE finding_id = ${findingId} AND lang = ${lang} AND status = 'published' AND is_active = true
+              LIMIT 1
+            `;
+            
+            const beforeSnapshot = currentPublished.length > 0 ? {
+              title: currentPublished[0].title,
+              observed_condition: currentPublished[0].observed_condition,
+              why_it_matters: currentPublished[0].why_it_matters,
+              recommended_action: currentPublished[0].recommended_action,
+              planning_guidance: currentPublished[0].planning_guidance,
+              priority_rationale: currentPublished[0].priority_rationale,
+              risk_interpretation: currentPublished[0].risk_interpretation,
+              disclaimer_line: currentPublished[0].disclaimer_line,
+              source: currentPublished[0].source,
+              version: currentPublished[0].version,
+            } : null;
+            
+            const afterSnapshot = {
+              title: draft.title,
+              observed_condition: draft.observed_condition,
+              why_it_matters: draft.why_it_matters,
+              recommended_action: draft.recommended_action,
+              planning_guidance: draft.planning_guidance,
+              priority_rationale: draft.priority_rationale,
+              risk_interpretation: draft.risk_interpretation,
+              disclaimer_line: draft.disclaimer_line,
+              source: draft.source,
+              version: version,
+            };
+            
             // Upsert: copy draft to published (replace if exists)
             await q`
               INSERT INTO finding_messages (
@@ -664,6 +756,22 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
                 updated_by = EXCLUDED.updated_by,
                 is_active = EXCLUDED.is_active
             `;
+            
+            // Log audit entry
+            await logChange({
+              entity_type: "messages",
+              finding_id: findingId,
+              lang: lang,
+              action: "publish",
+              from_version: beforeSnapshot?.version ?? null,
+              to_version: version,
+              actor: "admin",
+              diff_json: {
+                before: beforeSnapshot,
+                after: afterSnapshot,
+              },
+            });
+            
             published++;
           } catch (e) {
             errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
@@ -682,6 +790,324 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         });
       } catch (e) {
         console.error("Publish messages error:", e);
+        return json({ error: "Internal server error", message: e instanceof Error ? e.message : String(e) }, 500);
+      }
+    }
+
+    // Rollback finding messages: restore previous published version
+    if (segments[0] === "findings" && segments[1] === "messages" && segments[2] === "rollback" && method === "POST") {
+      if (!isDbConfigured()) {
+        return json({ error: "Database not configured" }, 503);
+      }
+      let body: { version?: string; finding_ids?: string[]; lang?: string } = {};
+      try {
+        body = JSON.parse(event.body ?? "{}");
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const version = (body.version ?? "").trim();
+      if (!version) {
+        return json({ error: "version is required" }, 400);
+      }
+      const findingIds = body.finding_ids ?? [];
+      const lang = (body.lang ?? "en-AU").trim();
+
+      try {
+        const q = sql();
+        let rolledBack = 0;
+        let skipped = 0;
+        let errors: string[] = [];
+
+        // Get publish log entries for rollback
+        const { getLastPublishLog } = await import("./lib/audit");
+        
+        if (findingIds.length > 0) {
+          for (const findingId of findingIds) {
+            const logEntry = await getLastPublishLog("messages", version, findingId, lang);
+            if (!logEntry || !logEntry.diff_json.before) {
+              skipped++;
+              continue;
+            }
+            
+            try {
+              const before = logEntry.diff_json.before as Record<string, unknown>;
+              
+              // Restore "before" snapshot to published
+              await q`
+                INSERT INTO finding_messages (
+                  finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                  planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source,
+                  status, version, updated_at, updated_by, is_active
+                )
+                VALUES (
+                  ${findingId}, ${lang}, ${before.title ?? null}, ${JSON.stringify(before.observed_condition ?? null)}::jsonb, 
+                  ${before.why_it_matters ?? null}, ${before.recommended_action ?? null},
+                  ${before.planning_guidance ?? null}, ${before.priority_rationale ?? null}, 
+                  ${before.risk_interpretation ?? null}, ${before.disclaimer_line ?? null}, ${before.source ?? 'seed:responses.yml'},
+                  'published', ${before.version ?? null}, now(), 'admin', true
+                )
+                ON CONFLICT (finding_id, lang, status) DO UPDATE SET
+                  title = EXCLUDED.title,
+                  observed_condition = EXCLUDED.observed_condition,
+                  why_it_matters = EXCLUDED.why_it_matters,
+                  recommended_action = EXCLUDED.recommended_action,
+                  planning_guidance = EXCLUDED.planning_guidance,
+                  priority_rationale = EXCLUDED.priority_rationale,
+                  risk_interpretation = EXCLUDED.risk_interpretation,
+                  disclaimer_line = EXCLUDED.disclaimer_line,
+                  source = EXCLUDED.source,
+                  version = EXCLUDED.version,
+                  updated_at = EXCLUDED.updated_at,
+                  updated_by = EXCLUDED.updated_by,
+                  is_active = EXCLUDED.is_active
+              `;
+              
+              // Log rollback
+              await logChange({
+                entity_type: "messages",
+                finding_id: findingId,
+                lang: lang,
+                action: "rollback",
+                from_version: version,
+                to_version: (before.version as string) ?? null,
+                actor: "admin",
+                diff_json: {
+                  before: logEntry.diff_json.after,
+                  after: before,
+                },
+              });
+              
+              rolledBack++;
+            } catch (e) {
+              errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+              skipped++;
+            }
+          }
+        } else {
+          // Bulk rollback: find all publish logs for this version
+          const allLogs = await q`
+            SELECT DISTINCT finding_id, lang
+            FROM finding_change_log
+            WHERE entity_type = 'messages' AND to_version = ${version} AND action = 'publish'
+          `;
+          
+          for (const logRow of allLogs) {
+            const findingId = logRow.finding_id as string;
+            const logLang = (logRow.lang as string) ?? lang;
+            const logEntry = await getLastPublishLog("messages", version, findingId, logLang);
+            if (!logEntry || !logEntry.diff_json.before) {
+              skipped++;
+              continue;
+            }
+            
+            try {
+              const before = logEntry.diff_json.before as Record<string, unknown>;
+              
+              await q`
+                INSERT INTO finding_messages (
+                  finding_id, lang, title, observed_condition, why_it_matters, recommended_action,
+                  planning_guidance, priority_rationale, risk_interpretation, disclaimer_line, source,
+                  status, version, updated_at, updated_by, is_active
+                )
+                VALUES (
+                  ${findingId}, ${logLang}, ${before.title ?? null}, ${JSON.stringify(before.observed_condition ?? null)}::jsonb, 
+                  ${before.why_it_matters ?? null}, ${before.recommended_action ?? null},
+                  ${before.planning_guidance ?? null}, ${before.priority_rationale ?? null}, 
+                  ${before.risk_interpretation ?? null}, ${before.disclaimer_line ?? null}, ${before.source ?? 'seed:responses.yml'},
+                  'published', ${before.version ?? null}, now(), 'admin', true
+                )
+                ON CONFLICT (finding_id, lang, status) DO UPDATE SET
+                  title = EXCLUDED.title,
+                  observed_condition = EXCLUDED.observed_condition,
+                  why_it_matters = EXCLUDED.why_it_matters,
+                  recommended_action = EXCLUDED.recommended_action,
+                  planning_guidance = EXCLUDED.planning_guidance,
+                  priority_rationale = EXCLUDED.priority_rationale,
+                  risk_interpretation = EXCLUDED.risk_interpretation,
+                  disclaimer_line = EXCLUDED.disclaimer_line,
+                  source = EXCLUDED.source,
+                  version = EXCLUDED.version,
+                  updated_at = EXCLUDED.updated_at,
+                  updated_by = EXCLUDED.updated_by,
+                  is_active = EXCLUDED.is_active
+              `;
+              
+              await logChange({
+                entity_type: "messages",
+                finding_id: findingId,
+                lang: logLang,
+                action: "rollback",
+                from_version: version,
+                to_version: (before.version as string) ?? null,
+                actor: "admin",
+                diff_json: {
+                  before: logEntry.diff_json.after,
+                  after: before,
+                },
+              });
+              
+              rolledBack++;
+            } catch (e) {
+              errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+              skipped++;
+            }
+          }
+        }
+
+        return json({
+          ok: true,
+          version,
+          lang,
+          rolled_back: rolledBack,
+          skipped,
+          errors: errors.length > 0 ? errors : undefined,
+        });
+      } catch (e) {
+        console.error("Rollback messages error:", e);
+        return json({ error: "Internal server error", message: e instanceof Error ? e.message : String(e) }, 500);
+      }
+    }
+
+    // Rollback finding dimensions: restore previous published version
+    if (segments[0] === "findings" && segments[1] === "dimensions" && segments[2] === "rollback" && method === "POST") {
+      if (!isDbConfigured()) {
+        return json({ error: "Database not configured" }, 503);
+      }
+      let body: { version?: string; finding_ids?: string[] } = {};
+      try {
+        body = JSON.parse(event.body ?? "{}");
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const version = (body.version ?? "").trim();
+      if (!version) {
+        return json({ error: "version is required" }, 400);
+      }
+      const findingIds = body.finding_ids ?? [];
+
+      try {
+        const q = sql();
+        let rolledBack = 0;
+        let skipped = 0;
+        let errors: string[] = [];
+
+        const { getLastPublishLog } = await import("./lib/audit");
+        
+        if (findingIds.length > 0) {
+          for (const findingId of findingIds) {
+            const logEntry = await getLastPublishLog("dimensions", version, findingId);
+            if (!logEntry || !logEntry.diff_json.before) {
+              skipped++;
+              continue;
+            }
+            
+            try {
+              const before = logEntry.diff_json.before as Record<string, unknown>;
+              
+              // Deactivate current published
+              await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${findingId} AND status = 'published'`;
+              
+              // Restore "before" snapshot to published
+              await q`
+                INSERT INTO finding_custom_dimensions (
+                  finding_id, version, active, safety, urgency, liability, budget_low, budget_high,
+                  priority, severity, likelihood, escalation, note, updated_by, status, version_text, created_at, updated_at
+                )
+                VALUES (
+                  ${findingId}, ${before.version ?? 1}, true,
+                  ${before.safety ?? null}, ${before.urgency ?? null}, ${before.liability ?? null}, 
+                  ${before.budget_low ?? null}, ${before.budget_high ?? null},
+                  ${before.priority ?? null}, ${before.severity ?? null}, ${before.likelihood ?? null}, ${before.escalation ?? null},
+                  ${before.note ?? null}, ${before.updated_by ?? 'admin'}, 'published', ${before.version_text ?? null}, now(), now()
+                )
+              `;
+              
+              // Log rollback
+              await logChange({
+                entity_type: "dimensions",
+                finding_id: findingId,
+                action: "rollback",
+                from_version: version,
+                to_version: (before.version_text as string) ?? null,
+                actor: "admin",
+                diff_json: {
+                  before: logEntry.diff_json.after,
+                  after: before,
+                },
+              });
+              
+              rolledBack++;
+            } catch (e) {
+              errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+              skipped++;
+            }
+          }
+        } else {
+          // Bulk rollback
+          const allLogs = await q`
+            SELECT DISTINCT finding_id
+            FROM finding_change_log
+            WHERE entity_type = 'dimensions' AND to_version = ${version} AND action = 'publish'
+          `;
+          
+          for (const logRow of allLogs) {
+            const findingId = logRow.finding_id as string;
+            const logEntry = await getLastPublishLog("dimensions", version, findingId);
+            if (!logEntry || !logEntry.diff_json.before) {
+              skipped++;
+              continue;
+            }
+            
+            try {
+              const before = logEntry.diff_json.before as Record<string, unknown>;
+              
+              await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${findingId} AND status = 'published'`;
+              
+              await q`
+                INSERT INTO finding_custom_dimensions (
+                  finding_id, version, active, safety, urgency, liability, budget_low, budget_high,
+                  priority, severity, likelihood, escalation, note, updated_by, status, version_text, created_at, updated_at
+                )
+                VALUES (
+                  ${findingId}, ${before.version ?? 1}, true,
+                  ${before.safety ?? null}, ${before.urgency ?? null}, ${before.liability ?? null}, 
+                  ${before.budget_low ?? null}, ${before.budget_high ?? null},
+                  ${before.priority ?? null}, ${before.severity ?? null}, ${before.likelihood ?? null}, ${before.escalation ?? null},
+                  ${before.note ?? null}, ${before.updated_by ?? 'admin'}, 'published', ${before.version_text ?? null}, now(), now()
+                )
+              `;
+              
+              await logChange({
+                entity_type: "dimensions",
+                finding_id: findingId,
+                action: "rollback",
+                from_version: version,
+                to_version: (before.version_text as string) ?? null,
+                actor: "admin",
+                diff_json: {
+                  before: logEntry.diff_json.after,
+                  after: before,
+                },
+              });
+              
+              rolledBack++;
+            } catch (e) {
+              errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+              skipped++;
+            }
+          }
+        }
+
+        clearEffectiveFindingCache();
+        return json({
+          ok: true,
+          version,
+          rolled_back: rolledBack,
+          skipped,
+          errors: errors.length > 0 ? errors : undefined,
+        });
+      } catch (e) {
+        console.error("Rollback dimensions error:", e);
         return json({ error: "Internal server error", message: e instanceof Error ? e.message : String(e) }, 500);
       }
     }
