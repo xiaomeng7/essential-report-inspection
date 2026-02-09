@@ -236,7 +236,6 @@ export function AdminFindingsPage({ onBack }: { onBack: () => void }) {
 
   const systemGroupOpts = facets ? Object.keys(facets.system_group).filter((k) => k !== "_").sort() : [];
   const spaceGroupOpts = facets ? Object.keys(facets.space_group).filter((k) => k !== "_").sort() : [];
-  const tagOpts = facets ? Object.keys(facets.tags).sort() : [];
   const priorityOpts = facets ? Object.keys(facets.priority).filter((k) => k !== "_").sort() : [];
 
   return (
