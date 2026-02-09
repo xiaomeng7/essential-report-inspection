@@ -121,6 +121,18 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       if (priority) {
         list = list.filter((r) => (r.dimensions_effective as { priority?: string }).priority === priority);
       }
+      const safetyFilter = params.safety;
+      if (safetyFilter) {
+        list = list.filter((r) => (r.dimensions_effective as { safety?: string }).safety === safetyFilter);
+      }
+      const urgencyFilter = params.urgency;
+      if (urgencyFilter) {
+        list = list.filter((r) => (r.dimensions_effective as { urgency?: string }).urgency === urgencyFilter);
+      }
+      const liabilityFilter = params.liability;
+      if (liabilityFilter) {
+        list = list.filter((r) => (r.dimensions_effective as { liability?: string }).liability === liabilityFilter);
+      }
       if (hasOverrides) {
         list = list.filter((r) => r.dimensions_source === "override");
       }
@@ -195,7 +207,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           const ed = effectiveMap.get(finding_id);
           const seed = await getSeedDimensions(finding_id);
           const historyRows = await getOverrideHistory(finding_id);
-          const activeOverride = historyRows.find((r) => r.active);
+          const activeOverride = historyRows.find((r) => r.active && r.status === "published");
+          const draftOverride = historyRows.find((r) => r.active && r.status === "draft");
           const history = historyRows.map((r) => ({
             version: r.version,
             active: r.active,
@@ -212,6 +225,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             },
             note: r.note ?? undefined,
             created_at: r.created_at != null ? String(r.created_at) : undefined,
+            updated_by: r.updated_by ?? undefined,
           }));
           return json({
             definition: def,
@@ -231,6 +245,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
               },
               note: activeOverride.note ?? undefined,
               created_at: activeOverride.created_at != null ? String(activeOverride.created_at) : undefined,
+              updated_by: activeOverride.updated_by ?? undefined,
+              updated_at: activeOverride.updated_at != null ? String(activeOverride.updated_at) : undefined,
+            } : null,
+            draft_override: draftOverride ? {
+              version: draftOverride.version,
+              dimensions: {
+                safety: draftOverride.safety ?? undefined,
+                urgency: draftOverride.urgency ?? undefined,
+                liability: draftOverride.liability ?? undefined,
+                budget_low: draftOverride.budget_low ?? undefined,
+                budget_high: draftOverride.budget_high ?? undefined,
+                priority: draftOverride.priority ?? undefined,
+                severity: draftOverride.severity ?? undefined,
+                likelihood: draftOverride.likelihood ?? undefined,
+                escalation: draftOverride.escalation ?? undefined,
+              },
+              note: draftOverride.note ?? undefined,
+              created_at: draftOverride.created_at != null ? String(draftOverride.created_at) : undefined,
+              updated_by: draftOverride.updated_by ?? undefined,
+              updated_at: draftOverride.updated_at != null ? String(draftOverride.updated_at) : undefined,
             } : null,
             dimensions_effective: ed?.dimensions ?? seed ?? {},
             dimensions_source: ed?.dimensions_source ?? "seed",

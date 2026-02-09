@@ -41,6 +41,7 @@ export type OverrideRow = {
   finding_id: string;
   version: number;
   active: boolean;
+  status?: string | null;
   safety: string | null;
   urgency: string | null;
   liability: string | null;
@@ -52,6 +53,7 @@ export type OverrideRow = {
   escalation: string | null;
   note: string | null;
   updated_by: string | null;
+  updated_at?: Date | null;
   created_at: Date;
 };
 
@@ -159,8 +161,8 @@ export async function getEffectiveDimensionsMap(previewDraft = false): Promise<
 export async function getOverrideHistory(finding_id: string): Promise<OverrideRow[]> {
   const q = getSql();
   const rows = (await q`
-    SELECT id, finding_id, version, active, safety, urgency, liability, budget_low, budget_high,
-           priority, severity, likelihood, escalation, note, updated_by, created_at
+    SELECT id, finding_id, version, active, status, safety, urgency, liability, budget_low, budget_high,
+           priority, severity, likelihood, escalation, note, updated_by, updated_at, created_at
     FROM finding_custom_dimensions
     WHERE finding_id = ${finding_id}
     ORDER BY version DESC
