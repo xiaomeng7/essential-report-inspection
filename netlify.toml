@@ -3,7 +3,7 @@
   publish = "dist"
   functions = "netlify/functions"
 
-# Netlify Dev: 主站固定 8888（port=浏览器访问端口），Vite 用 5173（targetPort），与 vite.config 代理目标一致
+# Netlify Dev: port=浏览器访问端口；若 8888 被占用可改为 8889 等，或先结束占用进程：lsof -i :8888
 [dev]
   port = 8888
   targetPort = 5173
@@ -32,6 +32,13 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# Admin API: single function handles /api/admin/* (event.path preserved)
+[[redirects]]
+  from = "/api/admin/*"
+  to = "/.netlify/functions/admin"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/review/*"

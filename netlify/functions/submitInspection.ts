@@ -7,6 +7,7 @@ import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
 import { getBaseUrl } from "./lib/baseUrl";
 import { generateMarkdownWordBuffer } from "./generateMarkdownWord";
 import { logWordReport } from "./lib/wordReportLog";
+import { upsertInspection, updateInspectionReportKey, upsertInspectionFindings } from "./lib/dbInspection";
 
 const WORD_GENERATE_TIMEOUT_MS = 12_000;
 
@@ -162,6 +163,32 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }, event);
     console.log("Inspection saved successfully");
 
+    const jobRaw = raw.job as Record<string, unknown> | undefined;
+    const signoffRaw = raw.signoff as Record<string, unknown> | undefined;
+    const preparedBy = signoffRaw?.technician_name != null ? extractValue(signoffRaw.technician_name) : undefined;
+    const preparedFor = jobRaw?.address != null ? extractValue(jobRaw.address) : undefined;
+    try {
+      await upsertInspection({
+        inspection_id,
+        assessment_date: (raw.created_at as string) ?? new Date().toISOString(),
+        prepared_for: preparedFor != null ? String(preparedFor) : null,
+        prepared_by: preparedBy != null ? String(preparedBy) : null,
+        blobs_key: `inspections/${inspection_id}`,
+      });
+      await upsertInspectionFindings(
+        inspection_id,
+        findings.map((f) => ({
+          inspection_id,
+          finding_id: f.id,
+          finding_kind: "rule",
+          priority_override: f.priority ?? null,
+          photo_ids: f.photo_ids ?? [],
+        }))
+      );
+    } catch (dbErr) {
+      console.error("[submit] DB upsert inspection/findings failed (non-fatal):", dbErr);
+    }
+
     if (toUpload.length > 0) {
       console.log("Uploading room photos (base64)...", toUpload.length);
       for (const { finding_id, image, caption } of toUpload) {
@@ -191,6 +218,11 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const existing = await get(inspection_id, event);
       if (existing) {
         await save(inspection_id, { ...existing, report_status: "generated", report_blob_key: wordBlobKey, report_generated_at: new Date().toISOString(), report_hash: reportHash }, event);
+      }
+      try {
+        await updateInspectionReportKey(inspection_id, wordBlobKey);
+      } catch (e) {
+        console.error("[submit] DB update report_docx_key failed (non-fatal):", e);
       }
     } catch (genErr) {
       const msg = genErr instanceof Error ? genErr.message : String(genErr);

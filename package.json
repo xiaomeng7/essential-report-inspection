@@ -25,6 +25,8 @@
     "verify:docx-links": "tsx scripts/verify-docx-links.ts",
     "verify:evidence": "tsx scripts/verify-evidence-rules.ts",
     "verify:word-report": "tsx scripts/verify-word-report-consistency.ts",
+    "db:seed": "tsx scripts/seed-neon-findings.ts",
+    "db:validate": "tsx scripts/validate-neon-db.ts",
     "audit:dimensions": "tsx scripts/audit-finding-dimensions.ts",
     "sync:dimensions": "tsx scripts/sync-dimensions-to-sources.ts",
     "simulate:inspection": "tsx scripts/simulate-inspection.ts",
@@ -36,6 +38,7 @@
     "netlify:dev": "npx netlify-cli dev"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
     "@netlify/blobs": "^10.0.7",
     "docx-merger": "^1.2.2",
     "docxtemplater": "^3.67.6",

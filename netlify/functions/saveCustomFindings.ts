@@ -2,6 +2,7 @@ import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { get, save } from "./lib/store";
 import { getRoomLocationAndPhotos } from "./lib/deriveCustomFindings";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
+import { upsertInspectionFindings } from "./lib/dbInspection";
 
 type CustomFindingInput = {
   id: string;
@@ -128,6 +129,26 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         console.error("Custom finding photo upload failed:", finding_id, e);
       }
     }
+  }
+
+  try {
+    await upsertInspectionFindings(
+      inspection_id,
+      customFindings.map((cf) => {
+        const { location } = getRoomLocationAndPhotos(raw, cf.id);
+        const existingF = mergedFindings.find((x) => x.id === cf.id);
+        return {
+          inspection_id,
+          finding_id: cf.id,
+          finding_kind: "custom",
+          notes: cf.title || location || null,
+          priority_override: cf.priority ?? null,
+          photo_ids: existingF?.photo_ids ?? [],
+        };
+      })
+    );
+  } catch (e) {
+    console.error("[saveCustomFindings] DB upsert inspection_findings failed (non-fatal):", e);
   }
 
   return {
