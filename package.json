@@ -30,7 +30,7 @@
     "verify:word-report": "tsx scripts/verify-word-report-consistency.ts",
     "db:migrate": "tsx scripts/run-migration.ts",
     "db:seed": "tsx scripts/db-seed-findings.ts",
-    "db:seed:messages": "tsx scripts/db-seed-finding-messages.ts",
+    "db:seed:messages": "tsx scripts/db-seed-messages.ts",
     "db:validate": "tsx scripts/validate-neon-db.ts",
     "classify:findings": "tsx scripts/apply-finding-classification.ts",
     "audit:dimensions": "tsx scripts/audit-finding-dimensions.ts",
