@@ -279,15 +279,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           const q = sql();
           const prev = await q`SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}`;
           const version = Number((prev[0] as { v: number })?.v) || 1;
-          await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id}`;
+          await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
           await q`
-            INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, created_at)
+            INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, status, created_at, updated_at)
             VALUES (${finding_id}, ${version}, true,
               ${(dimensions.safety as string) ?? null}, ${(dimensions.urgency as string) ?? null}, ${(dimensions.liability as string) ?? null},
               ${dimensions.budget_low != null ? Number(dimensions.budget_low) : null}, ${dimensions.budget_high != null ? Number(dimensions.budget_high) : null},
               ${(dimensions.priority as string) ?? null}, ${dimensions.severity != null ? Number(dimensions.severity) : null},
               ${dimensions.likelihood != null ? Number(dimensions.likelihood) : null}, ${(dimensions.escalation as string) ?? null},
-              ${note}, ${updated_by}, now())
+              ${note}, ${updated_by}, 'draft', now(), now())
           `;
           clearEffectiveFindingCache();
           return json({ ok: true, finding_id, new_version: version });
@@ -322,15 +322,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           for (const finding_id of findingIds) {
             const prev = await q`SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}`;
             const version = Number((prev[0] as { v: number })?.v) || 1;
-            await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id}`;
+            await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
             await q`
-              INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, created_at)
+              INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, status, created_at, updated_at)
               VALUES (${finding_id}, ${version}, true,
                 ${(dimensions.safety as string) ?? null}, ${(dimensions.urgency as string) ?? null}, ${(dimensions.liability as string) ?? null},
                 ${dimensions.budget_low != null ? Number(dimensions.budget_low) : null}, ${dimensions.budget_high != null ? Number(dimensions.budget_high) : null},
                 ${(dimensions.priority as string) ?? null}, ${dimensions.severity != null ? Number(dimensions.severity) : null},
                 ${dimensions.likelihood != null ? Number(dimensions.likelihood) : null}, ${(dimensions.escalation as string) ?? null},
-                ${note}, ${updated_by}, now())
+                ${note}, ${updated_by}, 'draft', now(), now())
             `;
             updated++;
           }
@@ -362,15 +362,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             const q = sql();
             const prev = await q`SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}`;
             const version = Number((prev[0] as { v: number })?.v) || 1;
-            await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id}`;
+            await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
             await q`
-              INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, created_at)
+              INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, status, created_at, updated_at)
               VALUES (${finding_id}, ${version}, true,
                 ${(dimensions.safety as string) ?? null}, ${(dimensions.urgency as string) ?? null}, ${(dimensions.liability as string) ?? null},
                 ${dimensions.budget_low != null ? Number(dimensions.budget_low) : null}, ${dimensions.budget_high != null ? Number(dimensions.budget_high) : null},
                 ${(dimensions.priority as string) ?? null}, ${dimensions.severity != null ? Number(dimensions.severity) : null},
                 ${dimensions.likelihood != null ? Number(dimensions.likelihood) : null}, ${(dimensions.escalation as string) ?? null},
-                ${note}, ${updated_by}, now())
+                ${note}, ${updated_by}, 'draft', now(), now())
             `;
             clearEffectiveFindingCache();
             return json({ ok: true, finding_id, version });
@@ -385,19 +385,19 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}
       `;
       const version = Number((prev[0] as { v: number })?.v) || 1;
-      await db`UPDATE finding_custom_dimensions SET is_active = false WHERE finding_id = ${finding_id}`;
+      await db`UPDATE finding_custom_dimensions SET is_active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
       await db`
         INSERT INTO finding_custom_dimensions (
           finding_id, version, is_active,
           safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation,
-          needs_review, updated_by, updated_at
+          needs_review, updated_by, status, updated_at
         ) VALUES (
           ${finding_id}, ${version}, true,
           ${(body.safety as string) ?? null}, ${(body.urgency as string) ?? null}, ${(body.liability as string) ?? null},
           ${body.budget_low != null ? Number(body.budget_low) : null}, ${body.budget_high != null ? Number(body.budget_high) : null},
           ${(body.priority as string) ?? null}, ${body.severity != null ? Number(body.severity) : null},
           ${body.likelihood != null ? Number(body.likelihood) : null}, ${(body.escalation as string) ?? null},
-          ${Boolean(body.needs_review)}, ${(body.updated_by as string) ?? null}, now()
+          ${Boolean(body.needs_review)}, ${(body.updated_by as string) ?? null}, 'draft', now()
         )
       `;
       clearEffectiveFindingCache();
@@ -439,15 +439,15 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             for (const finding_id of finding_ids) {
               const prev = await q`SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}`;
               const version = Number((prev[0] as { v: number })?.v) || 1;
-              await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id}`;
+              await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
               await q`
-                INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, created_at)
+                INSERT INTO finding_custom_dimensions (finding_id, version, active, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, note, updated_by, status, created_at, updated_at)
                 VALUES (${finding_id}, ${version}, true,
                   ${(dims.safety as string) ?? null}, ${(dims.urgency as string) ?? null}, ${(dims.liability as string) ?? null},
                   ${dims.budget_low != null ? Number(dims.budget_low) : null}, ${dims.budget_high != null ? Number(dims.budget_high) : null},
                   ${(dims.priority as string) ?? null}, ${dims.severity != null ? Number(dims.severity) : null},
                   ${dims.likelihood != null ? Number(dims.likelihood) : null}, ${(dims.escalation as string) ?? null},
-                  'Bulk apply', 'bulk', now())
+                  'Bulk apply', 'bulk', 'draft', now(), now())
               `;
               updated++;
             }
@@ -484,19 +484,19 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}
         `;
         const version = Number((prev[0] as { v: number })?.v) || 1;
-        await db`UPDATE finding_custom_dimensions SET is_active = false WHERE finding_id = ${finding_id}`;
+        await db`UPDATE finding_custom_dimensions SET is_active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
         await db`
           INSERT INTO finding_custom_dimensions (
             finding_id, version, is_active,
             safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation,
-            needs_review, updated_by, updated_at
+            needs_review, updated_by, status, updated_at
           ) VALUES (
             ${finding_id}, ${version}, true,
             ${(dims.safety as string) ?? null}, ${(dims.urgency as string) ?? null}, ${(dims.liability as string) ?? null},
             ${dims.budget_low != null ? Number(dims.budget_low) : null}, ${dims.budget_high != null ? Number(dims.budget_high) : null},
             ${(dims.priority as string) ?? null}, ${dims.severity != null ? Number(dims.severity) : null},
             ${dims.likelihood != null ? Number(dims.likelihood) : null}, ${(dims.escalation as string) ?? null},
-            false, 'bulk', now()
+            false, 'bulk', 'draft', now()
           )
         `;
         updated++;
@@ -509,6 +509,87 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       const db = sql();
       const presets = await db`SELECT id, name, safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation, created_at FROM dimension_presets ORDER BY name`;
       return json({ presets });
+    }
+
+    // Publish finding dimensions: copy draft to published
+    if (segments[0] === "findings" && segments[1] === "dimensions" && segments[2] === "publish" && method === "POST") {
+      if (!isDbConfigured()) {
+        return json({ error: "Database not configured" }, 503);
+      }
+      let body: { version?: string; finding_ids?: string[] } = {};
+      try {
+        body = JSON.parse(event.body ?? "{}");
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const versionText = (body.version ?? "").trim() || new Date().toISOString().split("T")[0]; // Default to today's date
+      const findingIds = body.finding_ids ?? []; // Empty = all drafts
+
+      try {
+        const q = sql();
+        let published = 0;
+        let skipped = 0;
+        let errors: string[] = [];
+
+        // Get draft dimensions to publish
+        let draftQuery;
+        if (findingIds.length > 0) {
+          draftQuery = q`
+            SELECT finding_id, version, safety, urgency, liability, budget_low, budget_high,
+                   priority, severity, likelihood, escalation, note, updated_by
+            FROM finding_custom_dimensions
+            WHERE status = 'draft' AND active = true AND finding_id = ANY(${findingIds})
+          `;
+        } else {
+          draftQuery = q`
+            SELECT finding_id, version, safety, urgency, liability, budget_low, budget_high,
+                   priority, severity, likelihood, escalation, note, updated_by
+            FROM finding_custom_dimensions
+            WHERE status = 'draft' AND active = true
+          `;
+        }
+
+        const drafts = await draftQuery;
+
+        for (const draft of drafts) {
+          const findingId = draft.finding_id as string;
+          try {
+            // Deactivate existing published override for this finding
+            await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${findingId} AND status = 'published'`;
+            
+            // Copy draft to published (insert new row with same version number but status='published')
+            await q`
+              INSERT INTO finding_custom_dimensions (
+                finding_id, version, active, safety, urgency, liability, budget_low, budget_high,
+                priority, severity, likelihood, escalation, note, updated_by, status, version_text, created_at, updated_at
+              )
+              VALUES (
+                ${findingId}, ${draft.version}, true,
+                ${draft.safety}, ${draft.urgency}, ${draft.liability}, ${draft.budget_low}, ${draft.budget_high},
+                ${draft.priority}, ${draft.severity}, ${draft.likelihood}, ${draft.escalation},
+                ${draft.note}, ${draft.updated_by ?? 'admin'}, 'published', ${versionText}, now(), now()
+              )
+            `;
+            published++;
+          } catch (e) {
+            errors.push(`${findingId}: ${e instanceof Error ? e.message : String(e)}`);
+            skipped++;
+          }
+        }
+
+        clearEffectiveFindingCache();
+        return json({
+          ok: true,
+          version: versionText,
+          published,
+          skipped,
+          total_drafts: drafts.length,
+          errors: errors.length > 0 ? errors : undefined,
+        });
+      } catch (e) {
+        console.error("Publish dimensions error:", e);
+        return json({ error: "Internal server error", message: e instanceof Error ? e.message : String(e) }, 500);
+      }
     }
 
     // Publish finding messages: copy draft to published

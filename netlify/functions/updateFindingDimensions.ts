@@ -65,12 +65,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       SELECT COALESCE(MAX(version), 0) + 1 as v FROM finding_custom_dimensions WHERE finding_id = ${finding_id}
     `;
     const version = Number((prev[0] as { v: number })?.v) || 1;
-    await q`UPDATE finding_custom_dimensions SET is_active = false WHERE finding_id = ${finding_id}`;
+    await q`UPDATE finding_custom_dimensions SET active = false WHERE finding_id = ${finding_id} AND status = 'draft'`;
     await q`
       INSERT INTO finding_custom_dimensions (
-        finding_id, version, is_active,
+        finding_id, version, active,
         safety, urgency, liability, budget_low, budget_high, priority, severity, likelihood, escalation,
-        needs_review, updated_by, updated_at
+        note, updated_by, status, updated_at
       ) VALUES (
         ${finding_id}, ${version}, true,
         ${dimensions.safety ?? null}, ${dimensions.urgency ?? null}, ${dimensions.liability ?? null},
@@ -80,14 +80,14 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         ${dimensions.severity != null ? Number(dimensions.severity) : null},
         ${dimensions.likelihood != null ? Number(dimensions.likelihood) : null},
         ${dimensions.escalation ?? null},
-        false, ${updated_by}, now()
+        '', ${updated_by}, 'draft', now()
       )
     `;
     const inserted = await q`
-      SELECT id, finding_id, version, is_active, safety, urgency, liability, budget_low, budget_high,
-             priority, severity, likelihood, escalation, needs_review, updated_by, updated_at
+      SELECT id, finding_id, version, active, safety, urgency, liability, budget_low, budget_high,
+             priority, severity, likelihood, escalation, note, updated_by, status, updated_at
       FROM finding_custom_dimensions
-      WHERE finding_id = ${finding_id} AND is_active = true
+      WHERE finding_id = ${finding_id} AND active = true AND status = 'draft'
     `;
     const row = inserted[0];
     clearEffectiveFindingCache();
