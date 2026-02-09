@@ -29,13 +29,21 @@ const requiredFiles = [
   ["report-template-md.docx", "report-template-md.docx"],
 ];
 
-// Also check profiles/ directory for finding_profiles.yml
+// Alternative paths when primary is missing (first match wins)
 const alternativePaths = {
   "finding_profiles.yml": [
     path.join(projectRoot, "finding_profiles.yml"),
     path.join(projectRoot, "profiles", "finding_profiles.yml"),
   ],
+  "report-template-md.docx": [
+    path.join(projectRoot, "report-template-md.docx"),
+    path.join(projectRoot, "netlify", "functions", "lib", "report-template-md.docx"),
+    path.join(projectRoot, "report-template.docx"),
+  ],
 };
+
+// If source is missing but target already exists in netlify/functions/, accept it (e.g. file committed there)
+const allowExistingTarget = new Set(["report-template-md.docx"]);
 
 let hasErrors = false;
 
@@ -54,12 +62,17 @@ for (const [sourceFile, targetFile] of requiredFiles) {
   
   // Check if source file exists
   if (!fs.existsSync(sourcePath)) {
-    // Try alternative paths if available
-    if (alternativePaths[sourceFile]) {
+    // If target already exists in netlify/functions/ (e.g. committed there), accept it
+    if (allowExistingTarget.has(sourceFile) && fs.existsSync(targetPath)) {
+      console.log(`✅ ${sourceFile} already present in netlify/functions/ (skipping copy)`);
+    } else if (alternativePaths[sourceFile]) {
       let found = false;
       for (const altPath of alternativePaths[sourceFile]) {
         if (fs.existsSync(altPath)) {
-          console.log(`✅ Found ${sourceFile} at alternative path: ${altPath}`);
+          const isFallback = path.basename(altPath) !== sourceFile;
+          console.log(isFallback
+            ? `✅ Using fallback for ${sourceFile}: ${path.basename(altPath)} → ${targetFile}`
+            : `✅ Found ${sourceFile} at alternative path: ${altPath}`);
           try {
             fs.copyFileSync(altPath, targetPath);
             console.log(`   ✓ Copied to ${targetPath}`);
