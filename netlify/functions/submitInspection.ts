@@ -10,7 +10,7 @@ import { logWordReport } from "./lib/wordReportLog";
 import { upsertInspection, updateInspectionReportKey, upsertInspectionFindings } from "./lib/dbInspection";
 import { upsertInspectionCore, upsertInspectionFindings as upsertInspectionFindingsCore, upsertInspectionPhotos } from "./lib/dbInspectionsCore";
 import { normalizeInspection } from "./lib/normalizeInspection";
-import { isDbConfigured } from "./lib/db";
+import { isDbConfigured, sql } from "./lib/db";
 
 const WORD_GENERATE_TIMEOUT_MS = 12_000;
 
@@ -231,8 +231,36 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
           }
         }
         const photosCount = await upsertInspectionPhotos(inspection_id, photosData);
-        
-        console.log(`[db-inspections] inserted inspection_id=${inspection_id} core=${inspectionCoreCount} findings=${findingsCount} photos=${photosCount}`);
+
+        // Link ServiceM8 job cache to this inspection (if job number was captured during prefill).
+        try {
+          const svcJobNumber =
+            (jobRaw?.serviceM8_job_number != null ? extractValue(jobRaw.serviceM8_job_number) : undefined) ??
+            (jobRaw?.serviceM8JobNumber != null ? extractValue(jobRaw.serviceM8JobNumber) : undefined);
+          const jobNumberStr = svcJobNumber != null ? String(svcJobNumber).trim() : "";
+          if (jobNumberStr) {
+            const q = sql();
+            await q`
+              update service_job_link
+              set inspection_id = ${inspection_id}
+              where inspection_id is null
+                and job_number = ${jobNumberStr}
+            `;
+            console.log("[db-inspections] linked service_job_link to inspection_id", {
+              inspection_id,
+              job_number: jobNumberStr,
+            });
+          }
+        } catch (linkErr) {
+          console.error(
+            "[db-inspections] link service_job_link failed (non-fatal):",
+            linkErr instanceof Error ? linkErr.message : String(linkErr)
+          );
+        }
+
+        console.log(
+          `[db-inspections] inserted inspection_id=${inspection_id} core=${inspectionCoreCount} findings=${findingsCount} photos=${photosCount}`
+        );
       }
     } catch (dbErr) {
       console.error("[db-inspections] DB persistence failed (non-fatal):", dbErr instanceof Error ? dbErr.message : String(dbErr));
