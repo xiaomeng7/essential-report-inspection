@@ -90,11 +90,27 @@ export async function fetchJobByNumber(
     if (res.status === 404) {
       return { error: { kind: "not_found", message: "Job not found" } };
     }
+    // Check for invalid token error
+    let parsedError: { error?: string; error_description?: string } | null = null;
+    try {
+      parsedError = JSON.parse(text);
+    } catch {
+      // Not JSON, use raw text
+    }
+    if (parsedError?.error === "invalid_token" || res.status === 401) {
+      return {
+        error: {
+          kind: "service_error",
+          status: res.status,
+          message: "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。",
+        },
+      };
+    }
     return {
       error: {
         kind: "service_error",
         status: res.status,
-        message: text || `ServiceM8 HTTP ${res.status}`,
+        message: parsedError?.error_description || parsedError?.error || text || `ServiceM8 HTTP ${res.status}`,
       },
     };
   }

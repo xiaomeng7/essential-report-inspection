@@ -402,7 +402,12 @@ export function Wizard({ onSubmitted }: Props) {
         if (code === "UNAUTHORIZED") {
           throw new Error("预填接口未授权，请检查前端密钥配置。");
         }
-        throw new Error(json?.details || json?.message || `ServiceM8 调用失败（${code}）`);
+        // Check for ServiceM8 API token error in details
+        const details = json?.details || json?.message || "";
+        if (details.includes("invalid_token") || details.includes("API token 无效")) {
+          throw new Error("ServiceM8 API token 无效或已过期。请联系管理员检查 Netlify 环境变量中的 SERVICEM8_API_TOKEN。");
+        }
+        throw new Error(details || `ServiceM8 调用失败（${code}）`);
       }
 
       const job = json.job as {
