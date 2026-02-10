@@ -386,7 +386,14 @@ export function Wizard({ onSubmitted }: Props) {
       try {
         json = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error(text || `Unexpected response (${res.status})`);
+        if (text.trimStart().startsWith("<")) {
+          throw new Error(
+            res.status === 404
+              ? "预填接口地址不存在（404）。请确认 Netlify 已部署最新代码且路由 /api/servicem8/job-prefill 已配置。"
+              : `服务器返回了网页而非数据（HTTP ${res.status}）。请检查 Netlify 部署与函数配置。`
+          );
+        }
+        throw new Error(text.slice(0, 200) || `请求失败（${res.status}）`);
       }
       if (!res.ok || json?.ok === false) {
         const code = json?.error || `HTTP_${res.status}`;

@@ -9,15 +9,29 @@ import path from "path";
 const SERVICE_M8_VERSION = "2026-02-03-v1";
 
 function ensureLocalEnv(): void {
-  if (process.env.SERVICEM8_API_TOKEN || process.env.NETLIFY_DEV !== "true") return;
+  // If token already exists, no need to load .env
+  if (process.env.SERVICEM8_API_TOKEN) return;
+  
+  // In production (Netlify), env vars come from Netlify settings, not .env
+  // Only load .env in local dev (netlify dev)
+  if (process.env.NETLIFY_DEV !== "true" && !process.env.NETLIFY) return;
+  
+  // Try to load .env from project root (netlify dev runs from project root)
   const candidates = [
     path.resolve(process.cwd(), ".env"),
     path.resolve(process.cwd(), "..", ".env"),
     path.resolve(process.cwd(), "..", "..", ".env"),
   ];
   for (const p of candidates) {
-    loadDotenv({ path: p });
-    if (process.env.SERVICEM8_API_TOKEN) return;
+    try {
+      loadDotenv({ path: p });
+      if (process.env.SERVICEM8_API_TOKEN) {
+        console.log("[servicem8] loaded SERVICEM8_API_TOKEN from", p);
+        return;
+      }
+    } catch (e) {
+      // Ignore file not found errors
+    }
   }
 }
 
