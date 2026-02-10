@@ -135,6 +135,20 @@ function validatePhotoEvidenceBeforeSubmit(state: Record<string, unknown>): stri
 export function Wizard({ onSubmitted }: Props) {
   const [oneClickTestLoading, setOneClickTestLoading] = useState(false);
   const [oneClickTestError, setOneClickTestError] = useState<string | null>(null);
+  const [serviceM8JobNumber, setServiceM8JobNumber] = useState("");
+  const [serviceM8Loading, setServiceM8Loading] = useState(false);
+  const [serviceM8Error, setServiceM8Error] = useState<string | null>(null);
+  const [serviceM8Summary, setServiceM8Summary] = useState<{
+    job_number: string;
+    job_uuid: string;
+    customer_name: string;
+    contact_name: string | null;
+    phone: string | null;
+    email: string | null;
+    address_full: string | null;
+    fetched_at: string;
+    cache_hit: boolean;
+  } | null>(null);
   const {
     state,
     setAnswer,
@@ -343,6 +357,105 @@ export function Wizard({ onSubmitted }: Props) {
     }
   };
 
+  const handleServiceM8Prefill = async () => {
+    const jobNumber = serviceM8JobNumber.trim();
+    setServiceM8Error(null);
+    setServiceM8Summary(null);
+    if (!jobNumber) {
+      setServiceM8Error("请输入 ServiceM8 工作编号。");
+      return;
+    }
+    if (jobNumber.length > 32) {
+      setServiceM8Error("工作编号过长，请检查后重试。");
+      return;
+    }
+    setServiceM8Loading(true);
+    try {
+      const env = (import.meta as any).env as { VITE_SERVICEM8_PREFILL_SECRET?: string } | undefined;
+      const secret = env?.VITE_SERVICEM8_PREFILL_SECRET;
+      const headers: Record<string, string> = {};
+      if (secret) {
+        headers["X-Servicem8-Prefill-Secret"] = secret;
+      }
+      const res = await fetch(`/api/servicem8/job-prefill?job_number=${encodeURIComponent(jobNumber)}`, {
+        method: "GET",
+        headers,
+      });
+      const text = await res.text();
+      let json: any;
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(text || `Unexpected response (${res.status})`);
+      }
+      if (!res.ok || json?.ok === false) {
+        const code = json?.error || `HTTP_${res.status}`;
+        if (code === "JOB_NOT_FOUND") {
+          throw new Error("未在 ServiceM8 中找到该工作编号。");
+        }
+        if (code === "SERVICE_M8_NOT_CONFIGURED") {
+          throw new Error("ServiceM8 集成未配置，请在 Netlify 环境中设置相关密钥后重试。");
+        }
+        if (code === "INVALID_JOB_NUMBER") {
+          throw new Error("无效的工作编号，请检查后重试。");
+        }
+        if (code === "UNAUTHORIZED") {
+          throw new Error("预填接口未授权，请检查前端密钥配置。");
+        }
+        throw new Error(json?.details || json?.message || `ServiceM8 调用失败（${code}）`);
+      }
+
+      const job = json.job as {
+        job_uuid: string;
+        job_number: string;
+        customer_name: string;
+        contact_name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+        address?: {
+          line1?: string | null;
+          line2?: string | null;
+          suburb?: string | null;
+          state?: string | null;
+          postcode?: string | null;
+          full_address?: string | null;
+        };
+      };
+      const cacheInfo = json.cache as { hit?: boolean; fetched_at?: string } | undefined;
+
+      // 将客户名称写入 job.prepared_for，方便后续报告使用（prepared_for -> CLIENT_NAME）
+      try {
+        setAnswer("job.prepared_for", { value: job.customer_name, status: "answered" });
+        setAnswer("job.serviceM8_job_number", { value: job.job_number, status: "answered" });
+      } catch {
+        // 非关键路径，忽略错误
+      }
+
+      const addr = job.address || {};
+      const fullAddress =
+        addr.full_address ||
+        addr.line1 ||
+        [addr.suburb, addr.state, addr.postcode].filter(Boolean).join(", ") ||
+        null;
+
+      setServiceM8Summary({
+        job_number: job.job_number,
+        job_uuid: job.job_uuid,
+        customer_name: job.customer_name,
+        contact_name: job.contact_name ?? null,
+        phone: job.phone ?? null,
+        email: job.email ?? null,
+        address_full: fullAddress,
+        fetched_at: cacheInfo?.fetched_at ?? new Date().toISOString(),
+        cache_hit: !!cacheInfo?.hit,
+      });
+    } catch (e) {
+      setServiceM8Error((e as Error).message || "ServiceM8 预填失败，请稍后重试。");
+    } finally {
+      setServiceM8Loading(false);
+    }
+  };
+
   return (
     <div className="app">
       <div className="wizard-content">
@@ -387,6 +500,89 @@ export function Wizard({ onSubmitted }: Props) {
               <li>Roof Space</li>
               <li>External + Finalise</li>
             </ol>
+          </div>
+          <div className="start-screen__card">
+            <h2 className="start-screen__brief-heading">ServiceM8 预填（可选）</h2>
+            <p className="start-screen__brief-text">
+              若你手上只有 ServiceM8 工作编号（Job / Work Number），可在此查询客户信息并自动写入「委托方」字段；地址仍需在下方通过地址搜索选取，以确保包含 suburb / state / postcode。
+            </p>
+            <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="text"
+                value={serviceM8JobNumber}
+                onChange={(e) => setServiceM8JobNumber(e.target.value)}
+                placeholder="输入 ServiceM8 Job / Work Number"
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  fontSize: 14,
+                  borderRadius: 4,
+                  border: "1px solid #ccc",
+                }}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleServiceM8Prefill}
+                disabled={serviceM8Loading}
+              >
+                {serviceM8Loading ? "查询中…" : "Fetch details"}
+              </button>
+            </div>
+            {serviceM8Error && (
+              <p className="validation-msg" style={{ marginTop: 8 }}>
+                {serviceM8Error}
+              </p>
+            )}
+            {serviceM8Summary && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 6,
+                  border: "1px solid #e0e0e0",
+                  background: "#fafafa",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                <p>
+                  <strong>Customer / 委托方：</strong>
+                  {serviceM8Summary.customer_name || "-"}
+                </p>
+                {serviceM8Summary.contact_name && (
+                  <p>
+                    <strong>Contact：</strong>
+                    {serviceM8Summary.contact_name}
+                  </p>
+                )}
+                {serviceM8Summary.phone && (
+                  <p>
+                    <strong>Phone：</strong>
+                    {serviceM8Summary.phone}
+                  </p>
+                )}
+                {serviceM8Summary.email && (
+                  <p>
+                    <strong>Email：</strong>
+                    {serviceM8Summary.email}
+                  </p>
+                )}
+                {serviceM8Summary.address_full && (
+                  <p>
+                    <strong>Address (ServiceM8)：</strong>
+                    {serviceM8Summary.address_full}
+                  </p>
+                )}
+                <p style={{ marginTop: 4, color: "#666" }}>
+                  Data source: ServiceM8 {serviceM8Summary.cache_hit ? "(缓存命中)" : "(实时查询)"} ·{" "}
+                  {new Date(serviceM8Summary.fetched_at).toLocaleString()}
+                </p>
+                <p style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+                  提示：地址仍需在第一页表单中通过「Property address」搜索选择，以保证报告地址规范。
+                </p>
+              </div>
+            )}
           </div>
           <div className="start-screen__actions">
             <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
