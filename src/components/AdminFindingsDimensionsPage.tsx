@@ -66,8 +66,8 @@ export function AdminFindingsDimensionsPage({ onBack }: { onBack: () => void }) 
   const [onlyDraft, setOnlyDraft] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
-  const [sort, setSort] = useState("finding_id");
-  const [order, setOrder] = useState<"asc" | "desc">("asc");
+  const [sort] = useState("finding_id");
+  const [order] = useState<"asc" | "desc">("asc");
 
   const [meta, setMeta] = useState<ListResponse["meta"] | null>(null);
   const [facets, setFacets] = useState<Facets | null>(null);
@@ -294,7 +294,6 @@ export function AdminFindingsDimensionsPage({ onBack }: { onBack: () => void }) 
 
   const systemGroupOpts = facets ? Object.keys(facets.system_group).filter((k) => k !== "_").sort() : [];
   const spaceGroupOpts = facets ? Object.keys(facets.space_group).filter((k) => k !== "_").sort() : [];
-  const allTags = facets ? Object.keys(facets.tags).filter((k) => k !== "_").sort() : [];
 
   const publishedDims = detail?.active_override?.dimensions ?? detail?.seed_dimensions ?? {};
   const draftDims = detail?.draft_override?.dimensions;

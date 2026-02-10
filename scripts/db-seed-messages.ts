@@ -202,6 +202,7 @@ async function run() {
           const existing = existingCheckZh.rows[0];
           if (existing.updated_by && existing.updated_by !== "seed" && !force) {
             skippedManual++;
+            // Skip zh-CN for this finding, but continue with next finding
             continue;
           }
         }
