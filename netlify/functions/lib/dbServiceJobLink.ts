@@ -8,6 +8,7 @@ export type ServiceJobLinkRow = {
   job_number: string;
   job_uuid: string;
   source: string | null;
+  snapshot_ref: string | null;
   prefill_json: unknown | null;
   prefill_fetched_at: string | null;
   created_at: string;
@@ -44,18 +45,20 @@ export async function upsertJobLink(params: {
   const q = sql();
   await q`
     insert into service_job_link (
-      job_number, job_uuid, source, created_at, updated_at
+      job_number, job_uuid, source, snapshot_ref, created_at, updated_at
     )
     values (
       ${params.job_number.trim()},
       ${params.job_uuid.trim()},
       ${params.source ?? null},
+      ${params.snapshot_ref ?? null},
       now(),
       now()
     )
     on conflict (job_number) do update set
       job_uuid = excluded.job_uuid,
       source = coalesce(excluded.source, service_job_link.source),
+      snapshot_ref = coalesce(excluded.snapshot_ref, service_job_link.snapshot_ref),
       updated_at = now()
   `;
 }
@@ -87,7 +90,7 @@ export async function selectJobLink(jobNumber: string): Promise<ServiceJobLinkRo
   const q = sql();
   const rows = (await q`
     select
-      job_number, job_uuid, source,
+      job_number, job_uuid, source, snapshot_ref,
       prefill_json, prefill_fetched_at,
       created_at, updated_at
     from service_job_link

@@ -6,6 +6,7 @@
 -- Step 1: Add new columns if they don't exist
 alter table service_job_link
   add column if not exists source text,
+  add column if not exists snapshot_ref text,
   add column if not exists prefill_json jsonb,
   add column if not exists prefill_fetched_at timestamptz;
 
