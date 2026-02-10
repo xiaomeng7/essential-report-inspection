@@ -64,10 +64,19 @@ export async function fetchJobByNumber(
 
   ensureLocalEnv();
 
-  const token = process.env.SERVICEM8_API_TOKEN;
+  const token = process.env.SERVICEM8_API_TOKEN?.trim();
   if (!token) {
     console.error("[servicem8] missing SERVICEM8_API_TOKEN");
     return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
+  }
+
+  // ServiceM8 两种认证：API Key（Settings → API Keys）用 X-API-Key；OAuth 用 Bearer。
+  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (authType === "bearer" || authType === "oauth") {
+    headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["X-API-Key"] = token;
   }
 
   const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
@@ -78,10 +87,7 @@ export async function fetchJobByNumber(
 
   const res = await fetch(url, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
+    headers,
   });
 
   if (!res.ok) {
