@@ -28,10 +28,12 @@
     "./netlify/functions/reportStyles.css"
   ]
 
+# ServiceM8 job prefill API (must be before /api/* rule)
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/servicem8/job-prefill"
+  to = "/.netlify/functions/servicem8JobPrefill"
   status = 200
+  force = true
 
 # Admin API: single function handles /api/admin/* (event.path preserved)
 [[redirects]]
@@ -40,12 +42,10 @@
   status = 200
   force = true
 
-# ServiceM8 job prefill API
 [[redirects]]
-  from = "/api/servicem8/job-prefill"
-  to = "/.netlify/functions/servicem8JobPrefill"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/review/*"
