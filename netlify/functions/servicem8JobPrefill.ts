@@ -1,9 +1,15 @@
 import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
-import { sql, isDbConfigured } from "./lib/db";
-import { fetchJobByNumber } from "./lib/serviceM8";
+import { isDbConfigured } from "./lib/db";
+import {
+  selectJobUuid,
+  selectJobLink,
+  updatePrefillCache,
+  upsertJobLink,
+} from "./lib/dbServiceJobLink";
+import { fetchJobByUuid, resolveJobNumberToUuid } from "./lib/serviceM8";
 
-const VERSION = "2026-02-03-v1";
-const CACHE_TTL_HOURS = 24;
+const VERSION = "2026-02-03-v2";
+const PREFILL_CACHE_TTL_HOURS = 24;
 
 function json(body: unknown, status = 200) {
   return {
@@ -17,7 +23,9 @@ function json(body: unknown, status = 200) {
 }
 
 function checkAuth(event: HandlerEvent): boolean {
-  const header = event.headers["x-servicem8-prefill-secret"] ?? event.headers["X-Servicem8-Prefill-Secret"];
+  const header =
+    event.headers["x-servicem8-prefill-secret"] ??
+    event.headers["X-Servicem8-Prefill-Secret"];
   const expected = process.env.SERVICEM8_PREFILL_SECRET;
   if (!expected) {
     // If not configured, allow all (for early dev); production should set secret.
@@ -26,41 +34,10 @@ function checkAuth(event: HandlerEvent): boolean {
   return header === expected;
 }
 
-type CacheRow = {
-  id: number;
-  job_uuid: string;
-  job_number: string;
-  job_cache: unknown;
-  fetched_at: string;
-};
-
-async function getFreshCache(jobNumber: string): Promise<CacheRow | null> {
-  if (!isDbConfigured()) return null;
-  const q = sql();
-  const rows = (await q`
-    select id, job_uuid, job_number, job_cache, fetched_at
-    from service_job_link
-    where job_number = ${jobNumber}
-    order by fetched_at desc
-    limit 1
-  `) as CacheRow[];
-  if (!rows.length) return null;
-  const row = rows[0];
-  const fetchedAt = new Date(row.fetched_at).getTime();
-  const ageMs = Date.now() - fetchedAt;
-  if (ageMs > CACHE_TTL_HOURS * 60 * 60 * 1000) {
-    return null;
-  }
-  return row;
-}
-
-async function upsertCache(jobNumber: string, jobUuid: string, payload: unknown): Promise<void> {
-  if (!isDbConfigured()) return;
-  const q = sql();
-  await q`
-    insert into service_job_link (inspection_id, job_uuid, job_number, job_cache, fetched_at)
-    values (null, ${jobUuid}, ${jobNumber}, ${JSON.stringify(payload)}::jsonb, now())
-  `;
+function isPrefillCacheFresh(fetchedAt: string | null): boolean {
+  if (!fetchedAt) return false;
+  const ageMs = Date.now() - new Date(fetchedAt).getTime();
+  return ageMs <= PREFILL_CACHE_TTL_HOURS * 60 * 60 * 1000;
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
@@ -82,71 +59,144 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
   }
 
   try {
-    // 1. Try DB cache
-    const cacheRow = await getFreshCache(jobNumber);
-    if (cacheRow) {
-      console.log("[servicem8-prefill] cache hit job_number", jobNumber);
-      const cached = cacheRow.job_cache as {
-        job: unknown;
-      };
-      const job = (cached as any).job ?? cached;
-      return json({
-        ok: true,
-        job,
-        cache: {
-          hit: true,
-          fetched_at: cacheRow.fetched_at,
-        },
-      });
+    // Step 1: DB-first lookup: get job_uuid from cache
+    let jobUuid: string | null = null;
+    let cachedPrefill: unknown | null = null;
+    let cachedFetchedAt: string | null = null;
+
+    if (isDbConfigured()) {
+      const linkRow = await selectJobLink(jobNumber);
+      if (linkRow) {
+        jobUuid = linkRow.job_uuid;
+        cachedPrefill = linkRow.prefill_json;
+        cachedFetchedAt = linkRow.prefill_fetched_at;
+
+        // If we have fresh prefill_json cache, return it immediately
+        if (cachedPrefill && isPrefillCacheFresh(cachedFetchedAt)) {
+          console.log("[servicem8-prefill] DB cache hit (prefill_json)", {
+            job_number: jobNumber,
+            job_uuid: jobUuid,
+          });
+          const job = cachedPrefill as { job?: unknown } | unknown;
+          const jobData = (job as { job?: unknown }).job ?? job;
+          return json({
+            ok: true,
+            job: jobData,
+            cache: {
+              hit: true,
+              fetched_at: cachedFetchedAt,
+            },
+          });
+        }
+      }
     }
 
-    // 2. Call ServiceM8
-    const result = await fetchJobByNumber(jobNumber);
-    if ("error" in result) {
-      if (result.error.kind === "config_missing") {
-        return json({ ok: false, error: "SERVICE_M8_NOT_CONFIGURED", message: result.error.message }, 503);
+    // Step 2: If no job_uuid in DB, resolve via ServiceM8 API
+    if (!jobUuid) {
+      console.log("[servicem8-prefill] DB cache miss, resolving job_number -> job_uuid", jobNumber);
+      const resolveResult = await resolveJobNumberToUuid(jobNumber);
+      if ("error" in resolveResult) {
+        if (resolveResult.error.kind === "config_missing") {
+          return json(
+            {
+              ok: false,
+              error: "SERVICE_M8_NOT_CONFIGURED",
+              message: resolveResult.error.message,
+            },
+            503
+          );
+        }
+        if (resolveResult.error.kind === "not_found") {
+          return json({ ok: false, error: "JOB_NOT_FOUND" }, 404);
+        }
+        return json(
+          {
+            ok: false,
+            error: "SERVICEM8_UPSTREAM_ERROR",
+            details: resolveResult.error.message,
+            upstream_status: resolveResult.error.status,
+          },
+          502
+        );
       }
-      if (result.error.kind === "not_found") {
+
+      jobUuid = resolveResult.job_uuid;
+      const resolvedNumber = resolveResult.job_number;
+
+      // Upsert mapping to DB (best-effort)
+      try {
+        await upsertJobLink({
+          job_number: resolvedNumber,
+          job_uuid: jobUuid,
+          source: "servicem8_api",
+        });
+        console.log("[servicem8-prefill] upserted job mapping", {
+          job_number: resolvedNumber,
+          job_uuid: jobUuid,
+        });
+      } catch (e) {
+        console.error("[servicem8-prefill] failed to upsert job mapping", e);
+        // Continue - we have job_uuid, can still fetch details
+      }
+    }
+
+    // Step 3: Fetch job details by UUID (fast, direct API call)
+    console.log("[servicem8-prefill] fetching job details by uuid", jobUuid);
+    const detailResult = await fetchJobByUuid(jobUuid);
+    if ("error" in detailResult) {
+      if (detailResult.error.kind === "config_missing") {
+        return json(
+          {
+            ok: false,
+            error: "SERVICE_M8_NOT_CONFIGURED",
+            message: detailResult.error.message,
+          },
+          503
+        );
+      }
+      if (detailResult.error.kind === "not_found") {
         return json({ ok: false, error: "JOB_NOT_FOUND" }, 404);
       }
       return json(
         {
           ok: false,
-          error: "SERVICE_M8_ERROR",
-          details: result.error.message,
+          error: "SERVICEM8_UPSTREAM_ERROR",
+          details: detailResult.error.message,
+          upstream_status: detailResult.error.status,
         },
         502
       );
     }
 
-    const payload = {
-      job: result.job,
-    };
+    const job = detailResult.job;
+    const prefillPayload = { job };
 
-    // 3. Upsert cache (best-effort)
+    // Step 4: Update prefill_json cache (best-effort)
     try {
-      await upsertCache(result.job.job_number, result.job.job_uuid, payload);
+      await updatePrefillCache(jobNumber, prefillPayload);
     } catch (e) {
-      console.error("[servicem8-prefill] cache upsert failed", e);
+      console.error("[servicem8-prefill] failed to update prefill cache", e);
+      // Continue - we have the job data, can still return it
     }
 
     return json({
       ok: true,
-      job: result.job,
+      job,
       cache: {
-        hit: false,
+        hit: cachedPrefill !== null,
         fetched_at: new Date().toISOString(),
       },
     });
   } catch (e) {
     console.error("[servicem8-prefill] unexpected error", e);
+    const message = e instanceof Error ? e.message : String(e);
     return json(
       {
         ok: false,
-        error: "SERVICE_M8_ERROR",
-        details: e instanceof Error ? e.message : String(e),
+        error: "INTERNAL_ERROR",
+        details: message,
       },
-      502
+      500
     );
   }
 };

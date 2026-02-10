@@ -28,6 +28,13 @@
     "./netlify/functions/reportStyles.css"
   ]
 
+# Internal API for Snapshot repo to push job mappings (must be before /api/* rule)
+[[redirects]]
+  from = "/api/internal/service-job-link"
+  to = "/.netlify/functions/internalServiceJobLink"
+  status = 200
+  force = true
+
 # ServiceM8 job prefill API (must be before /api/* rule)
 [[redirects]]
   from = "/api/servicem8/job-prefill"
