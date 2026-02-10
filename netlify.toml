@@ -40,6 +40,13 @@
   status = 200
   force = true
 
+# ServiceM8 job prefill API
+[[redirects]]
+  from = "/api/servicem8/job-prefill"
+  to = "/.netlify/functions/servicem8JobPrefill"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/review/*"
   to = "/index.html"
