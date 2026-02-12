@@ -31,7 +31,7 @@ function isPrefillCacheFresh(fetchedAt: string | null): boolean {
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
-  const token = process.env.SERVICEM8_API_TOKEN ?? process.env.SERVICEM8_API_KEY;
+  const token = process.env.SERVICEM8_API_KEY;
   console.log("[servicem8-prefill] VERSION", VERSION, "path", event.path, "apiKey present?", !!token, "apiKey length", token?.length ?? 0);
 
   if (event.httpMethod !== "GET") {

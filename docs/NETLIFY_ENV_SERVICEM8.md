@@ -1,18 +1,24 @@
 # Netlify Environment Variables for ServiceM8
 
+Matches Snapshot repo exactly: Base URL `https://api.servicem8.com/api_1.0`, X-API-Key header.
+
 ## Required for job prefill
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `SERVICEM8_API_TOKEN` | ServiceM8 API key (from Settings → API Keys) | `sk-xxxx...` |
-| or `SERVICEM8_API_KEY` | Same as above (alternative name) | `sk-xxxx...` |
+| `SERVICEM8_API_KEY` | ServiceM8 API key (from Settings → API Keys) | `sk-xxxx...` |
 
 ## Optional
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SERVICEM8_AUTH_TYPE` | `api_key` (X-API-Key), `bearer` (OAuth), or `basic` (Basic Auth) | `api_key` |
-| `SERVICEM8_API_BASE_URL` | ServiceM8 API base URL | `https://api.servicem8.com` |
+| `SERVICEM8_API_BASE_URL` | Full base URL including api_1.0 | `https://api.servicem8.com/api_1.0` |
+
+## Local curl verification
+
+```bash
+curl -H "X-API-Key: <your_key>" "https://api.servicem8.com/api_1.0/job.json?cursor=-1"
+```
 
 ## For internal Snapshot integration only
 

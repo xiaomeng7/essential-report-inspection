@@ -2,95 +2,34 @@ import { config as loadDotenv } from "dotenv";
 import path from "path";
 
 /**
- * Minimal ServiceM8 client for job lookup by job_number.
- * Uses OAuth / API token provided via SERVICEM8_API_TOKEN (Bearer).
+ * Minimal ServiceM8 client for job lookup. Matches Snapshot repo:
+ * - Base URL: https://api.servicem8.com/api_1.0
+ * - Auth: X-API-Key header from SERVICEM8_API_KEY
  */
 
-const SERVICE_M8_VERSION = "2026-02-03-v3";
+const SERVICE_M8_VERSION = "2026-02-03-v4";
+const BASE_URL = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com/api_1.0";
 
 /**
- * Build auth headers and log token presence (never log the key).
- * Supports: api_key (X-API-Key), bearer (Bearer token), basic (HTTP Basic "API_KEY:" + token).
+ * Build headers matching Snapshot exactly. X-API-Key only, no Basic Auth.
  */
-function buildAuthHeaders(): { headers: Record<string, string>; logContext: string } {
-  const token =
-    process.env.SERVICEM8_API_TOKEN?.trim() ??
-    process.env.SERVICEM8_API_KEY?.trim();
-  const apiKeyPresent = !!token;
-  const apiKeyLength = token?.length ?? 0;
-  console.log("[servicem8] auth: apiKey present?", apiKeyPresent, "apiKey length:", apiKeyLength);
-
-  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
-
-  if (!token) {
-    return { headers, logContext: "no_token" };
-  }
-
-  if (authType === "bearer" || authType === "oauth") {
-    headers["Authorization"] = `Bearer ${token}`;
-    return { headers, logContext: "bearer" };
-  }
-  if (authType === "basic" || authType === "basic_auth") {
-    const credentials = `API_KEY:${token}`;
-    headers["Authorization"] = `Basic ${Buffer.from(credentials, "utf8").toString("base64")}`;
-    return { headers, logContext: "basic" };
-  }
-  headers["X-API-Key"] = token;
-  return { headers, logContext: "api_key" };
+function buildHeaders(): Record<string, string> {
+  const token = process.env.SERVICEM8_API_KEY?.trim();
+  console.log("[servicem8] apiKey present?", !!token, "apiKey length:", token?.length ?? 0);
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(token ? { "X-API-Key": token } : {}),
+  };
 }
 
-/**
- * Parse response body as JSON. If ServiceM8 returns HTML (e.g. login/error page),
- * return error instead of throwing.
- */
-async function safeParseJson(
-  res: Response,
-  debugUrl?: string
-): Promise<{ ok: true; data: unknown } | { ok: false; error: ServiceM8Error }> {
-  const text = await res.text();
-  if (text.trimStart().startsWith("<")) {
-    const baseHint =
-      res.status === 200
-        ? "HTTP 200 但返回 HTML，通常表示 SERVICEM8_API_BASE_URL 配置错误。应设为 https://api.servicem8.com（不要用 app.servicem8.com 或 www）。"
-        : res.status === 401
-          ? "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。"
-          : `ServiceM8 API 返回了网页而非 JSON（HTTP ${res.status}）。请检查 SERVICEM8_API_TOKEN、SERVICEM8_API_BASE_URL 是否正确。`;
-    const msg = debugUrl ? `${baseHint} 请求 URL: ${debugUrl}` : baseHint;
-    console.error("[servicem8] HTML response:", res.status, debugUrl ?? "(no url)", "body preview:", text.slice(0, 150));
-    return {
-      ok: false,
-      error: {
-        kind: "service_error",
-        status: res.status,
-        message: msg,
-      },
-    };
-  }
-  try {
-    const data = text ? JSON.parse(text) : null;
-    return { ok: true, data };
-  } catch {
-    return {
-      ok: false,
-      error: {
-        kind: "service_error",
-        status: res.status,
-        message: `ServiceM8 API 返回了无效 JSON: ${text.slice(0, 100)}`,
-      },
-    };
-  }
+function logUpstreamError(status: number, body: string, url: string): void {
+  console.error("[servicem8] upstream error:", "status", status, "url", url, "body (first 200):", body.slice(0, 200));
 }
 
 function ensureLocalEnv(): void {
-  // If token already exists, no need to load .env
-  if (process.env.SERVICEM8_API_TOKEN || process.env.SERVICEM8_API_KEY) return;
-  
-  // In production (Netlify), env vars come from Netlify settings, not .env
-  // Only load .env in local dev (netlify dev)
+  if (process.env.SERVICEM8_API_KEY) return;
   if (process.env.NETLIFY_DEV !== "true" && !process.env.NETLIFY) return;
-  
-  // Try to load .env from project root (netlify dev runs from project root)
   const candidates = [
     path.resolve(process.cwd(), ".env"),
     path.resolve(process.cwd(), "..", ".env"),
@@ -99,12 +38,12 @@ function ensureLocalEnv(): void {
   for (const p of candidates) {
     try {
       loadDotenv({ path: p });
-      if (process.env.SERVICEM8_API_TOKEN || process.env.SERVICEM8_API_KEY) {
-        console.log("[servicem8] loaded SERVICEM8_API_TOKEN/SERVICEM8_API_KEY from", p);
+      if (process.env.SERVICEM8_API_KEY) {
+        console.log("[servicem8] loaded SERVICEM8_API_KEY from", p);
         return;
       }
-    } catch (e) {
-      // Ignore file not found errors
+    } catch {
+      /* ignore */
     }
   }
 }
@@ -145,159 +84,89 @@ export type ServiceM8Error =
   | { kind: "not_found"; message: string }
   | { kind: "service_error"; status: number; message: string };
 
+/** Resolve job_number -> job_uuid via filtered list. Used by prefill when DB cache miss. */
+export async function resolveJobNumberToUuid(
+  jobNumber: string
+): Promise<{ job_uuid: string; job_number: string } | { error: ServiceM8Error }> {
+  console.log("[servicem8] resolveJobNumberToUuid", jobNumber);
+  ensureLocalEnv();
+
+  const token = process.env.SERVICEM8_API_KEY?.trim();
+  if (!token) {
+    return { error: { kind: "config_missing", message: "ServiceM8 API not configured (SERVICEM8_API_KEY)" } };
+  }
+
+  const headers = buildHeaders();
+  const url = `${BASE_URL}/job.json?$filter=generated_job_id eq '${encodeURIComponent(jobNumber.trim())}'&cursor=-1`;
+
+  const res = await fetch(url, { method: "GET", headers });
+  console.log("[servicem8] upstream response status:", res.status, "url:", url);
+
+  const text = await res.text();
+  if (!res.ok) {
+    logUpstreamError(res.status, text, url);
+    return {
+      error: {
+        kind: "service_error",
+        status: res.status,
+        message: text.slice(0, 200) || `ServiceM8 HTTP ${res.status}`,
+      },
+    };
+  }
+
+  let list: unknown[];
+  try {
+    const data = text ? JSON.parse(text) : null;
+    list = Array.isArray(data) ? data : [];
+  } catch {
+    logUpstreamError(res.status, text, url);
+    return {
+      error: {
+        kind: "service_error",
+        status: res.status,
+        message: `Invalid JSON: ${text.slice(0, 200)}`,
+      },
+    };
+  }
+
+  if (list.length === 0) {
+    return { error: { kind: "not_found", message: "Job not found" } };
+  }
+
+  const match = list[0] as Record<string, unknown>;
+  const uuid = String(match.uuid ?? "");
+  const num =
+    String(match.job_number ?? (match as Record<string, unknown>).generated_job_number ?? "").trim() || jobNumber;
+  if (!uuid) {
+    return { error: { kind: "not_found", message: "Job not found" } };
+  }
+  console.log("[servicem8] resolved via filter", { job_number: num, job_uuid: uuid });
+  return { job_uuid: uuid, job_number: num };
+}
+
 export async function fetchJobByNumber(
   jobNumber: string
 ): Promise<{ job: NormalizedJob; raw: unknown } | { error: ServiceM8Error }> {
-  console.log("[servicem8] VERSION", SERVICE_M8_VERSION, "jobNumber", jobNumber);
+  const resolveResult = await resolveJobNumberToUuid(jobNumber);
+  if ("error" in resolveResult) return resolveResult;
+  return fetchJobByUuid(resolveResult.job_uuid);
+}
 
-  ensureLocalEnv();
-
-  const { headers } = buildAuthHeaders();
-  const token =
-    process.env.SERVICEM8_API_TOKEN?.trim() ??
-    process.env.SERVICEM8_API_KEY?.trim();
-  if (!token) {
-    console.error("[servicem8] missing SERVICEM8_API_TOKEN/SERVICEM8_API_KEY");
-    return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
-  }
-
-  const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
-
-  // Normalize job number for comparison (trim, drop leading zeros for numeric match).
-  const normalizeJobNum = (v: string): string => {
-    const s = v.trim();
-    const n = parseInt(s, 10);
-    if (!isNaN(n) && String(n) === s) return s;
-    return s.replace(/^0+/, "") || s;
-  };
-  const searchNum = normalizeJobNum(jobNumber);
-
-  // ServiceM8 Job API may not support $filter by job_number; fetch pages and search.
-  const MAX_PAGES = 5;
-  let cursor: string | null = "-1";
-  let first: Record<string, unknown> | null = null;
-
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const url =
-      cursor === "-1"
-        ? `${baseUrl}/api_1.0/job.json?cursor=-1`
-        : `${baseUrl}/api_1.0/job.json?cursor=${encodeURIComponent(cursor)}`;
-
-    const res = await fetch(url, { method: "GET", headers });
-    console.log("[servicem8] upstream response status:", res.status, "url:", url);
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("[servicem8] job list error", res.status, text);
-      if (res.status === 404) {
-        return { error: { kind: "not_found", message: "Job not found" } };
-      }
-      let parsedError: { message?: string; error?: string; error_description?: string } | null = null;
-      try {
-        parsedError = JSON.parse(text);
-      } catch {
-        /* ignore */
-      }
-      if (parsedError?.error === "invalid_token" || res.status === 401) {
-        return {
-          error: {
-            kind: "service_error",
-            status: res.status,
-            message:
-              "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。",
-          },
-        };
-      }
-      const rawMsg = parsedError?.message ?? parsedError?.error_description ?? parsedError?.error ?? "";
-      if (
-        res.status === 400 &&
-        (rawMsg.includes("authorised object type") || rawMsg.includes("api_1"))
-      ) {
-        return {
-          error: {
-            kind: "service_error",
-            status: res.status,
-            message:
-              "当前 API Key 或 Token 无权访问 Jobs 接口。请到 ServiceM8 的 Settings → API Access 检查密钥权限，确保已勾选 Jobs 相关权限；或使用 OAuth 认证（SERVICEM8_AUTH_TYPE=bearer）并申请 read_jobs 权限。",
-          },
-        };
-      }
-      return {
-        error: {
-          kind: "service_error",
-          status: res.status,
-          message:
-            parsedError?.error_description ??
-            parsedError?.message ??
-            parsedError?.error ??
-            text ??
-            `ServiceM8 HTTP ${res.status}`,
-        },
-      };
-    }
-
-    const parsed = await safeParseJson(res, url);
-    if (!parsed.ok) return { error: parsed.error };
-    const list = Array.isArray(parsed.data) ? parsed.data : [];
-
-    if (page === 0 && list.length > 0) {
-      const sample = list[0] as Record<string, unknown>;
-      console.log("[servicem8] first job keys:", Object.keys(sample).sort().join(", "));
-      const possibleNum =
-        sample.job_number ?? sample.generated_job_number ?? sample.number ?? sample.id ?? "(none)";
-      console.log("[servicem8] sample job_number / generated_job_number / number:", possibleNum);
-    }
-
-    const match = list.find((j: unknown) => {
-      const r = j as Record<string, unknown>;
-      const raw =
-        r.job_number ?? r.generated_job_number ?? r.number ?? r.job_number_display ?? r.id ?? "";
-      const num = normalizeJobNum(String(raw));
-      return num === searchNum || String(raw).trim() === jobNumber.trim();
-    }) as Record<string, unknown> | undefined;
-
-    if (match) {
-      first = match;
-      break;
-    }
-
-    const nextCursor = res.headers.get("x-next-cursor");
-    if (!nextCursor) {
-      break;
-    }
-    cursor = nextCursor;
-  }
-
-  if (!first) {
-    return { error: { kind: "not_found", message: "Job not found" } };
-  }
+function normalizeJobFromRaw(first: Record<string, unknown>, jobNumber: string): NormalizedJob {
   const uuid = String(first.uuid ?? "");
   const num =
-    String(first.job_number ?? (first as Record<string, unknown>).generated_job_number ?? "").trim() ||
-    jobNumber.trim();
-
+    String(first.job_number ?? (first as Record<string, unknown>).generated_job_number ?? "").trim() || jobNumber;
   const contactFirst = (first.contact_first_name as string | undefined) ?? "";
   const contactLast = (first.contact_last_name as string | undefined) ?? "";
   const contactName =
     (contactFirst + " " + contactLast).trim() ||
     (first.client_company as string | undefined) ||
     null;
-
-  const phone =
-    (first.contact_phone as string | undefined) ??
-    (first.client_phone as string | undefined) ??
-    null;
-  const email =
-    (first.contact_email as string | undefined) ??
-    (first.client_email as string | undefined) ??
-    null;
-
   const address =
     (first.address as string | undefined) ??
     (first.site_address as string | undefined) ??
     null;
-
-  const normalized: NormalizedJob = {
+  return {
     job_uuid: uuid,
     job_number: num,
     customer_name:
@@ -306,8 +175,14 @@ export async function fetchJobByNumber(
       contactName ||
       "",
     contact_name: contactName,
-    phone,
-    email,
+    phone:
+      (first.contact_phone as string | undefined) ??
+      (first.client_phone as string | undefined) ??
+      null,
+    email:
+      (first.contact_email as string | undefined) ??
+      (first.client_email as string | undefined) ??
+      null,
     address: {
       line1: address,
       line2: null,
@@ -317,78 +192,57 @@ export async function fetchJobByNumber(
       full_address: address,
     },
   };
-
-  return { job: normalized, raw: [first] };
 }
 
 /**
- * Fetch a single job by UUID (fast, direct API call).
- * GET /api_1.0/job/{uuid}.json
+ * Fetch a single job by UUID. GET job/{uuid}.json
  */
 export async function fetchJobByUuid(
   jobUuid: string
 ): Promise<{ job: NormalizedJob; raw: unknown } | { error: ServiceM8Error }> {
   console.log("[servicem8] fetchJobByUuid", jobUuid);
-
   ensureLocalEnv();
 
-  const { headers } = buildAuthHeaders();
-  const token =
-    process.env.SERVICEM8_API_TOKEN?.trim() ??
-    process.env.SERVICEM8_API_KEY?.trim();
+  const token = process.env.SERVICEM8_API_KEY?.trim();
   if (!token) {
-    console.error("[servicem8] missing SERVICEM8_API_TOKEN/SERVICEM8_API_KEY");
-    return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
+    return { error: { kind: "config_missing", message: "ServiceM8 API not configured (SERVICEM8_API_KEY)" } };
   }
 
-  const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
-  const url = `${baseUrl}/api_1.0/job/${encodeURIComponent(jobUuid)}.json`;
+  const headers = buildHeaders();
+  const url = `${BASE_URL}/job/${encodeURIComponent(jobUuid)}.json`;
 
   const res = await fetch(url, { method: "GET", headers });
   console.log("[servicem8] upstream response status:", res.status, "url:", url);
 
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    const textPreview = text.slice(0, 200);
-    console.error(
-      `[servicem8] fetchJobByUuid error: ${res.status} ${res.statusText}, body preview: ${textPreview}`
-    );
+    logUpstreamError(res.status, text, url);
     if (res.status === 404) {
       return { error: { kind: "not_found", message: "Job not found" } };
-    }
-    let parsedError: { error?: string; error_description?: string } | null = null;
-    try {
-      parsedError = JSON.parse(text);
-    } catch {
-      /* ignore */
-    }
-    if (parsedError?.error === "invalid_token" || res.status === 401) {
-      return {
-        error: {
-          kind: "service_error",
-          status: res.status,
-          message:
-            "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。",
-        },
-      };
     }
     return {
       error: {
         kind: "service_error",
         status: res.status,
-        message:
-          parsedError?.error_description ||
-          parsedError?.message ||
-          parsedError?.error ||
-          textPreview ||
-          `ServiceM8 HTTP ${res.status}`,
+        message: text.slice(0, 200) || `ServiceM8 HTTP ${res.status}`,
       },
     };
   }
 
-  const parsed = await safeParseJson(res, url);
-  if (!parsed.ok) return { error: parsed.error };
-  const first = parsed.data as Record<string, unknown>;
+  let first: Record<string, unknown>;
+  try {
+    const data = text ? JSON.parse(text) : null;
+    first = (data && typeof data === "object") ? (data as Record<string, unknown>) : {};
+  } catch {
+    logUpstreamError(res.status, text, url);
+    return {
+      error: {
+        kind: "service_error",
+        status: res.status,
+        message: `Invalid JSON: ${text.slice(0, 200)}`,
+      },
+    };
+  }
   const uuid = String(first.uuid ?? "");
   const num =
     String(
@@ -440,173 +294,5 @@ export async function fetchJobByUuid(
   };
 
   return { job: normalized, raw: first };
-}
-
-/**
- * Resolve job_number -> job_uuid via ServiceM8 API (fallback when DB cache miss).
- * Uses filter on generated_job_id if supported, otherwise paginates and searches.
- */
-export async function resolveJobNumberToUuid(
-  jobNumber: string
-): Promise<{ job_uuid: string; job_number: string } | { error: ServiceM8Error }> {
-  console.log("[servicem8] resolveJobNumberToUuid", jobNumber);
-
-  ensureLocalEnv();
-
-  const { headers } = buildAuthHeaders();
-  const token =
-    process.env.SERVICEM8_API_TOKEN?.trim() ??
-    process.env.SERVICEM8_API_KEY?.trim();
-  if (!token) {
-    return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
-  }
-
-  const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
-
-  // Try filter first (may not work, but worth trying)
-  const normalizeJobNum = (v: string): string => {
-    const s = v.trim();
-    const n = parseInt(s, 10);
-    if (!isNaN(n) && String(n) === s) return s;
-    return s.replace(/^0+/, "") || s;
-  };
-  const searchNum = normalizeJobNum(jobNumber);
-
-  // Try filter on generated_job_id (if ServiceM8 supports it)
-  const filterUrl = `${baseUrl}/api_1.0/job.json?$filter=generated_job_id eq '${encodeURIComponent(
-    jobNumber
-  )}'`;
-  const filterRes = await fetch(filterUrl, { method: "GET", headers });
-  console.log("[servicem8] upstream response status:", filterRes.status, "url:", filterUrl);
-
-  if (filterRes.ok) {
-    const parsed = await safeParseJson(filterRes, filterUrl);
-    if (!parsed.ok) return { error: parsed.error };
-    const filterList = Array.isArray(parsed.data) ? parsed.data : [];
-    if (filterList.length > 0) {
-      const match = filterList[0] as Record<string, unknown>;
-      const uuid = String(match.uuid ?? "");
-      const num =
-        String(
-          match.job_number ??
-            (match as Record<string, unknown>).generated_job_number ??
-            ""
-        ).trim() || jobNumber;
-      if (uuid) {
-        console.log("[servicem8] resolved via filter", { job_number: num, job_uuid: uuid });
-        return { job_uuid: uuid, job_number: num };
-      }
-    }
-  }
-
-  // Fallback: paginate and search (limited to 3 pages for performance)
-  const MAX_PAGES = 3;
-  let cursor: string | null = "-1";
-
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const url =
-      cursor === "-1"
-        ? `${baseUrl}/api_1.0/job.json?cursor=-1`
-        : `${baseUrl}/api_1.0/job.json?cursor=${encodeURIComponent(cursor)}`;
-
-    const res = await fetch(url, { method: "GET", headers });
-    console.log("[servicem8] upstream response status:", res.status, "url:", url);
-
-    if (!res.ok) {
-      const text = await res.text();
-      const textPreview = text.slice(0, 200);
-      console.error(
-        `[servicem8] resolveJobNumberToUuid pagination error: ${res.status}, body preview: ${textPreview}`
-      );
-      if (res.status === 404) {
-        return { error: { kind: "not_found", message: "Job not found" } };
-      }
-      let parsedError: { errorCode?: number; message?: string; error?: string; error_description?: string } | null = null;
-      try {
-        parsedError = JSON.parse(text);
-      } catch {
-        /* ignore */
-      }
-      if (parsedError?.error === "invalid_token" || res.status === 401) {
-        return {
-          error: {
-            kind: "service_error",
-            status: res.status,
-            message:
-              "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。",
-          },
-        };
-      }
-      const rawMsg = parsedError?.message ?? parsedError?.error_description ?? parsedError?.error ?? "";
-      if (
-        res.status === 400 &&
-        (rawMsg.includes("authorised object type") || rawMsg.includes("api_1"))
-      ) {
-        return {
-          error: {
-            kind: "service_error",
-            status: res.status,
-            message:
-              "当前 API Key 或 Token 无权访问 Jobs 接口。请到 ServiceM8 的 Settings → API Access 检查密钥权限，确保已勾选 Jobs 相关权限；或使用 OAuth 认证（SERVICEM8_AUTH_TYPE=bearer）并申请 read_jobs 权限。",
-          },
-        };
-      }
-      return {
-        error: {
-          kind: "service_error",
-          status: res.status,
-          message:
-            parsedError?.error_description ??
-            parsedError?.message ??
-            parsedError?.error ??
-            textPreview ??
-            `ServiceM8 HTTP ${res.status}`,
-        },
-      };
-    }
-
-    const parsed = await safeParseJson(res, url);
-    if (!parsed.ok) return { error: parsed.error };
-    const list = Array.isArray(parsed.data) ? parsed.data : [];
-
-    const match = list.find((j: unknown) => {
-      const r = j as Record<string, unknown>;
-      const raw =
-        r.job_number ??
-        r.generated_job_number ??
-        r.number ??
-        r.job_number_display ??
-        r.id ??
-        "";
-      const num = normalizeJobNum(String(raw));
-      return num === searchNum || String(raw).trim() === jobNumber.trim();
-    }) as Record<string, unknown> | undefined;
-
-    if (match) {
-      const uuid = String(match.uuid ?? "");
-      const num =
-        String(
-          match.job_number ??
-            (match as Record<string, unknown>).generated_job_number ??
-            ""
-        ).trim() || jobNumber;
-      if (uuid) {
-        console.log("[servicem8] resolved via pagination", {
-          job_number: num,
-          job_uuid: uuid,
-          page: page + 1,
-        });
-        return { job_uuid: uuid, job_number: num };
-      }
-    }
-
-    const nextCursor = res.headers.get("x-next-cursor");
-    if (!nextCursor) {
-      break;
-    }
-    cursor = nextCursor;
-  }
-
-  return { error: { kind: "not_found", message: "Job not found" } };
 }
 
