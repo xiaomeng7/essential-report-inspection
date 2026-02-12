@@ -465,7 +465,8 @@ export function Wizard({ onSubmitted }: Props) {
           );
           const geoText = await geoRes.text();
           if (geoText.trimStart().startsWith("<")) {
-            // Geocoding 返回 HTML（如 404），跳过地址预填
+            // Geocoding 返回 HTML（如 404），仍填入原始地址以便用户看到
+            setAnswer("job.address", { value: fullAddress.trim(), status: "answered" });
           } else {
             const geoData = JSON.parse(geoText);
             if (geoRes.ok && geoData.place_id && geoData.formatted_address) {
@@ -480,10 +481,14 @@ export function Wizard({ onSubmitted }: Props) {
                 status: "answered",
               });
               addressAutoFilled = true;
+            } else {
+              // Geocoding 未返回 place_id，仍填入原始地址
+              setAnswer("job.address", { value: fullAddress.trim(), status: "answered" });
             }
           }
         } catch {
-          // 地址反查失败不影响主流程，用户可手动选择地址
+          // 地址反查失败，仍填入原始地址
+          setAnswer("job.address", { value: fullAddress.trim(), status: "answered" });
         }
       }
 

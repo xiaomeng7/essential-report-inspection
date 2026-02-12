@@ -160,13 +160,15 @@ export function SectionForm({
 
   const getAddressValue = useCallback((): StructuredAddress | null => {
     const placeId = getValue("job.address_place_id");
-    if (!placeId || typeof placeId !== "string" || !placeId.trim()) return null;
     const addr = getValue("job.address");
     const comp = getValue("job.address_components");
     const geo = getValue("job.address_geo");
+    const addrStr = typeof addr === "string" ? addr.trim() : "";
+    // 有 place_id 时返回完整结构；仅有地址字符串时（如 ServiceM8 预填但 Geocoding 失败）也返回，以便地址栏显示
+    if (!addrStr) return null;
     return {
-      property_address: String(addr ?? ""),
-      address_place_id: String(placeId ?? ""),
+      property_address: addrStr,
+      address_place_id: placeId && typeof placeId === "string" ? placeId.trim() : "",
       address_components: (typeof comp === "object" && comp !== null ? comp : {}) as AddressComponents,
       address_geo: (typeof geo === "object" && geo !== null && !Array.isArray(geo) ? geo : undefined) as AddressGeo | undefined,
     };
