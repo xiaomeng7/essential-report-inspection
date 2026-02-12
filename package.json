@@ -27,6 +27,7 @@
     "test:servicem8-prefill": "tsx scripts/test-servicem8-job-prefill.ts",
     "test:service-job-link": "tsx scripts/test-service-job-link.ts",
     "test:servicem8-db-first": "tsx scripts/test-servicem8-db-first.ts",
+    "test:snapshot-inspection-e2e": "tsx scripts/test-snapshot-inspection-e2e.ts",
     "report:diff": "tsx scripts/compareDocx.ts",
     "verify:docx-links": "tsx scripts/verify-docx-links.ts",
     "verify:evidence": "tsx scripts/verify-evidence-rules.ts",

@@ -35,7 +35,8 @@ export const handler: Handler = async (
   event: HandlerEvent,
   _ctx: HandlerContext
 ) => {
-  console.log("[internal-service-job-link] VERSION", VERSION, "path", event.path);
+  const hasKey = !!process.env.INTERNAL_API_KEY;
+  console.log("[internal-service-job-link] VERSION", VERSION, "path", event.path, "auth_configured:", hasKey);
 
   if (event.httpMethod !== "POST") {
     return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);

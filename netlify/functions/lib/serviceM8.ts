@@ -8,7 +8,10 @@ import path from "path";
  */
 
 const SERVICE_M8_VERSION = "2026-02-03-v4";
-const BASE_URL = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com/api_1.0";
+const BASE_URL =
+  process.env.SERVICEM8_BASE_URL?.trim() ||
+  process.env.SERVICEM8_API_BASE_URL?.trim() ||
+  "https://api.servicem8.com/api_1.0";
 
 /**
  * Build headers matching Snapshot exactly. X-API-Key only, no Basic Auth.
