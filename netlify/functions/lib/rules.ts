@@ -418,6 +418,22 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
     }
   };
   walk(raw, "");
+
+  // Derive internal.* from lighting.rooms (merged S3B fields into per-room)
+  const lightingRooms = getAt(out, "lighting.rooms") as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(lightingRooms)) {
+    const existing = getAt(out, "internal") as Record<string, unknown> | undefined;
+    const internal: Record<string, unknown> = existing ? { ...existing } : {};
+    for (const r of lightingRooms) {
+      if (r?.switch_plate_cracked === true) internal.switch_plate_cracked = true;
+      if (r?.switch_body_moves === true) internal.switch_body_moves = true;
+      if (r?.unusual_audible_sound === true) internal.unusual_audible_sound = true;
+      if (r?.light_fitting_moves === true) internal.light_fitting_moves = true;
+      if (r?.bare_wire_visible === true) internal.bare_wire_visible = true;
+    }
+    out.internal = internal;
+  }
+
   return out;
 }
 

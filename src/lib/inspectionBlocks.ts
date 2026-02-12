@@ -22,7 +22,7 @@ export const WIZARD_PAGES: BlockDef[] = [
     id: "internal_rooms",
     title: "Internal Rooms",
     titleEn: "Internal Rooms",
-    sectionIds: ["S7B_LIGHTING_BY_ROOM", "S3B_LIGHTING_SWITCHES", "S7A_GPO_BY_ROOM", "S8_GPO_LIGHTING_EXCEPTIONS"],
+    sectionIds: ["S7B_LIGHTING_BY_ROOM", "S7A_GPO_BY_ROOM", "S8_GPO_LIGHTING_EXCEPTIONS"],
   },
   {
     id: "switchboard_rcd",
