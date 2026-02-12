@@ -30,6 +30,9 @@
 
 - **环境变量**：`SERVICEM8_API_TOKEN`、`SERVICEM8_AUTH_TYPE`（可选）、`SERVICEM8_API_BASE_URL`（可选）。
 - **排查**：若提示「ServiceM8 集成未配置」或「API token 无效」，检查 Netlify 环境变量是否已设置且有效。
+- **HTTP 200 但返回 HTML**：若提示「ServiceM8 API 返回了网页而非 JSON（HTTP 200）」：
+  - **SERVICEM8_API_BASE_URL** 必须为 `https://api.servicem8.com`，不要用 `app.servicem8.com` 或 `www.servicem8.com`。
+  - 若未设置该变量，默认即为正确值；若显式设置了错误值，请删除或改为 `https://api.servicem8.com`。
 
 ### 5. 地址未自动填入
 

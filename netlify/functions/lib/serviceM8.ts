@@ -13,14 +13,19 @@ const SERVICE_M8_VERSION = "2026-02-03-v2";
  * return error instead of throwing.
  */
 async function safeParseJson(
-  res: Response
+  res: Response,
+  debugUrl?: string
 ): Promise<{ ok: true; data: unknown } | { ok: false; error: ServiceM8Error }> {
   const text = await res.text();
   if (text.trimStart().startsWith("<")) {
-    const msg =
-      res.status === 401
-        ? "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。"
-        : `ServiceM8 API 返回了网页而非 JSON（HTTP ${res.status}）。请检查 SERVICEM8_API_TOKEN、SERVICEM8_API_BASE_URL 是否正确。`;
+    const baseHint =
+      res.status === 200
+        ? "HTTP 200 但返回 HTML，通常表示 SERVICEM8_API_BASE_URL 配置错误。应设为 https://api.servicem8.com（不要用 app.servicem8.com 或 www）。"
+        : res.status === 401
+          ? "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。"
+          : `ServiceM8 API 返回了网页而非 JSON（HTTP ${res.status}）。请检查 SERVICEM8_API_TOKEN、SERVICEM8_API_BASE_URL 是否正确。`;
+    const msg = debugUrl ? `${baseHint} 请求 URL: ${debugUrl}` : baseHint;
+    console.error("[servicem8] HTML response:", res.status, debugUrl ?? "(no url)", "body preview:", text.slice(0, 150));
     return {
       ok: false,
       error: {
@@ -186,7 +191,7 @@ export async function fetchJobByNumber(
       };
     }
 
-    const parsed = await safeParseJson(res);
+    const parsed = await safeParseJson(res, url);
     if (!parsed.ok) return { error: parsed.error };
     const list = Array.isArray(parsed.data) ? parsed.data : [];
 
@@ -340,7 +345,7 @@ export async function fetchJobByUuid(
     };
   }
 
-  const parsed = await safeParseJson(res);
+  const parsed = await safeParseJson(res, url);
   if (!parsed.ok) return { error: parsed.error };
   const first = parsed.data as Record<string, unknown>;
   const uuid = String(first.uuid ?? "");
@@ -438,7 +443,7 @@ export async function resolveJobNumberToUuid(
   const filterRes = await fetch(filterUrl, { method: "GET", headers });
 
   if (filterRes.ok) {
-    const parsed = await safeParseJson(filterRes);
+    const parsed = await safeParseJson(filterRes, filterUrl);
     if (!parsed.ok) return { error: parsed.error };
     const filterList = Array.isArray(parsed.data) ? parsed.data : [];
     if (filterList.length > 0) {
@@ -508,7 +513,7 @@ export async function resolveJobNumberToUuid(
       };
     }
 
-    const parsed = await safeParseJson(res);
+    const parsed = await safeParseJson(res, url);
     if (!parsed.ok) return { error: parsed.error };
     const list = Array.isArray(parsed.data) ? parsed.data : [];
 
