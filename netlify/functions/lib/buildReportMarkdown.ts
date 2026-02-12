@@ -626,27 +626,100 @@ function buildMethodologySection(defaultText: any): string {
   return md.join("\n");
 }
 
+/** Risk indicator → interpretation ( Premium thermal module ) */
+const THERMAL_INTERPRETATION: Record<string, string> = {
+  GREEN: "No significant abnormal heat signatures observed at the time of inspection.",
+  AMBER: "Moderate temperature variance observed; may indicate increased resistance and warrants monitoring.",
+  RED: "Abnormal heat signature observed; further investigation recommended as a priority.",
+};
+/** Risk indicator → recommended action */
+const THERMAL_RECOMMENDED_ACTION: Record<string, string> = {
+  GREEN: "No immediate action required; retain as baseline for future comparison.",
+  AMBER: "Schedule targeted inspection/retightening within 3–6 months.",
+  RED: "Arrange investigation and rectification as soon as practicable.",
+};
+/** Planning guidance (same for all; bundle with maintenance) */
+const THERMAL_PLANNING_GUIDANCE = "Consider bundling with switchboard work, RCD upgrades, or planned maintenance where practical.";
+
 /**
- * Section 7: Thermal Imaging Analysis (If Applicable)
+ * Section 7: Thermal Imaging Analysis (Premium – THERMAL RISK SCREENING)
+ * Renders only if raw.thermal.enabled=true AND raw.thermal.captures.length>0.
  */
-function buildThermalImagingSection(canonical: CanonicalInspection, defaultText: any): string {
-  const md: string[] = [];
-  
-  md.push('<h2 class="page-title">Page 8 | Thermal Imaging Analysis (If Applicable)</h2>');
-  md.push("");
-  
-  const testData = canonical.test_data || {};
-  const thermalData = (testData as any)?.thermal_imaging || (testData as any)?.thermal;
-  
-  if (thermalData) {
-    md.push(String(thermalData));
-  } else {
-    md.push(defaultText.THERMAL_VALUE_STATEMENT || defaultText.THERMAL_METHOD ||
-      "Thermal imaging analysis provides a non-invasive method for identifying potential electrical issues that may not be visible during standard visual inspection. No thermal imaging data was captured for this assessment.");
+function buildThermalImagingSection(
+  inspection: StoredInspection,
+  canonical: CanonicalInspection,
+  defaultText: any
+): string {
+  const raw = inspection?.raw as Record<string, unknown> | undefined;
+  const thermalRaw = raw?.thermal as Record<string, unknown> | undefined;
+  const enabled = !!thermalRaw?.enabled;
+  const captures = Array.isArray(thermalRaw?.captures) ? (thermalRaw.captures as Record<string, unknown>[]) : [];
+
+  if (!enabled || captures.length === 0) {
+    return (
+      '<h2 class="page-title">Page 8 | Thermal Imaging Analysis (If Applicable)</h2>\n\n' +
+      (defaultText.THERMAL_VALUE_STATEMENT ||
+        defaultText.THERMAL_METHOD ||
+        "Thermal imaging analysis provides a non-invasive method for identifying potential electrical issues that may not be visible during standard visual inspection. No thermal imaging data was captured for this assessment.")
+    );
   }
-  md.push("");
-  
-  return md.join("\n");
+
+  const ambient = thermalRaw?.ambient_c != null ? Number(thermalRaw.ambient_c) : null;
+  const device = typeof thermalRaw?.device === "string" ? String(thermalRaw.device) : "";
+
+  const parts: string[] = [];
+  parts.push('<h2 class="page-title">THERMAL RISK SCREENING</h2>');
+  parts.push("");
+
+  // Executive Snapshot table
+  parts.push('<h3>Executive Snapshot</h3>');
+  parts.push('<table><thead><tr><th>Area</th><th>Max Temp</th><th>Ambient</th><th>Delta</th><th>Risk Indicator</th></tr></thead><tbody>');
+  for (const cap of captures) {
+    const area = String(cap.area ?? "");
+    const max = cap.max_temp_c != null ? String(cap.max_temp_c) : "";
+    const amb = ambient != null ? String(ambient) : "";
+    const delta = cap.delta_c != null ? String(cap.delta_c) : "";
+    const risk = String(cap.risk_indicator ?? "").toUpperCase() || "";
+    parts.push(`<tr><td>${escapeHtml(area)}</td><td>${escapeHtml(max)}</td><td>${escapeHtml(amb)}</td><td>${escapeHtml(delta)}</td><td>${escapeHtml(risk)}</td></tr>`);
+  }
+  parts.push("</tbody></table>");
+  parts.push("");
+
+  for (const cap of captures) {
+    const area = String(cap.area ?? "");
+    const capId = String(cap.id ?? "");
+    const max = cap.max_temp_c != null ? Number(cap.max_temp_c) : null;
+    const delta = cap.delta_c != null ? Number(cap.delta_c) : null;
+    const risk = String(cap.risk_indicator ?? "").toUpperCase();
+    const interp = THERMAL_INTERPRETATION[risk] || THERMAL_INTERPRETATION.GREEN;
+    const action = THERMAL_RECOMMENDED_ACTION[risk] || THERMAL_RECOMMENDED_ACTION.GREEN;
+
+    parts.push(`<h3>${escapeHtml(area)} — Thermal Capture ${escapeHtml(capId)}</h3>`);
+    parts.push('<div class="thermal-tile" style="margin-bottom:1.5em;">');
+    parts.push('<p><strong>Data:</strong> Max ' + (max != null ? max : "-") + " °C; Ambient " + (ambient != null ? ambient : "-") + " °C; Delta " + (delta != null ? delta : "-") + " °C; Risk: " + escapeHtml(risk || "-") + "</p>");
+    parts.push("<p><strong>Interpretation:</strong> " + escapeHtml(interp) + "</p>");
+    parts.push("<p><strong>Recommended Action:</strong> " + escapeHtml(action) + "</p>");
+    parts.push("<p><strong>Planning Guidance:</strong> " + THERMAL_PLANNING_GUIDANCE + "</p>");
+    parts.push('<p style="color:#666;font-size:0.9em;">Thermal and visible images: Photo ' + escapeHtml(String(cap.thermal_photo_id || "-")) + " / Photo " + escapeHtml(String(cap.visible_photo_id || "-")) + " (view via report link if available).</p>");
+    parts.push("</div>");
+    parts.push("");
+  }
+
+  if (device) {
+    parts.push("<p><em>Device: " + escapeHtml(device) + "</em></p>");
+    parts.push("");
+  }
+
+  return parts.join("\n");
+}
+
+function escapeHtml(text: string): string {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /**
@@ -1328,7 +1401,7 @@ export async function buildStructuredReport(
   const assessmentPurpose = `${purposeText} ${howToRead}`;
 
   const priorityOverview = buildPriorityOverviewSection(findings);
-  const thermalSection = buildThermalImagingSection(canonical, defaultText);
+  const thermalSection = buildThermalImagingSection(inspection, canonical, defaultText);
   const appendixSection = buildAppendixSection(canonical, defaultText);
   const appendixParts = appendixSection.split("### Technical Notes");
   const testDataSection = (appendixParts[0] || "").replace(/<h2[^>]*>.*?<\/h2>\s*/s, "").trim() || "Test data not captured.";
@@ -1486,7 +1559,7 @@ export async function buildReportHtml(params: BuildReportMarkdownParams): Promis
   sections.push(PAGE_BREAK);
   
   // 7. Thermal Imaging Analysis (If Applicable)
-  sections.push(buildThermalImagingSection(canonical, defaultText));
+  sections.push(buildThermalImagingSection(inspection, canonical, defaultText));
   sections.push(PAGE_BREAK);
   
   // 8. Test Data & Technical Notes

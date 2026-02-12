@@ -4,7 +4,7 @@
 
 - **减少手工录入**：当你在现场只有 ServiceM8 的工作单编号（Job / Work Number）时，可一键从 ServiceM8 拉取客户名称、联系人和联系方式。
 - **避免抄错信息**：客户名称、联系人、电话、邮箱直接从 ServiceM8 同步，减少听写/手抄错误。
-- **仍需确认地址**：出于报告规范和邮编校验要求，**物业地址仍需通过系统内的地址搜索框选择**，不能完全依赖 ServiceM8 的自由文本地址。
+- **地址自动填入**：若 ServiceM8 中已有地址，系统会通过 Geocoding 转换为规范地址并自动填入 Property address；若未自动填入，则需在表单中手动选择。
 
 ### 2. 入口位置
 
@@ -33,14 +33,16 @@
 4. 这一步完成后，系统会自动：
    - 将 **客户名称** 写入内部字段 `job.prepared_for`。
    - 将 **工作编号** 写入 `job.serviceM8_job_number`，用于后台在数据库中建立「检查记录 ↔ ServiceM8 工作单」的关联。
+   - 若 ServiceM8 中有地址，会通过 Geocoding 自动填入 **Property address**（需配置 GOOGLE_MAPS_API_KEY）。
 
 #### 3.2 继续常规表单
 
 1. 点击 **Start / Continue** 进入第一个表单页面（`Start / Context`）。
 2. 在该页面中你会看到：
    - “委托方 / Prepared for” 已经自动填上了刚才从 ServiceM8 读取的客户名（可按需要手动修改）。
-3. 在同一页的 **Property address** 字段中：
-   - 按现有流程，在地址输入框中开始键入地址（例如：“123 Example St”）。
+   - “Property address” 若预填成功，地址已自动填入；若未自动填入，则需手动选择。
+3. 若地址未自动填入，在 **Property address** 字段中：
+   - 在地址输入框中开始键入地址（例如：“123 Example St”）。
    - 从下拉建议中**选择**正确的地址。
    - 等待系统自动补全 suburb / state / postcode。
 4. 后续所有步骤（室内房间、配电盘 & RCD、屋顶空间、外部与收尾）按照原先培训说明执行，无需额外操作。
@@ -73,9 +75,9 @@
 
 ### 5. 注意事项与最佳实践
 
-- **地址必须用系统内搜索选择**：
-  - 虽然 ServiceM8 卡片会显示一行地址，但这只是**参考**。
-  - 报告生成和数据库校验依赖于 Google 地址组件（suburb/state/postcode），必须在 `Property address` 字段通过自动完成选择。
+- **地址自动填入**：
+  - 若 ServiceM8 中有地址，系统会尝试通过 Google Geocoding 转换为规范地址并自动填入 Property address。
+  - 若 Geocoding 失败或 ServiceM8 中无地址，仍需在表单中通过地址搜索选择，以确保 suburb/state/postcode 正确。
 - **委托方名称可以微调**：
   - 如果 ServiceM8 中的客户名太长或不适合作为报告抬头，比如包含内部备注（如 “张三 – 2026年2月巡检”），可以在表单里的 “Prepared for” 上做适度简化。
 - **多个设备/浏览器的一致性**：

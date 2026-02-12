@@ -2612,6 +2612,11 @@
       ]
     },
     {
+      "id": "S_THERMAL",
+      "title": "Thermal Imaging (Premium)",
+      "fields": []
+    },
+    {
       "id": "S6_EXCEPTIONS_COMPLETION",
       "title": "Exceptions, Client Statements & Completion",
       "fields": [

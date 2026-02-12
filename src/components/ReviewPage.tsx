@@ -218,6 +218,53 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         </div>
       )}
 
+      {(() => {
+        const thermal = data.raw_data?.thermal as { enabled?: boolean; captures?: Array<{ area?: string; risk_indicator?: string; max_temp_c?: number; delta_c?: number; thermal_photo_id?: string; visible_photo_id?: string }> } | undefined;
+        if (!thermal?.enabled || !thermal?.captures?.length) return null;
+        return (
+        <div className="report-html" style={{ marginBottom: 16 }}>
+          <h2>Thermal Imaging (Premium)</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #ddd" }}>
+                  <th style={{ textAlign: "left", padding: 8 }}>Area</th>
+                  <th style={{ textAlign: "left", padding: 8 }}>Risk</th>
+                  <th style={{ textAlign: "left", padding: 8 }}>Max</th>
+                  <th style={{ textAlign: "left", padding: 8 }}>Delta</th>
+                  <th style={{ textAlign: "left", padding: 8 }}>Thermal photo</th>
+                  <th style={{ textAlign: "left", padding: 8 }}>Visible photo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {thermal.captures.map((c, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: 8 }}>{c.area ?? "-"}</td>
+                    <td style={{ padding: 8 }}>{c.risk_indicator ?? "-"}</td>
+                    <td style={{ padding: 8 }}>{c.max_temp_c != null ? c.max_temp_c : "-"}</td>
+                    <td style={{ padding: 8 }}>{c.delta_c != null ? c.delta_c : "-"}</td>
+                    <td style={{ padding: 8 }}>
+                      {c.thermal_photo_id ? (
+                        <a href={`/api/inspectionPhoto?inspection_id=${encodeURIComponent(data.inspection_id)}&photo_id=${encodeURIComponent(c.thermal_photo_id)}`} target="_blank" rel="noopener noreferrer">
+                          {c.thermal_photo_id}
+                        </a>
+                      ) : "-"}
+                    </td>
+                    <td style={{ padding: 8 }}>
+                      {c.visible_photo_id ? (
+                        <a href={`/api/inspectionPhoto?inspection_id=${encodeURIComponent(data.inspection_id)}&photo_id=${encodeURIComponent(c.visible_photo_id)}`} target="_blank" rel="noopener noreferrer">
+                          {c.visible_photo_id}
+                        </a>
+                      ) : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        );
+      })()}
       {data.findings?.length > 0 && (
         <div className="report-html" style={{ marginBottom: 16 }}>
           <h2>Findings &amp; Photo Evidence</h2>

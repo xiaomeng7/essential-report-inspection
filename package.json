@@ -40,6 +40,7 @@
     "sync:dimensions": "tsx scripts/sync-dimensions-to-sources.ts",
     "simulate:inspection": "tsx scripts/simulate-inspection.ts",
     "write-sample-payload": "tsx scripts/simulate-inspection.ts --write-payload",
+    "dev:thermal-sample": "tsx scripts/dev-create-thermal-sample.ts",
     "smoke:sanitize": "tsx scripts/smoke-sanitize-anchor.ts",
     "markdown-to-word": "node scripts/markdown-to-word.ts",
     "markdown-to-word-pandoc": "node scripts/markdown-to-word-pandoc.ts",

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { getSections } from "../lib/fieldDictionary";
 import { getClearPathsForGateChange } from "../lib/gates";
+import { getDefaultThermal } from "../lib/thermalTypes";
 
 const DRAFT_KEY = "inspection-draft";
 
@@ -98,6 +99,10 @@ export function buildEmptyState(): InspectionState {
     value: formatTodayDDMMYYYY(),
     status: "answered",
   });
+  // Thermal imaging module default
+  if (getNested(state as Record<string, unknown>, "thermal") === undefined) {
+    setNested(state as Record<string, unknown>, "thermal", getDefaultThermal());
+  }
   return state;
 }
 
@@ -269,6 +274,20 @@ export function useInspection() {
     return (state._issue_details as IssueDetailsByField) ?? {};
   }, [state]);
 
+  const getThermal = useCallback(() => {
+    const t = (state as Record<string, unknown>).thermal;
+    if (t && typeof t === "object" && !Array.isArray(t)) return t as import("../lib/thermalTypes").ThermalData;
+    return getDefaultThermal();
+  }, [state]);
+
+  const setThermal = useCallback((thermal: import("../lib/thermalTypes").ThermalData) => {
+    setState((prev) => {
+      const next = deepClone(prev) as Record<string, unknown>;
+      next.thermal = thermal;
+      return next;
+    });
+  }, []);
+
   return {
     state,
     setAnswer,
@@ -286,5 +305,7 @@ export function useInspection() {
     getIssueDetail,
     setIssueDetail,
     getIssueDetails,
+    getThermal,
+    setThermal,
   };
 }

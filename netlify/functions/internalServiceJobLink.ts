@@ -106,10 +106,13 @@ export const handler: Handler = async (
       snapshot_ref: typeof payload.snapshot_ref === "string" ? payload.snapshot_ref : null,
     });
 
-    console.log("[internal-service-job-link] upserted", {
+    const sourceTag = (payload.source && String(payload.source).toLowerCase()) || "unknown";
+    // 明确日志：便于在 Netlify 日志中搜索，确认是 Snapshot 调用了内部 API
+    console.log("[internal-service-job-link] CALLED_WITH_INTERNAL_API_KEY success", {
       job_number: jobNumber,
       job_uuid: jobUuid,
-      source: payload.source ?? null,
+      source: sourceTag,
+      snapshot_ref: payload.snapshot_ref ?? null,
     });
 
     return json({ ok: true });

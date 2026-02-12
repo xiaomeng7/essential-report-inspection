@@ -1,0 +1,76 @@
+{
+  "inspection_id": "EH-2026-02-001",
+  "raw": {
+    "created_at": "2026-02-11T11:10:05.424Z",
+    "job": {
+      "address": {
+        "value": "123 Sample St, Melbourne VIC 3000",
+        "status": "answered"
+      },
+      "address_place_id": {
+        "value": "ChIJSample",
+        "status": "answered"
+      },
+      "address_components": {
+        "value": {
+          "suburb": "Melbourne",
+          "state": "VIC",
+          "postcode": "3000"
+        },
+        "status": "answered"
+      }
+    },
+    "signoff": {
+      "technician_name": {
+        "value": "Test Technician",
+        "status": "answered"
+      },
+      "inspection_date": {
+        "value": "11/02/2026",
+        "status": "answered"
+      }
+    },
+    "thermal": {
+      "enabled": true,
+      "device": "Fluke iSee TC01A",
+      "ambient_c": 22.5,
+      "captures": [
+        {
+          "id": "T01",
+          "area": "Switchboard",
+          "location_note": "Main switchboard – main switch and meter",
+          "max_temp_c": 34.2,
+          "delta_c": 11.7,
+          "risk_indicator": "AMBER",
+          "thermal_photo_id": "P01",
+          "visible_photo_id": "P02",
+          "created_at": "2026-02-11T11:10:05.423Z"
+        },
+        {
+          "id": "T02",
+          "area": "Kitchen GPOs",
+          "location_note": "Cooktop circuit",
+          "max_temp_c": 28.1,
+          "delta_c": 5.6,
+          "risk_indicator": "GREEN",
+          "thermal_photo_id": "P03",
+          "visible_photo_id": "P04",
+          "created_at": "2026-02-11T11:10:05.424Z"
+        },
+        {
+          "id": "T03",
+          "area": "Living room lighting",
+          "max_temp_c": 42,
+          "delta_c": 19.5,
+          "risk_indicator": "RED",
+          "thermal_photo_id": "P05",
+          "visible_photo_id": "P06",
+          "created_at": "2026-02-11T11:10:05.424Z"
+        }
+      ]
+    }
+  },
+  "report_html": "<p>Sample report (thermal section would be generated)</p>",
+  "findings": [],
+  "limitations": []
+}

@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { flattenFacts, evaluateFindings, collectLimitations, buildReportHtml } from "./lib/rules";
 import { sendEmailNotification } from "./lib/email";
 import { uploadPhotoToFinding } from "./lib/uploadPhotoToFinding";
+import { uploadThermalPhoto } from "./lib/uploadThermalPhoto";
 import { getBaseUrl } from "./lib/baseUrl";
 import { generateMarkdownWordBuffer } from "./generateMarkdownWord";
 import { logWordReport } from "./lib/wordReportLog";
@@ -143,6 +144,42 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             image: base64List[i],
             caption: loc ? `${loc} - Photo ${i + 1}` : `Photo ${i + 1}`,
           });
+        }
+      }
+    }
+
+    // Process thermal captures: upload base64 photos, replace with photo_ids
+    const thermalRaw = raw.thermal as Record<string, unknown> | undefined;
+    if (thermalRaw && !!thermalRaw.enabled) {
+      const captures = Array.isArray(thermalRaw.captures) ? thermalRaw.captures : [];
+      if (captures.length === 0) {
+        console.warn("[submit] thermal.enabled=true but thermal.captures is empty");
+      }
+      for (let i = 0; i < captures.length; i++) {
+        const cap = captures[i] as Record<string, unknown>;
+        const thermalData = cap.thermal_photo_data as string | undefined;
+        const visibleData = cap.visible_photo_data as string | undefined;
+        const area = String(cap.area ?? "Thermal capture");
+        const capId = String(cap.id ?? `T${i + 1}`);
+        if (thermalData && typeof thermalData === "string" && thermalData.startsWith("data:image")) {
+          try {
+            const photoId = await uploadThermalPhoto(inspection_id, thermalData, `${area} - Thermal`, event);
+            cap.thermal_photo_id = photoId;
+            delete cap.thermal_photo_data;
+            console.log("[photo-fp] thermal photo uploaded capture=" + capId + " photo_id=" + photoId);
+          } catch (e) {
+            console.error("[photo-fp] thermal photo upload failed:", e);
+          }
+        }
+        if (visibleData && typeof visibleData === "string" && visibleData.startsWith("data:image")) {
+          try {
+            const photoId = await uploadThermalPhoto(inspection_id, visibleData, `${area} - Visible`, event);
+            cap.visible_photo_id = photoId;
+            delete cap.visible_photo_data;
+            console.log("[photo-fp] visible photo uploaded capture=" + capId + " photo_id=" + photoId);
+          } catch (e) {
+            console.error("[photo-fp] visible photo upload failed:", e);
+          }
         }
       }
     }

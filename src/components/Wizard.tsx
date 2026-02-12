@@ -5,6 +5,7 @@ import { validateSection } from "../lib/validation";
 import { useInspection, type IssueDetailsByField } from "../hooks/useInspection";
 import { SectionForm } from "./SectionForm";
 import { SectionPhotoEvidence } from "./SectionPhotoEvidence";
+import { ThermalSection } from "./ThermalSection";
 import { getWizardPages } from "../lib/inspectionBlocks";
 import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
 import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
@@ -146,6 +147,7 @@ export function Wizard({ onSubmitted }: Props) {
     phone: string | null;
     email: string | null;
     address_full: string | null;
+    address_auto_filled: boolean;
     fetched_at: string;
     cache_hit: boolean;
   } | null>(null);
@@ -162,6 +164,8 @@ export function Wizard({ onSubmitted }: Props) {
     updateStagedPhotoCaption,
     getIssueDetail,
     setIssueDetail,
+    getThermal,
+    setThermal,
   } = useInspection();
   const [step, setStep] = useState(0);
   const [sectionErrors, setSectionErrors] = useState<Record<string, Record<string, string>>>({});
@@ -243,6 +247,8 @@ export function Wizard({ onSubmitted }: Props) {
 
   const submitInspection = async () => {
     const { _staged_photos, _issue_details, ...rest } = state as Record<string, unknown>;
+    // Ensure thermal is included (getThermal returns defaults if missing)
+    rest.thermal = getThermal();
     const issueDetailsForPayload: Record<string, { location: string; notes: string }> = {};
     const issueDetails = (_issue_details as IssueDetailsByField) ?? {};
     for (const [fieldKey, detail] of Object.entries(issueDetails)) {
@@ -450,6 +456,32 @@ export function Wizard({ onSubmitted }: Props) {
         [addr.suburb, addr.state, addr.postcode].filter(Boolean).join(", ") ||
         null;
 
+      // 若 ServiceM8 返回了地址，尝试通过 Geocoding 转为 place_id 并自动填入 Property address
+      let addressAutoFilled = false;
+      if (fullAddress && fullAddress.trim().length >= 5) {
+        try {
+          const geoRes = await fetch(
+            `/api/addressGeocode?address=${encodeURIComponent(fullAddress.trim())}`
+          );
+          const geoData = await geoRes.json();
+          if (geoRes.ok && geoData.place_id && geoData.formatted_address) {
+            setAnswer("job.address", { value: geoData.formatted_address, status: "answered" });
+            setAnswer("job.address_place_id", { value: geoData.place_id, status: "answered" });
+            setAnswer("job.address_components", {
+              value: geoData.components ?? {},
+              status: "answered",
+            });
+            setAnswer("job.address_geo", {
+              value: geoData.geo ?? null,
+              status: "answered",
+            });
+            addressAutoFilled = true;
+          }
+        } catch {
+          // 地址反查失败不影响主流程，用户可手动选择地址
+        }
+      }
+
       setServiceM8Summary({
         job_number: job.job_number,
         job_uuid: job.job_uuid,
@@ -458,6 +490,7 @@ export function Wizard({ onSubmitted }: Props) {
         phone: job.phone ?? null,
         email: job.email ?? null,
         address_full: fullAddress,
+        address_auto_filled: addressAutoFilled,
         fetched_at: cacheInfo?.fetched_at ?? new Date().toISOString(),
         cache_hit: !!cacheInfo?.hit,
       });
@@ -516,7 +549,7 @@ export function Wizard({ onSubmitted }: Props) {
           <div className="start-screen__card">
             <h2 className="start-screen__brief-heading">ServiceM8 预填（可选）</h2>
             <p className="start-screen__brief-text">
-              若你手上只有 ServiceM8 工作编号（Job / Work Number），可在此查询客户信息并自动写入「委托方」字段；地址仍需在下方通过地址搜索选取，以确保包含 suburb / state / postcode。
+              若你手上只有 ServiceM8 工作编号（Job / Work Number），可在此查询客户信息并自动写入「委托方」和「物业地址」。若 ServiceM8 中无地址或地址反查失败，请在表单中手动选择地址。
             </p>
             <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
               <input
@@ -591,7 +624,9 @@ export function Wizard({ onSubmitted }: Props) {
                   {new Date(serviceM8Summary.fetched_at).toLocaleString()}
                 </p>
                 <p style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
-                  提示：地址仍需在第一页表单中通过「Property address」搜索选择，以保证报告地址规范。
+                  {serviceM8Summary.address_auto_filled
+                    ? "地址已自动填入 Property address，请核对后进入下一步。"
+                    : "若未自动填入地址，请在表单中通过「Property address」搜索选择。"}
                 </p>
               </div>
             )}
@@ -718,6 +753,14 @@ export function Wizard({ onSubmitted }: Props) {
 
             {/* Sections in this page */}
             {currentStep.sectionIds.map((sectionId) => {
+              if (sectionId === "S_THERMAL") {
+                return (
+                  <div key="S_THERMAL" className="wizard-page__section-card">
+                    <h2 className="wizard-page__section-title">Thermal Imaging (Premium)</h2>
+                    <ThermalSection thermal={getThermal()} onThermalChange={setThermal} />
+                  </div>
+                );
+              }
               const section = sectionById[sectionId] as SectionDef | undefined;
               if (!section) return null;
               return (

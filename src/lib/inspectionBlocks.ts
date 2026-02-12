@@ -52,6 +52,7 @@ export const WIZARD_PAGES: BlockDef[] = [
   },
   { id: "assets", title: "Solar, Battery & High Load", titleEn: "Solar, Battery & High Load", sectionIds: ["S9_SOLAR_BATTERY_EV", "S9B_POOL_HIGH_LOAD"] },
   { id: "measured", title: "Measured Data", titleEn: "Measured Data", sectionIds: ["S5A_MEASURED_DATA"] },
+  { id: "thermal", title: "Thermal Imaging (Premium)", titleEn: "Thermal Imaging (Premium)", sectionIds: ["S_THERMAL"] },
   { id: "exceptions", title: "Exceptions & Client Statements", titleEn: "Exceptions & Client Statements", sectionIds: ["S6_EXCEPTIONS_COMPLETION"] },
   { id: "signoff", title: "Sign-off", titleEn: "Sign-off", sectionIds: ["S10_SIGNOFF"] },
 ];

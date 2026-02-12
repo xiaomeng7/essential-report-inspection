@@ -9,7 +9,7 @@ This feature implements DB-first job number resolution for ServiceM8 prefill:
 
 ## Prerequisites
 1. **Database**: `NEON_DATABASE_URL` configured
-2. **Migration**: Run `npm run db:migrate` or `npx tsx scripts/apply-010-migration.ts`
+2. **Migration**: Run `npm run db:migrate`，或依次执行 `npx tsx scripts/apply-010-migration.ts`、`npx tsx scripts/apply-011-migration.ts`（011 增加 created_at/updated_at）
 3. **ServiceM8 API**: `SERVICEM8_API_TOKEN` configured (API Key or OAuth)
 4. **Secrets**: `SERVICEM8_PREFILL_SECRET` and `INTERNAL_API_KEY` set in Netlify
 
@@ -190,6 +190,21 @@ curl -X GET "http://localhost:8888/api/servicem8/job-prefill?job_number=" \
 3. **Cache TTL**:
    - Prefill data cached for 24 hours
    - After 24h, should refetch from ServiceM8 API
+
+## 如何确认 Snapshot 调用了内部 API（INTERNAL_API_KEY）
+
+1. **看 Netlify 函数日志**  
+   登录 Netlify → 你的站点 → **Functions** → 点击 `internalServiceJobLink` → **Logs**。  
+   当 Snapshot 用正确的 `x-internal-api-key` 调用并成功时，会有一条日志：  
+   `[internal-service-job-link] CALLED_WITH_INTERNAL_API_KEY success`，并带有 `job_number`、`job_uuid`、`source`（例如 `snapshot`）。
+
+2. **看数据库**  
+   在 Neon 里查 `service_job_link` 表，看是否有 `source = 'snapshot'` 且 `created_at` / `updated_at` 是最近时间的记录。
+
+3. **用 curl 自测**  
+   用下面命令带上你的 `INTERNAL_API_KEY` 调一次，成功会返回 `{"ok":true}`，且 Netlify 日志里会出现上述 `CALLED_WITH_INTERNAL_API_KEY success`。
+
+---
 
 ## Integration with Snapshot Repo
 
