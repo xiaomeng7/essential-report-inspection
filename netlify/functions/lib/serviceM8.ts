@@ -6,7 +6,44 @@ import path from "path";
  * Uses OAuth / API token provided via SERVICEM8_API_TOKEN (Bearer).
  */
 
-const SERVICE_M8_VERSION = "2026-02-03-v1";
+const SERVICE_M8_VERSION = "2026-02-03-v2";
+
+/**
+ * Parse response body as JSON. If ServiceM8 returns HTML (e.g. login/error page),
+ * return error instead of throwing.
+ */
+async function safeParseJson(
+  res: Response
+): Promise<{ ok: true; data: unknown } | { ok: false; error: ServiceM8Error }> {
+  const text = await res.text();
+  if (text.trimStart().startsWith("<")) {
+    const msg =
+      res.status === 401
+        ? "ServiceM8 API token 无效或已过期。请在 Netlify 环境变量中检查并更新 SERVICEM8_API_TOKEN。"
+        : `ServiceM8 API 返回了网页而非 JSON（HTTP ${res.status}）。请检查 SERVICEM8_API_TOKEN、SERVICEM8_API_BASE_URL 是否正确。`;
+    return {
+      ok: false,
+      error: {
+        kind: "service_error",
+        status: res.status,
+        message: msg,
+      },
+    };
+  }
+  try {
+    const data = text ? JSON.parse(text) : null;
+    return { ok: true, data };
+  } catch {
+    return {
+      ok: false,
+      error: {
+        kind: "service_error",
+        status: res.status,
+        message: `ServiceM8 API 返回了无效 JSON: ${text.slice(0, 100)}`,
+      },
+    };
+  }
+}
 
 function ensureLocalEnv(): void {
   // If token already exists, no need to load .env
@@ -149,8 +186,9 @@ export async function fetchJobByNumber(
       };
     }
 
-    const json = (await res.json()) as unknown;
-    const list = Array.isArray(json) ? json : [];
+    const parsed = await safeParseJson(res);
+    if (!parsed.ok) return { error: parsed.error };
+    const list = Array.isArray(parsed.data) ? parsed.data : [];
 
     if (page === 0 && list.length > 0) {
       const sample = list[0] as Record<string, unknown>;
@@ -302,7 +340,9 @@ export async function fetchJobByUuid(
     };
   }
 
-  const first = (await res.json()) as Record<string, unknown>;
+  const parsed = await safeParseJson(res);
+  if (!parsed.ok) return { error: parsed.error };
+  const first = parsed.data as Record<string, unknown>;
   const uuid = String(first.uuid ?? "");
   const num =
     String(
@@ -398,8 +438,9 @@ export async function resolveJobNumberToUuid(
   const filterRes = await fetch(filterUrl, { method: "GET", headers });
 
   if (filterRes.ok) {
-    const filterJson = (await filterRes.json()) as unknown;
-    const filterList = Array.isArray(filterJson) ? filterJson : [];
+    const parsed = await safeParseJson(filterRes);
+    if (!parsed.ok) return { error: parsed.error };
+    const filterList = Array.isArray(parsed.data) ? parsed.data : [];
     if (filterList.length > 0) {
       const match = filterList[0] as Record<string, unknown>;
       const uuid = String(match.uuid ?? "");
@@ -467,8 +508,9 @@ export async function resolveJobNumberToUuid(
       };
     }
 
-    const json = (await res.json()) as unknown;
-    const list = Array.isArray(json) ? json : [];
+    const parsed = await safeParseJson(res);
+    if (!parsed.ok) return { error: parsed.error };
+    const list = Array.isArray(parsed.data) ? parsed.data : [];
 
     const match = list.find((j: unknown) => {
       const r = j as Record<string, unknown>;

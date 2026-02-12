@@ -388,17 +388,17 @@ export function Wizard({ onSubmitted }: Props) {
         headers,
       });
       const text = await res.text();
+      if (text.trimStart().startsWith("<")) {
+        throw new Error(
+          res.status === 404
+            ? "预填接口地址不存在（404）。请用 netlify dev 启动本地，或确认 Netlify 已部署最新代码且路由 /api/servicem8/job-prefill 已配置。"
+            : `服务器返回了网页而非数据（HTTP ${res.status}）。请用 netlify dev 启动本地，或检查 Netlify 部署与函数配置。`
+        );
+      }
       let json: any;
       try {
         json = text ? JSON.parse(text) : {};
       } catch {
-        if (text.trimStart().startsWith("<")) {
-          throw new Error(
-            res.status === 404
-              ? "预填接口地址不存在（404）。请确认 Netlify 已部署最新代码且路由 /api/servicem8/job-prefill 已配置。"
-              : `服务器返回了网页而非数据（HTTP ${res.status}）。请检查 Netlify 部署与函数配置。`
-          );
-        }
         throw new Error(text.slice(0, 200) || `请求失败（${res.status}）`);
       }
       if (!res.ok || json?.ok === false) {
@@ -463,19 +463,24 @@ export function Wizard({ onSubmitted }: Props) {
           const geoRes = await fetch(
             `/api/addressGeocode?address=${encodeURIComponent(fullAddress.trim())}`
           );
-          const geoData = await geoRes.json();
-          if (geoRes.ok && geoData.place_id && geoData.formatted_address) {
-            setAnswer("job.address", { value: geoData.formatted_address, status: "answered" });
-            setAnswer("job.address_place_id", { value: geoData.place_id, status: "answered" });
-            setAnswer("job.address_components", {
-              value: geoData.components ?? {},
-              status: "answered",
-            });
-            setAnswer("job.address_geo", {
-              value: geoData.geo ?? null,
-              status: "answered",
-            });
-            addressAutoFilled = true;
+          const geoText = await geoRes.text();
+          if (geoText.trimStart().startsWith("<")) {
+            // Geocoding 返回 HTML（如 404），跳过地址预填
+          } else {
+            const geoData = JSON.parse(geoText);
+            if (geoRes.ok && geoData.place_id && geoData.formatted_address) {
+              setAnswer("job.address", { value: geoData.formatted_address, status: "answered" });
+              setAnswer("job.address_place_id", { value: geoData.place_id, status: "answered" });
+              setAnswer("job.address_components", {
+                value: geoData.components ?? {},
+                status: "answered",
+              });
+              setAnswer("job.address_geo", {
+                value: geoData.geo ?? null,
+                status: "answered",
+              });
+              addressAutoFilled = true;
+            }
           }
         } catch {
           // 地址反查失败不影响主流程，用户可手动选择地址
