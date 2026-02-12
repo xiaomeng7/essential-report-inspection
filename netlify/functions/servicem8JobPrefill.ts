@@ -8,7 +8,7 @@ import {
 } from "./lib/dbServiceJobLink";
 import { fetchJobByUuid, resolveJobNumberToUuid } from "./lib/serviceM8";
 
-const VERSION = "2026-02-03-v2";
+const VERSION = "2026-02-03-v3";
 const PREFILL_CACHE_TTL_HOURS = 24;
 
 function json(body: unknown, status = 200) {
@@ -22,17 +22,7 @@ function json(body: unknown, status = 200) {
   };
 }
 
-function checkAuth(event: HandlerEvent): boolean {
-  const header =
-    event.headers["x-servicem8-prefill-secret"] ??
-    event.headers["X-Servicem8-Prefill-Secret"];
-  const expected = process.env.SERVICEM8_PREFILL_SECRET;
-  if (!expected) {
-    // If not configured, allow all (for early dev); production should set secret.
-    return true;
-  }
-  return header === expected;
-}
+// Technician-facing endpoint: no auth required. Internal auth applies only to internalServiceJobLink.
 
 function isPrefillCacheFresh(fetchedAt: string | null): boolean {
   if (!fetchedAt) return false;
@@ -41,14 +31,11 @@ function isPrefillCacheFresh(fetchedAt: string | null): boolean {
 }
 
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
-  console.log("[servicem8-prefill] VERSION", VERSION, "path", event.path);
+  const token = process.env.SERVICEM8_API_TOKEN ?? process.env.SERVICEM8_API_KEY;
+  console.log("[servicem8-prefill] VERSION", VERSION, "path", event.path, "apiKey present?", !!token, "apiKey length", token?.length ?? 0);
 
   if (event.httpMethod !== "GET") {
     return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
-  }
-
-  if (!checkAuth(event)) {
-    return json({ ok: false, error: "UNAUTHORIZED" }, 401);
   }
 
   const params = event.queryStringParameters ?? {};
@@ -106,18 +93,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
             503
           );
         }
-        if (resolveResult.error.kind === "not_found") {
-          return json({ ok: false, error: "JOB_NOT_FOUND" }, 404);
-        }
+      if (resolveResult.error.kind === "not_found") {
+        return json({ ok: false, error: "JOB_NOT_FOUND" }, 404);
+      }
+      if (resolveResult.error.kind === "service_error" && resolveResult.error.status === 401) {
         return json(
-          {
-            ok: false,
-            error: "SERVICEM8_UPSTREAM_ERROR",
-            details: resolveResult.error.message,
-            upstream_status: resolveResult.error.status,
-          },
+          { ok: false, error: "SERVICEM8_UNAUTHORIZED", upstreamStatus: 401 },
           502
         );
+      }
+      return json(
+        {
+          ok: false,
+          error: "SERVICEM8_UPSTREAM_ERROR",
+          details: resolveResult.error.message,
+          upstream_status: resolveResult.error.status,
+        },
+        502
+      );
       }
 
       jobUuid = resolveResult.job_uuid;
@@ -156,6 +149,12 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       }
       if (detailResult.error.kind === "not_found") {
         return json({ ok: false, error: "JOB_NOT_FOUND" }, 404);
+      }
+      if (detailResult.error.kind === "service_error" && detailResult.error.status === 401) {
+        return json(
+          { ok: false, error: "SERVICEM8_UNAUTHORIZED", upstreamStatus: 401 },
+          502
+        );
       }
       return json(
         {

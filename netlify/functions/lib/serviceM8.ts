@@ -6,7 +6,39 @@ import path from "path";
  * Uses OAuth / API token provided via SERVICEM8_API_TOKEN (Bearer).
  */
 
-const SERVICE_M8_VERSION = "2026-02-03-v2";
+const SERVICE_M8_VERSION = "2026-02-03-v3";
+
+/**
+ * Build auth headers and log token presence (never log the key).
+ * Supports: api_key (X-API-Key), bearer (Bearer token), basic (HTTP Basic "API_KEY:" + token).
+ */
+function buildAuthHeaders(): { headers: Record<string, string>; logContext: string } {
+  const token =
+    process.env.SERVICEM8_API_TOKEN?.trim() ??
+    process.env.SERVICEM8_API_KEY?.trim();
+  const apiKeyPresent = !!token;
+  const apiKeyLength = token?.length ?? 0;
+  console.log("[servicem8] auth: apiKey present?", apiKeyPresent, "apiKey length:", apiKeyLength);
+
+  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
+  const headers: Record<string, string> = { Accept: "application/json" };
+
+  if (!token) {
+    return { headers, logContext: "no_token" };
+  }
+
+  if (authType === "bearer" || authType === "oauth") {
+    headers["Authorization"] = `Bearer ${token}`;
+    return { headers, logContext: "bearer" };
+  }
+  if (authType === "basic" || authType === "basic_auth") {
+    const credentials = `API_KEY:${token}`;
+    headers["Authorization"] = `Basic ${Buffer.from(credentials, "utf8").toString("base64")}`;
+    return { headers, logContext: "basic" };
+  }
+  headers["X-API-Key"] = token;
+  return { headers, logContext: "api_key" };
+}
 
 /**
  * Parse response body as JSON. If ServiceM8 returns HTML (e.g. login/error page),
@@ -52,7 +84,7 @@ async function safeParseJson(
 
 function ensureLocalEnv(): void {
   // If token already exists, no need to load .env
-  if (process.env.SERVICEM8_API_TOKEN) return;
+  if (process.env.SERVICEM8_API_TOKEN || process.env.SERVICEM8_API_KEY) return;
   
   // In production (Netlify), env vars come from Netlify settings, not .env
   // Only load .env in local dev (netlify dev)
@@ -67,8 +99,8 @@ function ensureLocalEnv(): void {
   for (const p of candidates) {
     try {
       loadDotenv({ path: p });
-      if (process.env.SERVICEM8_API_TOKEN) {
-        console.log("[servicem8] loaded SERVICEM8_API_TOKEN from", p);
+      if (process.env.SERVICEM8_API_TOKEN || process.env.SERVICEM8_API_KEY) {
+        console.log("[servicem8] loaded SERVICEM8_API_TOKEN/SERVICEM8_API_KEY from", p);
         return;
       }
     } catch (e) {
@@ -120,19 +152,13 @@ export async function fetchJobByNumber(
 
   ensureLocalEnv();
 
-  const token = process.env.SERVICEM8_API_TOKEN?.trim();
+  const { headers } = buildAuthHeaders();
+  const token =
+    process.env.SERVICEM8_API_TOKEN?.trim() ??
+    process.env.SERVICEM8_API_KEY?.trim();
   if (!token) {
-    console.error("[servicem8] missing SERVICEM8_API_TOKEN");
+    console.error("[servicem8] missing SERVICEM8_API_TOKEN/SERVICEM8_API_KEY");
     return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
-  }
-
-  // ServiceM8 两种认证：API Key（Settings → API Keys）用 X-API-Key；OAuth 用 Bearer。
-  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (authType === "bearer" || authType === "oauth") {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["X-API-Key"] = token;
   }
 
   const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
@@ -158,6 +184,7 @@ export async function fetchJobByNumber(
         : `${baseUrl}/api_1.0/job.json?cursor=${encodeURIComponent(cursor)}`;
 
     const res = await fetch(url, { method: "GET", headers });
+    console.log("[servicem8] upstream response status:", res.status, "url:", url);
 
     if (!res.ok) {
       const text = await res.text();
@@ -305,24 +332,20 @@ export async function fetchJobByUuid(
 
   ensureLocalEnv();
 
-  const token = process.env.SERVICEM8_API_TOKEN?.trim();
+  const { headers } = buildAuthHeaders();
+  const token =
+    process.env.SERVICEM8_API_TOKEN?.trim() ??
+    process.env.SERVICEM8_API_KEY?.trim();
   if (!token) {
-    console.error("[servicem8] missing SERVICEM8_API_TOKEN");
+    console.error("[servicem8] missing SERVICEM8_API_TOKEN/SERVICEM8_API_KEY");
     return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
-  }
-
-  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (authType === "bearer" || authType === "oauth") {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["X-API-Key"] = token;
   }
 
   const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
   const url = `${baseUrl}/api_1.0/job/${encodeURIComponent(jobUuid)}.json`;
 
   const res = await fetch(url, { method: "GET", headers });
+  console.log("[servicem8] upstream response status:", res.status, "url:", url);
 
   if (!res.ok) {
     const text = await res.text();
@@ -430,17 +453,12 @@ export async function resolveJobNumberToUuid(
 
   ensureLocalEnv();
 
-  const token = process.env.SERVICEM8_API_TOKEN?.trim();
+  const { headers } = buildAuthHeaders();
+  const token =
+    process.env.SERVICEM8_API_TOKEN?.trim() ??
+    process.env.SERVICEM8_API_KEY?.trim();
   if (!token) {
     return { error: { kind: "config_missing", message: "ServiceM8 API not configured" } };
-  }
-
-  const authType = (process.env.SERVICEM8_AUTH_TYPE || "api_key").toLowerCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (authType === "bearer" || authType === "oauth") {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["X-API-Key"] = token;
   }
 
   const baseUrl = process.env.SERVICEM8_API_BASE_URL || "https://api.servicem8.com";
@@ -459,6 +477,7 @@ export async function resolveJobNumberToUuid(
     jobNumber
   )}'`;
   const filterRes = await fetch(filterUrl, { method: "GET", headers });
+  console.log("[servicem8] upstream response status:", filterRes.status, "url:", filterUrl);
 
   if (filterRes.ok) {
     const parsed = await safeParseJson(filterRes, filterUrl);
@@ -491,6 +510,7 @@ export async function resolveJobNumberToUuid(
         : `${baseUrl}/api_1.0/job.json?cursor=${encodeURIComponent(cursor)}`;
 
     const res = await fetch(url, { method: "GET", headers });
+    console.log("[servicem8] upstream response status:", res.status, "url:", url);
 
     if (!res.ok) {
       const text = await res.text();
