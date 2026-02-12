@@ -30,6 +30,7 @@
 
 - **环境变量**：`SERVICEM8_API_TOKEN`、`SERVICEM8_AUTH_TYPE`（可选）、`SERVICEM8_API_BASE_URL`（可选）。
 - **排查**：若提示「ServiceM8 集成未配置」或「API token 无效」，检查 Netlify 环境变量是否已设置且有效。
+- **400 "api_1 is not an authorised object type"**：表示当前 API Key 或 Token 无权访问 Jobs 接口。请到 ServiceM8 的 **Settings → API Access** 检查密钥权限，确保已勾选 Jobs 相关权限；或改用 OAuth 认证（`SERVICEM8_AUTH_TYPE=bearer`）并申请 `read_jobs` 权限。
 - **HTTP 200 但返回 HTML**：若提示「ServiceM8 API 返回了网页而非 JSON（HTTP 200）」：
   - **SERVICEM8_API_BASE_URL** 必须为 `https://api.servicem8.com`，不要用 `app.servicem8.com` 或 `www.servicem8.com`。
   - 若未设置该变量，默认即为正确值；若显式设置了错误值，请删除或改为 `https://api.servicem8.com`。

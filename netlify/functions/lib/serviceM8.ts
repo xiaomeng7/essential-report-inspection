@@ -165,7 +165,7 @@ export async function fetchJobByNumber(
       if (res.status === 404) {
         return { error: { kind: "not_found", message: "Job not found" } };
       }
-      let parsedError: { error?: string; error_description?: string } | null = null;
+      let parsedError: { message?: string; error?: string; error_description?: string } | null = null;
       try {
         parsedError = JSON.parse(text);
       } catch {
@@ -181,12 +181,30 @@ export async function fetchJobByNumber(
           },
         };
       }
+      const rawMsg = parsedError?.message ?? parsedError?.error_description ?? parsedError?.error ?? "";
+      if (
+        res.status === 400 &&
+        (rawMsg.includes("authorised object type") || rawMsg.includes("api_1"))
+      ) {
+        return {
+          error: {
+            kind: "service_error",
+            status: res.status,
+            message:
+              "当前 API Key 或 Token 无权访问 Jobs 接口。请到 ServiceM8 的 Settings → API Access 检查密钥权限，确保已勾选 Jobs 相关权限；或使用 OAuth 认证（SERVICEM8_AUTH_TYPE=bearer）并申请 read_jobs 权限。",
+          },
+        };
+      }
       return {
         error: {
           kind: "service_error",
           status: res.status,
           message:
-            parsedError?.error_description || parsedError?.message || parsedError?.error || text || `ServiceM8 HTTP ${res.status}`,
+            parsedError?.error_description ??
+            parsedError?.message ??
+            parsedError?.error ??
+            text ??
+            `ServiceM8 HTTP ${res.status}`,
         },
       };
     }
@@ -483,7 +501,7 @@ export async function resolveJobNumberToUuid(
       if (res.status === 404) {
         return { error: { kind: "not_found", message: "Job not found" } };
       }
-      let parsedError: { error?: string; error_description?: string } | null = null;
+      let parsedError: { errorCode?: number; message?: string; error?: string; error_description?: string } | null = null;
       try {
         parsedError = JSON.parse(text);
       } catch {
@@ -499,15 +517,29 @@ export async function resolveJobNumberToUuid(
           },
         };
       }
+      const rawMsg = parsedError?.message ?? parsedError?.error_description ?? parsedError?.error ?? "";
+      if (
+        res.status === 400 &&
+        (rawMsg.includes("authorised object type") || rawMsg.includes("api_1"))
+      ) {
+        return {
+          error: {
+            kind: "service_error",
+            status: res.status,
+            message:
+              "当前 API Key 或 Token 无权访问 Jobs 接口。请到 ServiceM8 的 Settings → API Access 检查密钥权限，确保已勾选 Jobs 相关权限；或使用 OAuth 认证（SERVICEM8_AUTH_TYPE=bearer）并申请 read_jobs 权限。",
+          },
+        };
+      }
       return {
         error: {
           kind: "service_error",
           status: res.status,
           message:
-            parsedError?.error_description ||
-            parsedError?.message ||
-            parsedError?.error ||
-            textPreview ||
+            parsedError?.error_description ??
+            parsedError?.message ??
+            parsedError?.error ??
+            textPreview ??
             `ServiceM8 HTTP ${res.status}`,
         },
       };
