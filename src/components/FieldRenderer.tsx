@@ -67,6 +67,7 @@ export function FieldRenderer({ field, value, onChange, error, isGate, onGateCha
     return (
       <div className="field">
         <AddressAutocomplete
+          key={addressValue?.property_address || "addr-empty"}
           value={addressValue ?? null}
           onChange={(addr) => {
             if (onAddressChange) onAddressChange(addr);

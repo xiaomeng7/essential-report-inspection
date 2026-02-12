@@ -163,8 +163,10 @@ export function SectionForm({
     const addr = getValue("job.address");
     const comp = getValue("job.address_components");
     const geo = getValue("job.address_geo");
-    const addrStr = typeof addr === "string" ? addr.trim() : "";
-    // 有 place_id 时返回完整结构；仅有地址字符串时（如 ServiceM8 预填但 Geocoding 失败）也返回，以便地址栏显示
+    // 支持 Answer 对象或直接值；flat 中可能是已经 flattened 的值
+    const addrStr =
+      (typeof addr === "string" ? addr.trim() : "") ||
+      (flat["job.address"] != null ? String(flat["job.address"]).trim() : "");
     if (!addrStr) return null;
     return {
       property_address: addrStr,
@@ -172,7 +174,7 @@ export function SectionForm({
       address_components: (typeof comp === "object" && comp !== null ? comp : {}) as AddressComponents,
       address_geo: (typeof geo === "object" && geo !== null && !Array.isArray(geo) ? geo : undefined) as AddressGeo | undefined,
     };
-  }, [getValue]);
+  }, [getValue, flat]);
 
   const visibleFields = useMemo(() => {
     const out: FieldDef[] = [];
