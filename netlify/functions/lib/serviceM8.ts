@@ -292,10 +292,16 @@ export async function fetchJobByUuid(
     (first.address as string | undefined) ??
     (first.site_address as string | undefined) ??
     (first.job_address as string | undefined) ??
+    (first.address_street as string | undefined) ??
+    (first.street_address as string | undefined) ??
     null;
+  const geoStreet = (first.geo_street as string | undefined) ?? "";
+  const geoNumber = (first.geo_number as string | undefined) ?? "";
+  const streetPart = [geoNumber, geoStreet].filter(Boolean).join(" ").trim() || address;
   const suburb = (first.suburb as string | undefined) ?? (first.geo_city as string | undefined) ?? null;
   const state = (first.state as string | undefined) ?? (first.geo_state as string | undefined) ?? null;
   const postcode = (first.postcode as string | undefined) ?? (first.geo_postcode as string | undefined) ?? null;
+  const effectiveAddress = address || streetPart;
 
   let customerName =
     (first.client_company as string | undefined)?.trim() ||
@@ -319,14 +325,14 @@ export async function fetchJobByUuid(
     phone,
     email,
     address: {
-      line1: address,
+      line1: effectiveAddress,
       line2: null,
       suburb,
       state,
       postcode,
       full_address:
-        address ||
-        [address, suburb, state, postcode].filter(Boolean).join(", ") ||
+        effectiveAddress ||
+        [suburb, state, postcode].filter(Boolean).join(", ") ||
         null,
     },
   };

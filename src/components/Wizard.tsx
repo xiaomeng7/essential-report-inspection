@@ -430,14 +430,16 @@ export function Wizard({ onSubmitted }: Props) {
         contact_name?: string | null;
         phone?: string | null;
         email?: string | null;
-        address?: {
-          line1?: string | null;
-          line2?: string | null;
-          suburb?: string | null;
-          state?: string | null;
-          postcode?: string | null;
-          full_address?: string | null;
-        };
+        address?:
+          | string
+          | {
+              line1?: string | null;
+              line2?: string | null;
+              suburb?: string | null;
+              state?: string | null;
+              postcode?: string | null;
+              full_address?: string | null;
+            };
       };
       const cacheInfo = json.cache as { hit?: boolean; fetched_at?: string } | undefined;
 
@@ -449,16 +451,21 @@ export function Wizard({ onSubmitted }: Props) {
         // 非关键路径，忽略错误
       }
 
-      const addr = job.address || {};
-      const fullAddress =
-        addr.full_address ||
-        addr.line1 ||
-        [addr.suburb, addr.state, addr.postcode].filter(Boolean).join(", ") ||
-        null;
+      const addr = job.address;
+      let fullAddress: string | null = null;
+      if (typeof addr === "string") {
+        fullAddress = addr.trim() || null;
+      } else if (addr && typeof addr === "object") {
+        fullAddress =
+          (addr.full_address as string | undefined)?.trim() ||
+          (addr.line1 as string | undefined)?.trim() ||
+          [addr.suburb, addr.state, addr.postcode].filter(Boolean).join(", ") ||
+          null;
+      }
 
       // 若 ServiceM8 返回了地址，尝试通过 Geocoding 转为 place_id 并自动填入 Property address
       let addressAutoFilled = false;
-      if (fullAddress && fullAddress.trim().length >= 5) {
+      if (fullAddress != null && String(fullAddress).trim().length >= 5) {
         try {
           const geoRes = await fetch(
             `/api/addressGeocode?address=${encodeURIComponent(fullAddress.trim())}`
