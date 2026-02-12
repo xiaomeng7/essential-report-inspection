@@ -574,12 +574,12 @@ function TagsInputForCard({
   );
 }
 
-const ROOM_ACCESS_LABELS: Record<string, string> = { accessible: "可进入", not_accessible: "不可进入" };
+const ROOM_ACCESS_LABELS: Record<string, string> = { accessible: "Accessible", not_accessible: "Not accessible" };
 const NOT_ACCESSIBLE_REASON_LABELS: Record<string, string> = {
-  no_key: "没有钥匙",
-  privacy: "隐私问题",
-  religious: "宗教原因",
-  other: "其他",
+  no_key: "No key",
+  privacy: "Privacy",
+  religious: "Religious",
+  other: "Other",
 };
 
 const ROOMS_WITH_SINK = ["kitchen", "laundry", "bathroom_1", "bathroom_2"];
@@ -730,7 +730,7 @@ function GpoRoomTable({
     const reason = row.room_not_accessible_reason as string;
     if (reason === "other") {
       const custom = (row.room_not_accessible_reason_other as string)?.trim();
-      return custom || "其他";
+      return custom || "Other";
     }
     return reason ? (NOT_ACCESSIBLE_REASON_LABELS[reason] ?? reason.replace(/_/g, " ")) : "—";
   };
@@ -792,7 +792,7 @@ function GpoRoomTable({
             </div>
           )}
           <div className="field">
-            <label>可进入性 (Access)</label>
+            <label>Access</label>
             <select value={roomAccess} onChange={(e) => setRoomAccess(e.target.value)} disabled={disabled}>
               <option value="accessible">{ROOM_ACCESS_LABELS.accessible}</option>
               <option value="not_accessible">{ROOM_ACCESS_LABELS.not_accessible}</option>
@@ -801,7 +801,7 @@ function GpoRoomTable({
           {!isAccessible && (
             <>
               <div className="field">
-                <label>不可进入原因</label>
+                <label>Reason (not accessible)</label>
                 <select value={notAccessibleReason} onChange={(e) => setNotAccessibleReason(e.target.value)} disabled={disabled}>
                   <option value="">—</option>
                   {notAccessibleReasonOpts.map((o) => (
@@ -811,12 +811,12 @@ function GpoRoomTable({
               </div>
               {notAccessibleReason === "other" && (
                 <div className="field" style={{ minWidth: 140 }}>
-                  <label>原因（其他）</label>
+                  <label>Reason (other)</label>
                   <input
                     type="text"
                     value={notAccessibleReasonOther}
                     onChange={(e) => setNotAccessibleReasonOther(e.target.value)}
-                    placeholder="请填写"
+                    placeholder="Please specify"
                     disabled={disabled}
                   />
                 </div>
@@ -927,14 +927,14 @@ function GpoRoomTable({
                   onChange={handlePhotoFile}
                 />
                 <button type="button" onClick={() => photoFileRef.current?.click()} className="btn-secondary" disabled={disabled || photoIds.length >= 2}>
-                  📷 拍照/上传
+                  📷 Take / upload
                 </button>
                 <input
                   type="text"
                   value={photoInput}
                   onChange={(e) => setPhotoInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhoto())}
-                  placeholder="或输入 Photo ID"
+                  placeholder="Or enter Photo ID"
                   disabled={disabled}
                 />
                 <button type="button" onClick={addPhoto} className="btn-secondary" disabled={disabled}>Add</button>
@@ -969,8 +969,8 @@ function GpoRoomTable({
         </div>
         {(needNotAccessibleReason || needNotAccessibleReasonOther || testedExceedsTotal || needReason || needIssueWhenFail || needIssueOther || needPhotos || needSinkPosition || needSinkPhoto) && (
           <p className="validation-msg" style={{ marginTop: 8, marginBottom: 0 }}>
-            {needNotAccessibleReason && "不可进入时请选择原因。"}
-            {needNotAccessibleReasonOther && !needNotAccessibleReason && "选择「其他」时请填写原因。"}
+            {needNotAccessibleReason && "Please select a reason when room is not accessible."}
+            {needNotAccessibleReasonOther && !needNotAccessibleReason && "Please specify the reason when 'Other' is selected."}
             {testedExceedsTotal && !needNotAccessibleReason && !needNotAccessibleReasonOther && "Tested count cannot exceed GPO count (total)."}
             {needReason && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && "Reason required when tested count is less than total (use Note)."}
             {needIssueWhenFail && !needNotAccessibleReason && !needNotAccessibleReasonOther && !testedExceedsTotal && !needReason && "When pass &lt; tested, Issue cannot be None."}
@@ -986,8 +986,8 @@ function GpoRoomTable({
           <thead>
             <tr style={{ borderBottom: "2px solid #ddd" }}>
               <th style={{ textAlign: "left", padding: 6 }}>Room</th>
-              <th style={{ textAlign: "left", padding: 6 }}>可进入性</th>
-              <th style={{ textAlign: "left", padding: 6 }}>不可进入原因</th>
+              <th style={{ textAlign: "left", padding: 6 }}>Access</th>
+              <th style={{ textAlign: "left", padding: 6 }}>Reason (if not accessible)</th>
               <th style={{ textAlign: "right", padding: 6 }}>GPO count</th>
               <th style={{ textAlign: "right", padding: 6 }}>Tested</th>
               <th style={{ textAlign: "right", padding: 6 }}>Pass</th>
@@ -1024,14 +1024,14 @@ function GpoRoomTable({
 }
 
 const LIGHTING_SWITCH_ISSUE_LABELS: Record<string, string> = {
-  none: "无问题",
-  fitting_overheat: "灯具过热痕迹",
-  fitting_not_working: "灯具不工作",
-  switch_loose: "开关松动",
-  switch_arcing: "开关异响",
-  switch_unresponsive: "开关不灵敏",
-  dimmer_not_working: "Dimmer 不工作",
-  other: "其他",
+  none: "None",
+  fitting_overheat: "Fitting overheat marks",
+  fitting_not_working: "Fitting not working",
+  switch_loose: "Switch loose",
+  switch_arcing: "Switch arcing",
+  switch_unresponsive: "Switch unresponsive",
+  dimmer_not_working: "Dimmer not working",
+  other: "Other",
 };
 
 /** Lighting by room: form (room, Access, [reason] or [issues + photos + note]) → Add to table → table rows */
@@ -1112,7 +1112,7 @@ function LightingRoomTable({
         (roomType !== "other" || (r.room_name_custom as string)?.trim() === roomNameCustom.trim())
     );
     if (isDuplicate) {
-      setDuplicateRoomError("此房间已添加，请勿重复添加。");
+      setDuplicateRoomError("This room already added. Do not add duplicates.");
       return;
     }
 
@@ -1162,7 +1162,7 @@ function LightingRoomTable({
     const reason = row.room_not_accessible_reason as string;
     if (reason === "other") {
       const custom = (row.room_not_accessible_reason_other as string)?.trim();
-      return custom || "其他";
+      return custom || "Other";
     }
     return reason ? (NOT_ACCESSIBLE_REASON_LABELS[reason] ?? reason.replace(/_/g, " ")) : "—";
   };
@@ -1174,7 +1174,7 @@ function LightingRoomTable({
       const labels = issuesArr.map((i) => {
         if (i === "other") {
           const custom = (row.issue_other as string)?.trim();
-          return custom || "其他";
+          return custom || "Other";
         }
         return LIGHTING_SWITCH_ISSUE_LABELS[i] ?? i.replace(/_/g, " ");
       });

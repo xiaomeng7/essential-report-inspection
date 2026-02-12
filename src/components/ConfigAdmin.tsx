@@ -311,14 +311,14 @@ export function ConfigAdmin({ onBack }: Props) {
     } else {
       setLoading(false);
       setIsAuthError(true);
-      setError("请输入 Admin Token");
+      setError("Please enter Admin Token");
     }
   }, [loadConfig, loadDimensions, loadLibrary, loadGlobalDimensions, activeTab]);
 
   const handleRetryWithToken = () => {
     const t = tokenInput.trim();
     if (!t) {
-      setError("请输入 Token");
+      setError("Please enter Token");
       return;
     }
     setTokenInput("");
@@ -418,7 +418,7 @@ export function ConfigAdmin({ onBack }: Props) {
 
   const handleExportBackup = () => {
     if (!configData || !content) {
-      setError("没有可导出的内容");
+      setError("No content to export");
       return;
     }
     const blob = new Blob([content], { 
@@ -441,7 +441,7 @@ export function ConfigAdmin({ onBack }: Props) {
 
   const handleTestReport = async () => {
     if (!testInspectionId.trim()) {
-      setError("请输入 Inspection ID");
+      setError("Please enter Inspection ID");
       return;
     }
     try {
@@ -533,8 +533,8 @@ export function ConfigAdmin({ onBack }: Props) {
   if (loading && !configData && activeTab !== "customLibrary" && activeTab !== "problemDimensions") {
     return (
       <div className="app" style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
-        <h1>规则 & 文案管理</h1>
-        <p>加载配置中...</p>
+        <h1>Rules & copy management</h1>
+        <p>Loading config...</p>
       </div>
     );
   }
@@ -542,9 +542,9 @@ export function ConfigAdmin({ onBack }: Props) {
   if ((error && !configData) || (isAuthError && !configData && !loading)) {
     return (
       <div className="app" style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px" }}>
-        <h1 style={{ marginBottom: 8 }}>规则 & 文案管理</h1>
+        <h1 style={{ marginBottom: 8 }}>Rules & copy management</h1>
         <p style={{ color: "#666", marginBottom: 24 }}>
-          Token 需与 Netlify 环境变量 <code style={{ background: "#f0f0f0", padding: "2px 6px", borderRadius: 4 }}>ADMIN_TOKEN</code> 完全一致。
+          Token must match the Netlify env var <code style={{ background: "#f0f0f0", padding: "2px 6px", borderRadius: 4 }}>ADMIN_TOKEN</code> exactly.
         </p>
         {error && (
           <div style={{ padding: 12, backgroundColor: "#fee2e2", border: "1px solid #fecaca", borderRadius: 8, marginBottom: 24, color: "#991b1b" }}>
@@ -558,7 +558,7 @@ export function ConfigAdmin({ onBack }: Props) {
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleRetryWithToken()}
-            placeholder="输入 Netlify 中设置的 ADMIN_TOKEN"
+            placeholder="Enter ADMIN_TOKEN from Netlify"
             style={{
               width: "100%",
               padding: "12px 16px",
@@ -572,12 +572,12 @@ export function ConfigAdmin({ onBack }: Props) {
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button onClick={handleRetryWithToken} className="btn-primary" disabled={loading}>
-            {loading ? "验证中…" : "验证并进入"}
+            {loading ? "Verifying…" : "Verify and enter"}
           </button>
           <button onClick={clearTokenAndRetry} className="btn-secondary" disabled={loading}>
-            清除已保存的 Token
+            Clear saved token
           </button>
-          <button onClick={onBack} className="btn-secondary">返回首页</button>
+          <button onClick={onBack} className="btn-secondary">Back to home</button>
         </div>
       </div>
     );
@@ -586,30 +586,30 @@ export function ConfigAdmin({ onBack }: Props) {
   const getTabLabel = (type: ConfigType) => {
     switch (type) {
       case "rules":
-        return "规则 (rules.yml)";
+        return "Rules (rules.yml)";
       case "mapping":
-        return "映射 (CHECKLIST_TO_FINDINGS_MAP.json)";
+        return "Mapping (CHECKLIST_TO_FINDINGS_MAP.json)";
       case "responses":
-        return "文案 (responses.yml)";
+        return "Copy (responses.yml)";
       case "problemDimensions":
-        return "问题（9维度）";
+        return "Findings (9 dimensions)";
       case "customLibrary":
-        return "自定义 Finding 库";
+        return "Custom Finding library";
     }
   };
 
   const getTabDescription = (type: ConfigType) => {
     switch (type) {
       case "rules":
-        return "编辑规则文件，定义 finding 的 safety、urgency、liability 等属性";
+        return "Edit rules file: safety, urgency, liability, etc.";
       case "mapping":
-        return "编辑映射规则，定义从 checklist 字段到 finding_code 的映射关系";
+        return "Edit mapping rules from checklist fields to finding_code";
       case "responses":
-        return "编辑文案模板，定义每个 finding 的标题、说明、建议等文本内容";
+        return "Edit copy templates: title, description, recommendations for each finding";
       case "problemDimensions":
-        return "编辑 Finding 的 9 维度：左侧按分类列出 Finding ID，右侧显示对应问题，点击 ID 弹出编辑弹窗。修改会应用到全局，影响所有报告。";
+        return "Edit Finding 9 dimensions: left lists Finding IDs by category, right shows details. Click to edit. Changes apply globally to all reports.";
       case "customLibrary":
-        return "维护自定义问题库：标题与 9 维度。技师选 Other 时可从库中选（二期）；工程师可在此直观编辑 9 个维度。";
+        return "Maintain custom finding library: title and 9 dimensions. Technicians can pick from library when choosing Other (phase 2).";
     }
   };
 
@@ -647,7 +647,7 @@ export function ConfigAdmin({ onBack }: Props) {
   };
 
   const deleteLibraryEntry = async (id: string) => {
-    if (!window.confirm("确定删除这条库条目？")) return;
+    if (!window.confirm("Delete this library entry?")) return;
     setLibrarySaving(true);
     setError(null);
     try {
@@ -690,26 +690,26 @@ export function ConfigAdmin({ onBack }: Props) {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h1 style={{ margin: 0, color: "#1976d2" }}>🔧 规则 & 文案编辑页面</h1>
+            <h1 style={{ margin: 0, color: "#1976d2" }}>🔧 Rules & copy editor</h1>
             <p style={{ margin: "8px 0 0 0", fontSize: "14px", color: "#666" }}>
-              当前路径: <strong>{window.location.pathname}</strong>
+              Current path: <strong>{window.location.pathname}</strong>
             </p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <button onClick={onBack} className="btn-secondary">返回首页</button>
+            <button onClick={onBack} className="btn-secondary">Back to home</button>
           </div>
         </div>
       </div>
 
       {error && (
         <div style={{ padding: "15px", backgroundColor: "#fee", border: "1px solid #fcc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>错误:</strong> {error}
+          <strong>Error:</strong> {error}
         </div>
       )}
 
       {success && (
         <div style={{ padding: "15px", backgroundColor: "#efe", border: "1px solid #cfc", borderRadius: "4px", marginBottom: "20px" }}>
-          <strong>成功:</strong> {activeTab === "problemDimensions" ? "9 维度" : activeTab === "rules" ? "规则" : activeTab === "mapping" ? "映射" : activeTab === "customLibrary" ? "库条目" : "文案"}已保存！
+          <strong>Success:</strong> {activeTab === "problemDimensions" ? "9 dimensions" : activeTab === "rules" ? "Rules" : activeTab === "mapping" ? "Mapping" : activeTab === "customLibrary" ? "Library entry" : "Copy"} saved!
         </div>
       )}
 
@@ -740,24 +740,24 @@ export function ConfigAdmin({ onBack }: Props) {
         <p style={{ margin: 0, color: "#666" }}>{getTabDescription(activeTab)}</p>
         {activeTab === "problemDimensions" && dimensionsData && (
           <p style={{ margin: "8px 0 0 0", fontSize: "13px", color: "#0c5460" }}>
-            共 {Object.keys(dimensionsData.findings).length} 个 findings，{dimensionsData.missing.length} 个缺少维度
+            {Object.keys(dimensionsData.findings).length} findings, {dimensionsData.missing.length} missing dimensions
           </p>
         )}
         {configData && activeTab !== "problemDimensions" && (
           <div style={{ marginTop: "8px" }}>
             <p style={{ margin: "4px 0", fontSize: "13px", color: "#999" }}>
-              来源: {configData.source === "blob" ? "✅ 已保存的版本（Blob Store - 您的修改）" : "📄 文件系统（默认内容）"}
+              Source: {configData.source === "blob" ? "✅ Saved version (Blob Store - your changes)" : "📄 File system (default)"}
             </p>
             {configData.source === "blob" && (
               <div style={{ marginTop: "8px", padding: "8px", backgroundColor: "#d1ecf1", borderRadius: "4px", border: "1px solid #bee5eb" }}>
                 <p style={{ margin: "4px 0", fontSize: "12px", color: "#0c5460", fontWeight: 600 }}>
-                  💡 数据安全提示：
+                  💡 Data safety:
                 </p>
                 <ul style={{ margin: "4px 0 0 0", paddingLeft: "20px", fontSize: "12px", color: "#0c5460" }}>
-                  <li>您的修改保存在 Netlify Blob Store（云端持久化存储）</li>
-                  <li>Blob Store 数据不会自动过期，会永久保存</li>
-                  <li>Git 推送不会覆盖 Blob Store 中的修改</li>
-                  <li>建议定期使用「导出备份」功能下载备份文件</li>
+                  <li>Your changes are stored in Netlify Blob Store (cloud storage)</li>
+                  <li>Blob Store data does not expire and is kept permanently</li>
+                  <li>Git push does not overwrite Blob Store changes</li>
+                  <li>Use "Export backup" regularly to download backup files</li>
                 </ul>
               </div>
             )}
@@ -768,17 +768,17 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* 问题（9维度）合并页面 - 左侧分类列表 + 右侧问题描述 + 点击弹窗编辑 */}
       {activeTab === "problemDimensions" && dimensionsData && (
         <div style={{ marginBottom: "20px" }}>
-          {globalDimLoading && <p>加载中...</p>}
+          {globalDimLoading && <p>Loading...</p>}
           {!globalDimLoading && (
             <div style={{ display: "flex", gap: 20, minHeight: "600px" }}>
               {/* 左侧：分类列表 */}
               <div style={{ flex: "0 0 300px", border: "1px solid #ddd", borderRadius: 8, padding: 16, overflowY: "auto", maxHeight: "70vh" }}>
-                <h3 style={{ marginTop: 0, marginBottom: 16 }}>Finding ID 列表</h3>
+                <h3 style={{ marginTop: 0, marginBottom: 16 }}>Finding ID list</h3>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="搜索 finding..."
+                  placeholder="Search finding..."
                   style={{ width: "100%", padding: "8px 12px", border: "1px solid #ccc", borderRadius: 6, marginBottom: 16, boxSizing: "border-box" }}
                 />
                 {FINDING_CATEGORIES.map((category) => {
@@ -874,7 +874,7 @@ export function ConfigAdmin({ onBack }: Props) {
                           });
                         }}
                       >
-                        编辑 9 维度
+                        Edit 9 dimensions
                       </button>
                     </div>
                     
@@ -918,7 +918,7 @@ export function ConfigAdmin({ onBack }: Props) {
                           </div>
                           {globalDims && (
                             <div style={{ marginTop: 16, padding: 12, backgroundColor: "#e8f5e9", borderRadius: 6, fontSize: 13 }}>
-                              <strong>✓ 已设置全局覆盖</strong>（此 finding 的 9 维度会应用到所有报告）
+                              <strong>✓ Global override set</strong> (this finding's 9 dimensions apply to all reports)
                             </div>
                           )}
                         </div>
@@ -927,8 +927,8 @@ export function ConfigAdmin({ onBack }: Props) {
                   </>
                 ) : (
                   <div style={{ textAlign: "center", color: "#999", padding: "40px 20px" }}>
-                    <p>请从左侧选择一个 Finding ID 查看详情</p>
-                    <p style={{ fontSize: 12, marginTop: 8 }}>双击 ID 或点击「编辑 9 维度」按钮可编辑</p>
+                    <p>Select a Finding ID from the left to view details</p>
+                    <p style={{ fontSize: 12, marginTop: 8 }}>Double-click ID or click "Edit 9 dimensions" to edit</p>
                   </div>
                 )}
               </div>
@@ -1007,17 +1007,17 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* Custom Finding Library Tab - 9 维度库管理 */}
       {activeTab === "customLibrary" && (
         <div style={{ marginBottom: "20px" }}>
-          {libraryLoading && <p>加载库中...</p>}
+          {libraryLoading && <p>Loading library...</p>}
           {!libraryLoading && libraryEntries && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span>共 {libraryEntries.length} 条</span>
-                <button type="button" className="btn-primary" onClick={() => setLibraryEdit({ title: "", safety: "LOW", urgency: "LONG_TERM", liability: "LOW", priority: "PLAN_MONITOR", severity: 2, likelihood: 2, escalation: "LOW" })}>新增</button>
+                <span>{libraryEntries.length} entries</span>
+                <button type="button" className="btn-primary" onClick={() => setLibraryEdit({ title: "", safety: "LOW", urgency: "LONG_TERM", liability: "LOW", priority: "PLAN_MONITOR", severity: 2, likelihood: 2, escalation: "LOW" })}>Add</button>
               </div>
               <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead style={{ background: "#f5f5f5" }}>
-                    <tr><th style={{ padding: 8, textAlign: "left" }}>标题</th><th style={{ padding: 8 }}>Priority</th><th style={{ padding: 8 }}>Safety</th><th style={{ padding: 8 }}>Urgency</th><th style={{ padding: 8 }}>Liability</th><th style={{ padding: 8 }}>使用次数</th><th style={{ padding: 8 }}>操作</th></tr>
+                    <tr><th style={{ padding: 8, textAlign: "left" }}>Title</th><th style={{ padding: 8 }}>Priority</th><th style={{ padding: 8 }}>Safety</th><th style={{ padding: 8 }}>Urgency</th><th style={{ padding: 8 }}>Liability</th><th style={{ padding: 8 }}>Use count</th><th style={{ padding: 8 }}>Actions</th></tr>
                   </thead>
                   <tbody>
                     {libraryEntries.map((e) => (
@@ -1029,8 +1029,8 @@ export function ConfigAdmin({ onBack }: Props) {
                         <td style={{ padding: 6 }}>{e.liability}</td>
                         <td style={{ padding: 6 }}>{e.use_count ?? 0}</td>
                         <td style={{ padding: 6 }}>
-                          <button type="button" className="btn-secondary" style={{ marginRight: 8 }} onClick={() => setLibraryEdit({ ...e })}>编辑</button>
-                          <button type="button" className="btn-secondary" onClick={() => deleteLibraryEntry(e.id)}>删除</button>
+                          <button type="button" className="btn-secondary" style={{ marginRight: 8 }} onClick={() => setLibraryEdit({ ...e })}>Edit</button>
+                          <button type="button" className="btn-secondary" onClick={() => deleteLibraryEntry(e.id)}>Delete</button>
                         </td>
                       </tr>
                     ))}
@@ -1041,11 +1041,11 @@ export function ConfigAdmin({ onBack }: Props) {
           )}
           {libraryEdit !== null && (
             <div style={{ marginTop: 24, padding: 24, background: "#f8f9fa", borderRadius: 12, border: "1px solid #ddd" }}>
-              <h3 style={{ marginTop: 0 }}>{libraryEdit.id ? "编辑库条目" : "新增库条目"}</h3>
+              <h3 style={{ marginTop: 0 }}>{libraryEdit.id ? "Edit library entry" : "Add library entry"}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={{ fontSize: 12, color: "#666" }}>标题</label>
-                  <input type="text" value={libraryEdit.title} onChange={(e) => setLibraryEdit((p) => p ? { ...p, title: e.target.value } : null)} placeholder="例如：插座发热" style={{ width: "100%", padding: 8, marginTop: 4, boxSizing: "border-box" }} />
+                  <label style={{ fontSize: 12, color: "#666" }}>Title</label>
+                  <input type="text" value={libraryEdit.title} onChange={(e) => setLibraryEdit((p) => p ? { ...p, title: e.target.value } : null)} placeholder="e.g. Socket overheating" style={{ width: "100%", padding: 8, marginTop: 4, boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 12, color: "#666" }}>Safety</label>
@@ -1085,8 +1085,8 @@ export function ConfigAdmin({ onBack }: Props) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 12 }}>
-                <button type="button" className="btn-primary" onClick={saveLibraryEntry} disabled={librarySaving || !libraryEdit.title?.trim()}>{librarySaving ? "保存中…" : "保存"}</button>
-                <button type="button" className="btn-secondary" onClick={() => setLibraryEdit(null)}>取消</button>
+                <button type="button" className="btn-primary" onClick={saveLibraryEntry} disabled={librarySaving || !libraryEdit.title?.trim()}>{librarySaving ? "Saving…" : "Save"}</button>
+                <button type="button" className="btn-secondary" onClick={() => setLibraryEdit(null)}>Cancel</button>
               </div>
             </div>
           )}
@@ -1109,7 +1109,7 @@ export function ConfigAdmin({ onBack }: Props) {
               fontWeight: editMode === "visual" ? 600 : 400,
             }}
           >
-            可视化编辑
+            Visual editor
           </button>
           <button
             onClick={() => setEditMode("raw")}
@@ -1124,7 +1124,7 @@ export function ConfigAdmin({ onBack }: Props) {
               fontWeight: editMode === "raw" ? 600 : 400,
             }}
           >
-            {activeTab === "mapping" ? "JSON 编辑器" : "YAML 编辑器"}
+            {activeTab === "mapping" ? "JSON editor" : "YAML editor"}
           </button>
         </div>
       )}
@@ -1133,17 +1133,17 @@ export function ConfigAdmin({ onBack }: Props) {
       {activeTab === "responses" && editMode === "visual" && configData && editedResponses && Object.keys(editedResponses).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h2>文案编辑 ({Object.keys(editedResponses).length} 个 findings)</h2>
+            <h2>Copy editor ({Object.keys(editedResponses).length} findings)</h2>
             <div style={{ display: "flex", gap: "8px" }}>
               <button 
                 onClick={() => loadConfig(authToken, activeTab, true)} 
                 className="btn-secondary" 
                 disabled={loading}
               >
-                {loading ? "加载中..." : "🔄 重新加载"}
+                {loading ? "Loading..." : "🔄 Reload"}
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving ? "保存中..." : "保存所有更改"}
+                {saving ? "Saving..." : "Save all changes"}
               </button>
             </div>
           </div>
@@ -1154,7 +1154,7 @@ export function ConfigAdmin({ onBack }: Props) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜索 finding code..."
+              placeholder="Search finding code..."
               style={{
                 width: "100%",
                 padding: "10px",
@@ -1182,7 +1182,7 @@ export function ConfigAdmin({ onBack }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                      标题 (Title)
+                      Title
                     </label>
                     <input
                       type="text"
@@ -1199,7 +1199,7 @@ export function ConfigAdmin({ onBack }: Props) {
                   </div>
                   <div>
                     <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                      重要性说明 (Why It Matters)
+                      Why It Matters
                     </label>
                     <textarea
                       value={finding.why_it_matters || ""}
@@ -1217,7 +1217,7 @@ export function ConfigAdmin({ onBack }: Props) {
                   </div>
                   <div>
                     <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                      建议行动 (Recommended Action)
+                      Recommended Action
                     </label>
                     <textarea
                       value={finding.recommended_action || ""}
@@ -1235,7 +1235,7 @@ export function ConfigAdmin({ onBack }: Props) {
                   </div>
                   <div>
                     <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                      规划指导 (Planning Guidance)
+                      Planning Guidance
                     </label>
                     <textarea
                       value={finding.planning_guidance || ""}
@@ -1262,17 +1262,17 @@ export function ConfigAdmin({ onBack }: Props) {
       {activeTab === "mapping" && editMode === "visual" && configData && editedMappings && editedMappings.length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h2>映射规则编辑 ({editedMappings.length} 条规则)</h2>
+            <h2>Mapping rules editor ({editedMappings.length} rules)</h2>
             <div style={{ display: "flex", gap: "8px" }}>
               <button 
                 onClick={() => loadConfig(authToken, activeTab, true)} 
                 className="btn-secondary" 
                 disabled={loading}
               >
-                {loading ? "加载中..." : "🔄 重新加载"}
+                {loading ? "Loading..." : "🔄 Reload"}
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving ? "保存中..." : "保存所有更改"}
+                {saving ? "Saving..." : "Save all changes"}
               </button>
             </div>
           </div>
@@ -1283,7 +1283,7 @@ export function ConfigAdmin({ onBack }: Props) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜索 finding code..."
+              placeholder="Search finding code..."
               style={{
                 width: "100%",
                 padding: "10px",
@@ -1328,7 +1328,7 @@ export function ConfigAdmin({ onBack }: Props) {
                     <>
                       <div>
                         <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                          字段 (Field)
+                          Field
                         </label>
                         <input
                           type="text"
@@ -1346,7 +1346,7 @@ export function ConfigAdmin({ onBack }: Props) {
                       </div>
                       <div>
                         <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                          操作符 (Operator)
+                          Operator
                         </label>
                         <select
                           value={mapping.condition.operator || "eq"}
@@ -1359,19 +1359,19 @@ export function ConfigAdmin({ onBack }: Props) {
                             fontSize: "14px",
                           }}
                         >
-                          <option value="eq">等于 (eq)</option>
-                          <option value="ne">不等于 (ne)</option>
-                          <option value="gt">大于 (gt)</option>
-                          <option value="lt">小于 (lt)</option>
-                          <option value="gte">大于等于 (gte)</option>
-                          <option value="lte">小于等于 (lte)</option>
-                          <option value="in">包含 (in)</option>
-                          <option value="not_in">不包含 (not_in)</option>
+                          <option value="eq">equals (eq)</option>
+                          <option value="ne">not equals (ne)</option>
+                          <option value="gt">greater than (gt)</option>
+                          <option value="lt">less than (lt)</option>
+                          <option value="gte">greater or equal (gte)</option>
+                          <option value="lte">less or equal (lte)</option>
+                          <option value="in">in (in)</option>
+                          <option value="not_in">not in (not_in)</option>
                         </select>
                       </div>
                       <div>
                         <label style={{ display: "block", marginBottom: "4px", fontWeight: 600, fontSize: "13px" }}>
-                          值 (Value)
+                          Value
                         </label>
                         <input
                           type="text"
@@ -1398,9 +1398,9 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* Empty state for mappings */}
       {activeTab === "mapping" && editMode === "visual" && configData && (!editedMappings || editedMappings.length === 0) && (
         <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#fff3cd", borderRadius: "8px", border: "2px solid #ffc107" }}>
-          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ 数据未加载</h3>
+          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ Data not loaded</h3>
           <p style={{ fontSize: "16px", color: "#856404", marginBottom: "20px" }}>
-            {loading ? "正在加载数据..." : "可视化编辑需要先加载数据。请点击下方按钮从文件系统加载。"}
+            {loading ? "Loading data..." : "Load data first for visual editing. Click below to load from file system."}
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button 
@@ -1408,18 +1408,18 @@ export function ConfigAdmin({ onBack }: Props) {
               className="btn-primary" 
               disabled={loading}
             >
-              {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+              {loading ? "Loading..." : "🔄 Reload from file system"}
             </button>
             <button 
               onClick={() => setEditMode("raw")} 
               className="btn-secondary"
             >
-              切换到 JSON 编辑器
+              Switch to JSON editor
             </button>
           </div>
           {configData && (
             <p style={{ fontSize: "12px", color: "#856404", marginTop: "16px" }}>
-              调试信息: parsed keys = {configData.parsed ? Object.keys(configData.parsed).join(", ") : "null"}, mappings = {configData.parsed?.mappings ? configData.parsed.mappings.length : 0}
+              Debug: parsed keys = {configData.parsed ? Object.keys(configData.parsed).join(", ") : "null"}, mappings = {configData.parsed?.mappings ? configData.parsed.mappings.length : 0}
             </p>
           )}
         </div>
@@ -1436,17 +1436,17 @@ export function ConfigAdmin({ onBack }: Props) {
                 className="btn-secondary" 
                 disabled={loading}
               >
-                {loading ? "加载中..." : "🔄 重新加载"}
+                {loading ? "Loading..." : "🔄 Reload"}
               </button>
               <button 
                 onClick={handleExportBackup} 
                 className="btn-secondary"
-                title="导出当前内容为备份文件"
+                title="Export current content as backup"
               >
-                💾 导出备份
+                💾 Export backup
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving ? "保存中..." : "保存"}
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
@@ -1466,7 +1466,7 @@ export function ConfigAdmin({ onBack }: Props) {
             spellCheck={false}
           />
           <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
-            修改内容后，点击"保存"按钮保存更改。保存后会自动创建版本备份。
+            After editing, click "Save" to apply changes. A version backup will be created automatically.
           </p>
         </div>
       )}
@@ -1475,17 +1475,17 @@ export function ConfigAdmin({ onBack }: Props) {
       {activeTab === "rules" && editMode === "visual" && configData && editedFindings && Object.keys(editedFindings).length > 0 && (
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h2>Findings 编辑 ({Object.keys(editedFindings).length} 个 findings)</h2>
+            <h2>Findings editor ({Object.keys(editedFindings).length} findings)</h2>
             <div style={{ display: "flex", gap: "8px" }}>
               <button 
                 onClick={() => loadConfig(authToken, activeTab, true)} 
                 className="btn-secondary" 
                 disabled={loading}
               >
-                {loading ? "加载中..." : "🔄 重新加载"}
+                {loading ? "Loading..." : "🔄 Reload"}
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving ? "保存中..." : "保存所有更改"}
+                {saving ? "Saving..." : "Save all changes"}
               </button>
             </div>
           </div>
@@ -1496,7 +1496,7 @@ export function ConfigAdmin({ onBack }: Props) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜索 finding code..."
+              placeholder="Search finding code..."
               style={{
                 width: "100%",
                 padding: "10px",
@@ -1588,9 +1588,9 @@ export function ConfigAdmin({ onBack }: Props) {
       {/* Empty state for rules */}
       {activeTab === "rules" && editMode === "visual" && configData && (!editedFindings || Object.keys(editedFindings).length === 0) && (
         <div style={{ padding: "40px", textAlign: "center", backgroundColor: "#fff3cd", borderRadius: "8px", border: "2px solid #ffc107" }}>
-          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ 数据未加载</h3>
+          <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ Data not loaded</h3>
           <p style={{ fontSize: "16px", color: "#856404", marginBottom: "20px" }}>
-            {loading ? "正在加载数据..." : "可视化编辑需要先加载数据。请点击下方按钮从文件系统加载。"}
+            {loading ? "Loading data..." : "Load data first for visual editing. Click below to load from file system."}
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button 
@@ -1598,13 +1598,13 @@ export function ConfigAdmin({ onBack }: Props) {
               className="btn-primary" 
               disabled={loading}
             >
-              {loading ? "加载中..." : "🔄 从文件系统重新加载"}
+              {loading ? "Loading..." : "🔄 Reload from file system"}
             </button>
             <button 
               onClick={() => setEditMode("raw")} 
               className="btn-secondary"
             >
-              切换到 YAML 编辑器
+              Switch to YAML editor
             </button>
           </div>
         </div>
@@ -1621,17 +1621,17 @@ export function ConfigAdmin({ onBack }: Props) {
                 className="btn-secondary" 
                 disabled={loading}
               >
-                {loading ? "加载中..." : "🔄 重新加载"}
+                {loading ? "Loading..." : "🔄 Reload"}
               </button>
               <button 
                 onClick={handleExportBackup} 
                 className="btn-secondary"
-                title="导出当前内容为备份文件"
+                title="Export current content as backup"
               >
-                💾 导出备份
+                💾 Export backup
               </button>
               <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving ? "保存中..." : "保存"}
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
@@ -1655,9 +1655,9 @@ export function ConfigAdmin({ onBack }: Props) {
 
       {/* Test Report Generation */}
       <div style={{ marginTop: "40px", padding: "20px", backgroundColor: "#f8f9fa", borderRadius: "8px", border: "1px solid #ddd" }}>
-        <h2 style={{ marginTop: 0 }}>测试报告生成</h2>
+        <h2 style={{ marginTop: 0 }}>Test report generation</h2>
         <p style={{ color: "#666", marginBottom: "16px" }}>
-          修改规则或文案后，可以使用此功能立即测试生成 Word 报告，验证更改是否正确生效。
+          After editing rules or copy, use this to test Word report generation and verify changes.
         </p>
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: "1", minWidth: "200px" }}>
@@ -1666,7 +1666,7 @@ export function ConfigAdmin({ onBack }: Props) {
               type="text"
               value={testInspectionId}
               onChange={(e) => setTestInspectionId(e.target.value)}
-              placeholder="例如: EH-2026-001"
+              placeholder="e.g. EH-2026-001"
               style={{
                 width: "100%",
                 padding: "10px",
@@ -1684,12 +1684,12 @@ export function ConfigAdmin({ onBack }: Props) {
               disabled={testing || !testInspectionId.trim()}
               style={{ padding: "10px 20px" }}
             >
-              {testing ? "生成中..." : "生成并下载 Word 报告"}
+              {testing ? "Generating..." : "Generate and download Word report"}
             </button>
           </div>
         </div>
         <p style={{ fontSize: "12px", color: "#666", marginTop: "12px" }}>
-          输入已存在的 Inspection ID，系统将使用最新的规则和文案配置生成 Word 报告。
+          Enter an existing Inspection ID; the system will generate a Word report using the latest rules and copy.
         </p>
       </div>
     </div>

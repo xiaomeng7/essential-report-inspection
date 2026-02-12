@@ -36,7 +36,7 @@ export function SectionPhotoEvidence({
         onAddPhoto(sectionId, { caption: "", dataUrl });
       } catch (err) {
         console.error("Compress failed:", err);
-        alert("图片压缩失败，请重试");
+        alert("Image compression failed. Please try again.");
       } finally {
         setCompressing(false);
       }
@@ -78,7 +78,7 @@ export function SectionPhotoEvidence({
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 14 }}>
-        📷 照片证据（本块最多 {MAX_PHOTOS} 张）
+        📷 Photo evidence (max {MAX_PHOTOS} per block)
       </div>
 
       <input
@@ -115,7 +115,7 @@ export function SectionPhotoEvidence({
               minHeight: 48,
             }}
           >
-            {compressing ? "处理中…" : "拍照"}
+            {compressing ? "Processing…" : "Take photo"}
           </button>
           <button
             type="button"
@@ -133,14 +133,14 @@ export function SectionPhotoEvidence({
               minHeight: 48,
             }}
           >
-            从相册选择
+            Choose from gallery
           </button>
         </div>
       )}
 
       {photos.length === 0 && (
         <p style={{ color: "#888", fontSize: 13, margin: 0 }}>
-          填写本块时在此处拍照或选图，提交检查表后会随报告一起上传。
+          Take or select photos here when filling this block. They will be uploaded with the report on submit.
         </p>
       )}
 
@@ -165,7 +165,7 @@ export function SectionPhotoEvidence({
             <div style={{ padding: 8 }}>
               <input
                 type="text"
-                placeholder="简短说明（如：主开关过热痕迹）"
+                placeholder="Brief caption (e.g. main switch overheat marks)"
                 value={p.caption}
                 onChange={(e) => onUpdateCaption(sectionId, i, e.target.value)}
                 style={{
@@ -191,7 +191,7 @@ export function SectionPhotoEvidence({
                   cursor: "pointer",
                 }}
               >
-                移除
+                Remove
               </button>
             </div>
           </div>

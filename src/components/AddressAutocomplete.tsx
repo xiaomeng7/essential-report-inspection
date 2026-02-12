@@ -38,7 +38,7 @@ type Props = {
 const DEBOUNCE_MS = 300;
 const MAX_SUGGESTIONS = 8;
 
-/** 示例地址（未配置 Google API 或测试时一键填充） */
+/** Sample address (for testing when Google API not configured) */
 const SAMPLE_ADDRESS: StructuredAddress = {
   property_address: "123 Example St, Sydney NSW 2000",
   address_place_id: "ChIJN1t_tDeuEmsRUsoyG83frY4",
@@ -94,7 +94,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
             const raw = data.error || data.message || "Address suggestions unavailable.";
             const msg =
               raw === "Address suggestions not configured"
-                ? "地址建议未配置：请设置 GOOGLE_MAPS_API_KEY（Netlify 或 .env）。"
+                ? "Address suggestions not configured. Set GOOGLE_MAPS_API_KEY in Netlify or .env."
                 : raw;
             setApiError(msg);
             setSuggestions([]);
@@ -103,7 +103,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
           if (data.error) {
             setApiError(
               data.error === "Address suggestions not configured"
-                ? "地址建议未配置：请设置 GOOGLE_MAPS_API_KEY（Netlify 或 .env）。"
+                ? "Address suggestions not configured. Set GOOGLE_MAPS_API_KEY in Netlify or .env."
                 : data.error
             );
             setSuggestions([]);
@@ -114,7 +114,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
         });
       })
       .catch(() => {
-        setApiError("无法连接地址服务。请用 netlify dev 启动本地，并配置 GOOGLE_MAPS_API_KEY。");
+        setApiError("Cannot connect to address service. Run netlify dev and set GOOGLE_MAPS_API_KEY.");
         setSuggestions([]);
       })
       .finally(() => setLoading(false));
@@ -240,7 +240,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
             cursor: disabled ? "not-allowed" : "pointer",
           }}
         >
-          使用示例地址
+          Use sample address
         </button>
       </div>
       {loading && (

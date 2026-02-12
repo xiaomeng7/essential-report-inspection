@@ -1,68 +1,68 @@
 /**
- * Modal for backend engineer (not technician) to fill 9 维度 for custom "other" issues.
+ * Modal for backend engineer (not technician) to fill 9 dimensions for custom "other" issues.
  * Shown on ReviewPage when engineer opens review URL from email and custom findings need dimensions.
  */
 
-/** 填写说明与标准：每个维度的含义及选项选择标准 */
+/** Guide: dimension meanings and option selection criteria */
 const DIMENSION_GUIDE = [
   {
-    name: "Safety（安全）",
-    desc: "该问题对人身/财产的风险等级。",
+    name: "Safety",
+    desc: "Risk level to people/property.",
     options: [
-      "HIGH：触电、火灾等直接人身风险，或明显违反规范。",
-      "MODERATE：潜在隐患或合规风险，需尽快评估。",
-      "LOW：外观或维护类，无直接安全威胁。",
+      "HIGH: Direct risk (shock, fire) or clear code violation.",
+      "MODERATE: Potential hazard or compliance risk, needs assessment.",
+      "LOW: Cosmetic or maintenance, no direct safety threat.",
     ],
   },
   {
-    name: "Urgency（紧急程度）",
-    desc: "建议处理的时间窗口。",
+    name: "Urgency",
+    desc: "Recommended time window to address.",
     options: [
-      "IMMEDIATE：需立即处理（如漏电、过热）。",
-      "SHORT_TERM：建议 0–3 个月内处理。",
-      "LONG_TERM：可计划排期或观察。",
+      "IMMEDIATE: Address immediately (e.g. fault, overheating).",
+      "SHORT_TERM: Within 0–3 months.",
+      "LONG_TERM: Can be scheduled or monitored.",
     ],
   },
   {
-    name: "Liability（责任/合规）",
-    desc: "不处理时可能引发的责任或保险问题。",
+    name: "Liability",
+    desc: "Liability or insurance issues if not addressed.",
     options: [
-      "HIGH：易引发责任纠纷、保险拒赔或法律风险。",
-      "MEDIUM：有一定责任或合规风险。",
-      "LOW：责任风险低。",
+      "HIGH: May lead to disputes, insurance denial or legal risk.",
+      "MEDIUM: Some liability or compliance risk.",
+      "LOW: Low liability risk.",
     ],
   },
   {
-    name: "Budget Low / Budget High（预算区间）",
-    desc: "预估修复成本区间（澳元），便于业主做预算。填大致范围即可，如 200–500。",
+    name: "Budget Low / Budget High",
+    desc: "Estimated repair cost range (AUD). Rough range fine, e.g. 200–500.",
     options: [],
   },
   {
-    name: "Priority（报告中的优先级标签）",
-    desc: "与 Safety/Urgency 一致，用于报告中的分类显示。",
+    name: "Priority",
+    desc: "Matches Safety/Urgency; used for report grouping.",
     options: [
-      "IMMEDIATE：与「需立即处理」对应，报告标为紧急。",
-      "RECOMMENDED_0_3_MONTHS：建议 0–3 月内处理。",
-      "PLAN_MONITOR：可观察或纳入长期计划。",
+      "IMMEDIATE: Requires immediate action; report shows urgent.",
+      "RECOMMENDED_0_3_MONTHS: Within 0–3 months.",
+      "PLAN_MONITOR: Can monitor or include in long-term plan.",
     ],
   },
   {
-    name: "Severity（严重程度 1–5）",
-    desc: "问题本身的严重程度：1=很轻，5=很严重；结合安全与后果综合打分。",
-    options: ["1：很轻", "2：较轻", "3：中等", "4：较严重", "5：很严重"],
+    name: "Severity (1–5)",
+    desc: "How severe the issue is: 1=very minor, 5=very severe.",
+    options: ["1: Very minor", "2: Minor", "3: Moderate", "4: Significant", "5: Very severe"],
   },
   {
-    name: "Likelihood（发生可能性 1–5）",
-    desc: "若不处理，不良后果发生的可能性：1=几乎不会，5=很可能。",
-    options: ["1：几乎不会发生", "2：较低", "3：中等", "4：较高", "5：很可能发生"],
+    name: "Likelihood (1–5)",
+    desc: "If not addressed, likelihood of adverse outcome: 1=unlikely, 5=likely.",
+    options: ["1: Unlikely", "2: Low", "3: Moderate", "4: High", "5: Very likely"],
   },
   {
-    name: "Escalation（升级风险）",
-    desc: "若不处理，问题恶化或升级的可能性。",
+    name: "Escalation",
+    desc: "If not addressed, risk of worsening or escalation.",
     options: [
-      "HIGH：易快速恶化或引发连锁问题。",
-      "MODERATE：可能随时间加重。",
-      "LOW：较稳定，不易升级。",
+      "HIGH: May worsen quickly or trigger chain issues.",
+      "MODERATE: May worsen over time.",
+      "LOW: Stable, unlikely to escalate.",
     ],
   },
 ];
@@ -128,12 +128,12 @@ export function CustomFindingsModal({ findings, onChange, onConfirm, onCancel, s
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ padding: 24, borderBottom: "1px solid #eee" }}>
-          <h2 style={{ margin: "0 0 8px 0", fontSize: 20 }}>补全自定义 Issue 的 9 维度数据</h2>
+          <h2 style={{ margin: "0 0 8px 0", fontSize: 20 }}>Complete 9 dimensions for custom issues</h2>
           <p style={{ margin: 0, color: "#666", fontSize: 14 }}>
-            以下为技师手动填写的 issue（Other），请工程师按标准补全 9 维度后保存，方可生成报告。
+            These are technician-entered issues (Other). Fill in the 9 dimensions per standards and save to generate the report.
           </p>
           <details style={{ marginTop: 12, padding: 10, background: "#f8f9fa", borderRadius: 6 }}>
-            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13 }}>填写说明与标准（各维度含义及选项选择标准）</summary>
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13 }}>Guide (dimension meanings and selection criteria)</summary>
             <div style={{ marginTop: 8, fontSize: 12, color: "#444", lineHeight: 1.7 }}>
               {DIMENSION_GUIDE.map((g) => (
                 <div key={g.name} style={{ marginBottom: 10 }}>
@@ -285,7 +285,7 @@ export function CustomFindingsModal({ findings, onChange, onConfirm, onCancel, s
         </div>
         <div style={{ padding: 24, borderTop: "1px solid #eee", display: "flex", justifyContent: "flex-end", gap: 12 }}>
           <button type="button" onClick={onCancel} className="btn-secondary">
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -293,7 +293,7 @@ export function CustomFindingsModal({ findings, onChange, onConfirm, onCancel, s
             className="btn-primary"
             disabled={!allValid || saving}
           >
-            {saving ? "保存中…" : "保存并关闭"}
+            {saving ? "Saving…" : "Save and close"}
           </button>
         </div>
       </div>

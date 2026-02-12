@@ -244,7 +244,7 @@ export function validateSection(
     const reported = getValue(flat, "job.reported_issues") as string[] | undefined;
     if (Array.isArray(reported) && reported.includes("other")) {
       const otherText = (getValue(flat, "job.reported_issues_other") as string)?.trim() ?? "";
-      if (!otherText) errors["job.reported_issues_other"] = "勾选 Other 时请填写具体问题。";
+      if (!otherText) errors["job.reported_issues_other"] = "Please specify when 'Other' is selected.";
     }
   }
 

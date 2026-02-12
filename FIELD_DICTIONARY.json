@@ -351,7 +351,7 @@
           "enum": "client_type",
           "required": true,
           "skippable": false,
-          "helper_text": "Owner = 业主（自住或自用）. Landlord = 房东（出租物业）. Property manager = 物业/托管方.",
+          "helper_text": "Owner = owner-occupier. Landlord = landlord (rental). Property manager = agent/trust.",
           "ui": "radio"
         },
         {
@@ -370,7 +370,7 @@
           "enum": "property_type",
           "required": true,
           "skippable": false,
-          "helper_text": "House = 独立屋/别墅（最常见）. Townhouse/Apartment/Unit/Commercial/Other.",
+          "helper_text": "House = detached (most common). Townhouse/Apartment/Unit/Commercial/Other.",
           "ui": "radio"
         },
         {
@@ -419,7 +419,7 @@
           "type": "string",
           "required": false,
           "skippable": true,
-          "helper_text": "若在「Reported issues」中勾选了 Other，请在此填写具体问题。",
+          "helper_text": "When 'Other' is selected in Reported issues, describe the specific issue here.",
           "ui": "text"
         }
       ]
@@ -451,17 +451,17 @@
           "enum": "underfloor_access",
           "required": true,
           "skippable": false,
-          "helper_text": "多数住宅无地下层，无则选 N/A。有则选可进入 / 不可进入。",
+          "helper_text": "Most homes have no underfloor. Select N/A if none; otherwise Accessible / Not accessible.",
           "ui": "radio"
         },
         {
           "key": "access.no_access_reason",
-          "label": "不可进入原因（任一项选「不可进入」时必选）",
+          "label": "Reason (required when any item is Not accessible)",
           "type": "enum",
           "enum": "skip_reason",
           "required_when": "any(access.*_accessible==false)",
           "skippable": false,
-          "helper_text": "当配电盘/屋顶/地下任一项选「不可进入」时，必须选一项原因（无钥匙、客户拒绝、上锁、不安全等）。",
+          "helper_text": "When switchboard/roof/underfloor is Not accessible, select a reason (no key, client refused, locked, unsafe, etc.).",
           "ui": "select"
         },
         {
@@ -1284,7 +1284,7 @@
           "type": "array_object",
           "required_when": "gpo_tests.performed==true",
           "skippable": true,
-          "helper_text": "Select Access: 可进入 (default) or 不可进入. If 可进入: tested ≤ total; when pass < tested, Issue + photo required. For Kitchen/Laundry/Bathroom: fill distance to sink and add photo of GPO/sink zone.",
+          "helper_text": "Select Access: Accessible (default) or Not accessible. If Accessible: tested ≤ total; when pass < tested, Issue + photo required. For Kitchen/Laundry/Bathroom: fill distance to sink and add photo of GPO/sink zone.",
           "item_schema": {
             "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
             "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
@@ -1327,7 +1327,7 @@
     },
     {
       "id": "S8_GPO_LIGHTING_EXCEPTIONS",
-      "title": "GPO/Lighting 例外 (Exceptions)",
+      "title": "GPO/Lighting Exceptions",
       "gates": [
         {
           "depends_on": "gpo_tests.performed",
@@ -1399,15 +1399,15 @@
     },
     {
       "id": "S7B_LIGHTING_BY_ROOM",
-      "title": "灯具按房 (Lighting by Room)",
+      "title": "Lighting by Room",
       "fields": [
         {
           "key": "lighting.rooms",
-          "label": "灯具按房 – 选房间、可进入性、问题与照片后点击「Add to table」",
+          "label": "Lighting by room – select room, access, issues and photos, then click Add to table",
           "type": "array_object",
           "required": false,
           "skippable": true,
-          "helper_text": "可进入：选房间 → 勾选问题（灯具过热、不工作、开关松动、打火、调光异常等）→ 有问题时必附照片。不可进入：选原因。",
+          "helper_text": "Accessible: select room → check issues (overheat, not working, loose switch, arcing, dimmer, etc.) → photos required when issues. Not accessible: select reason.",
           "item_schema": {
             "room_type": { "type": "enum", "enum": "room_type", "required": true, "label": "Room" },
             "room_name_custom": { "type": "string", "required": false, "label": "Room name (if Other)" },
@@ -1493,7 +1493,7 @@
           "type": "boolean",
           "required": false,
           "skippable": true,
-          "helper_text": "厨房固定设备：先填有无，有则继续填下方追问。",
+          "helper_text": "Kitchen fixed appliances: first fill presence; if yes, complete follow-up fields below.",
           "ui": "radio_yes_no"
         },
         {
@@ -1591,7 +1591,7 @@
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.cooktop_present==true",
-          "helper_text": "电热盘/电磁炉时填写；e.g. 4, 6",
+          "helper_text": "For electric hotplate/induction; e.g. 4, 6",
           "ui": "number"
         },
         {
@@ -1601,7 +1601,7 @@
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.cooktop_present==true",
-          "helper_text": "电热盘/电磁炉时确认",
+          "helper_text": "Confirm for electric hotplate/induction",
           "ui": "radio_yes_no"
         },
         {

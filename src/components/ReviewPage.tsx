@@ -96,7 +96,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
       setCustomFindingsToFill(null);
     } catch (e) {
       console.error("Failed to save custom findings:", e);
-      alert("保存失败：" + (e instanceof Error ? e.message : String(e)));
+      alert("Save failed: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setIsSavingCustomFindings(false);
     }
@@ -167,7 +167,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           <h1 style={{ margin: 0, flex: 1 }}>
             Report — {data.inspection_id}
           </h1>
-          {/* Word 仅在 Submit 时生成；Review 页仅提供下载，不提供生成 */}
+          {/* Word generated on Submit only; Review page provides download, not generation */}
           {wordExistsInBlob === true && (
             <div style={{ marginTop: "10px" }}>
               <a
@@ -196,10 +196,10 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
             borderRadius: "4px",
             display: "inline-block"
           }}>
-            <strong>AI模型:</strong> {modelInfo.model}
+            <strong>AI Model:</strong> {modelInfo.model}
             {modelInfo.usage && (
               <span style={{ marginLeft: "12px" }}>
-                • Tokens: {modelInfo.usage.total_tokens} (输入: {modelInfo.usage.prompt_tokens}, 输出: {modelInfo.usage.completion_tokens})
+                • Tokens: {modelInfo.usage.total_tokens} (input: {modelInfo.usage.prompt_tokens}, output: {modelInfo.usage.completion_tokens})
               </span>
             )}
           </div>
@@ -214,7 +214,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
           color: "#c62828",
           borderRadius: "4px"
         }}>
-          错误: {enhanceError}
+          Error: {enhanceError}
         </div>
       )}
 

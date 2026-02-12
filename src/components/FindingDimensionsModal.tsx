@@ -24,101 +24,101 @@ const DIMENSION_FIELDS: Array<{
 }> = [
   {
     key: "title",
-    label: "Title（显示标题）",
-    description: "报告中显示的 Finding 标题，可简短概括问题。",
+    label: "Title",
+    description: "Finding title shown in the report; briefly summarise the issue.",
     type: "text",
   },
   {
     key: "priority",
-    label: "Priority（报告优先级）",
-    description: "用于报告分组、CapEx 表和 Executive 摘要。决定在报告中归为「紧急 / 建议 0–3 月 / 计划与观察」。",
+    label: "Priority",
+    description: "For report grouping, CapEx table and Executive summary: Urgent / Recommended 0–3 months / Plan & Monitor.",
     type: "select",
     options: [
-      { value: "IMMEDIATE", label: "IMMEDIATE", meaning: "需立即处理，报告标为紧急。" },
-      { value: "RECOMMENDED_0_3_MONTHS", label: "RECOMMENDED_0_3_MONTHS", meaning: "建议 0–3 个月内处理。" },
-      { value: "PLAN_MONITOR", label: "PLAN_MONITOR", meaning: "可观察或纳入长期计划。" },
+      { value: "IMMEDIATE", label: "IMMEDIATE", meaning: "Requires immediate action; report shows urgent." },
+      { value: "RECOMMENDED_0_3_MONTHS", label: "RECOMMENDED_0_3_MONTHS", meaning: "Recommend within 0–3 months." },
+      { value: "PLAN_MONITOR", label: "PLAN_MONITOR", meaning: "Can monitor or include in long-term plan." },
     ],
   },
   {
     key: "safety",
-    label: "Safety（安全影响）",
-    description: "该问题对人身/财产的风险等级。",
+    label: "Safety",
+    description: "Risk level to people/property.",
     type: "select",
     options: [
-      { value: "HIGH", label: "HIGH", meaning: "触电、火灾等直接人身风险，或明显违反规范。" },
-      { value: "MODERATE", label: "MODERATE", meaning: "潜在隐患或合规风险，需尽快评估。" },
-      { value: "LOW", label: "LOW", meaning: "外观或维护类，无直接安全威胁。" },
+      { value: "HIGH", label: "HIGH", meaning: "Direct risk (shock, fire) or clear code violation." },
+      { value: "MODERATE", label: "MODERATE", meaning: "Potential hazard or compliance risk, needs assessment." },
+      { value: "LOW", label: "LOW", meaning: "Cosmetic or maintenance, no direct safety threat." },
     ],
   },
   {
     key: "urgency",
-    label: "Urgency（紧急程度）",
-    description: "建议处理的时间窗口。",
+    label: "Urgency",
+    description: "Recommended time window to address.",
     type: "select",
     options: [
-      { value: "IMMEDIATE", label: "IMMEDIATE", meaning: "需立即处理（如漏电、过热）。" },
-      { value: "SHORT_TERM", label: "SHORT_TERM", meaning: "建议 0–3 个月内处理。" },
-      { value: "LONG_TERM", label: "LONG_TERM", meaning: "可计划排期或观察。" },
+      { value: "IMMEDIATE", label: "IMMEDIATE", meaning: "Address immediately (e.g. fault, overheating)." },
+      { value: "SHORT_TERM", label: "SHORT_TERM", meaning: "Within 0–3 months." },
+      { value: "LONG_TERM", label: "LONG_TERM", meaning: "Can be scheduled or monitored." },
     ],
   },
   {
     key: "liability",
-    label: "Liability（责任/合规）",
-    description: "不处理时可能引发的责任或保险问题。",
+    label: "Liability",
+    description: "Liability or insurance issues if not addressed.",
     type: "select",
     options: [
-      { value: "HIGH", label: "HIGH", meaning: "易引发责任纠纷、保险拒赔或法律风险。" },
-      { value: "MEDIUM", label: "MEDIUM", meaning: "有一定责任或合规风险。" },
-      { value: "LOW", label: "LOW", meaning: "责任风险低。" },
+      { value: "HIGH", label: "HIGH", meaning: "May lead to disputes, insurance denial or legal risk." },
+      { value: "MEDIUM", label: "MEDIUM", meaning: "Some liability or compliance risk." },
+      { value: "LOW", label: "LOW", meaning: "Low liability risk." },
     ],
   },
   {
     key: "budget_low",
-    label: "Budget Low（预算下限，澳元）",
-    description: "预估修复成本下限，便于业主做预算。",
+    label: "Budget Low (AUD)",
+    description: "Estimated repair cost lower bound for budgeting.",
     type: "number",
   },
   {
     key: "budget_high",
-    label: "Budget High（预算上限，澳元）",
-    description: "预估修复成本上限。",
+    label: "Budget High (AUD)",
+    description: "Estimated repair cost upper bound.",
     type: "number",
   },
   {
     key: "severity",
-    label: "Severity（严重程度 1–5）",
-    description: "问题本身的严重程度：1=很轻，5=很严重；结合安全与后果综合打分。",
+    label: "Severity (1–5)",
+    description: "Severity of the issue: 1=very minor, 5=very severe.",
     type: "select",
     options: [
-      { value: 1, label: "1", meaning: "很轻" },
-      { value: 2, label: "2", meaning: "较轻" },
-      { value: 3, label: "3", meaning: "中等" },
-      { value: 4, label: "4", meaning: "较严重" },
-      { value: 5, label: "5", meaning: "很严重" },
+      { value: 1, label: "1", meaning: "Very minor" },
+      { value: 2, label: "2", meaning: "Minor" },
+      { value: 3, label: "3", meaning: "Moderate" },
+      { value: 4, label: "4", meaning: "Significant" },
+      { value: 5, label: "5", meaning: "Very severe" },
     ],
   },
   {
     key: "likelihood",
-    label: "Likelihood（发生可能性 1–5）",
-    description: "若不处理，不良后果发生的可能性：1=几乎不会，5=很可能。",
+    label: "Likelihood (1–5)",
+    description: "If not addressed, likelihood of adverse outcome: 1=unlikely, 5=likely.",
     type: "select",
     options: [
-      { value: 1, label: "1", meaning: "几乎不会发生" },
-      { value: 2, label: "2", meaning: "较低" },
-      { value: 3, label: "3", meaning: "中等" },
-      { value: 4, label: "4", meaning: "较高" },
-      { value: 5, label: "5", meaning: "很可能发生" },
+      { value: 1, label: "1", meaning: "Unlikely" },
+      { value: 2, label: "2", meaning: "Low" },
+      { value: 3, label: "3", meaning: "Moderate" },
+      { value: 4, label: "4", meaning: "High" },
+      { value: 5, label: "5", meaning: "Very likely" },
     ],
   },
   {
     key: "escalation",
-    label: "Escalation（升级风险）",
-    description: "若不处理，问题恶化或升级的可能性。",
+    label: "Escalation",
+    description: "If not addressed, risk of worsening or escalation.",
     type: "select",
     options: [
-      { value: "HIGH", label: "HIGH", meaning: "易快速恶化或引发连锁问题。" },
-      { value: "MODERATE", label: "MODERATE", meaning: "可能随时间加重。" },
-      { value: "LOW", label: "LOW", meaning: "较稳定，不易升级。" },
+      { value: "HIGH", label: "HIGH", meaning: "May worsen quickly or trigger chain issues." },
+      { value: "MODERATE", label: "MODERATE", meaning: "May worsen over time." },
+      { value: "LOW", label: "LOW", meaning: "Stable, unlikely to escalate." },
     ],
   },
 ];
@@ -149,7 +149,7 @@ export function FindingDimensionsModal({
     >
       <div className="finding-dimensions-modal">
         <div className="finding-dimensions-modal__header">
-          <h2 className="finding-dimensions-modal__title">编辑 9 维度</h2>
+          <h2 className="finding-dimensions-modal__title">Edit 9 dimensions</h2>
           <p className="finding-dimensions-modal__subtitle">
             Finding: <strong>{findingId}</strong>
             {findingTitle && ` — ${findingTitle}`}
@@ -214,7 +214,7 @@ export function FindingDimensionsModal({
         </div>
         <div className="finding-dimensions-modal__footer">
           <button type="button" onClick={onCancel} className="btn-secondary">
-            取消
+            Cancel
           </button>
           <button
             type="button"
@@ -222,7 +222,7 @@ export function FindingDimensionsModal({
             className="btn-primary"
             disabled={saving}
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

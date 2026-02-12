@@ -163,7 +163,7 @@ export function SectionForm({
     const addr = getValue("job.address");
     const comp = getValue("job.address_components");
     const geo = getValue("job.address_geo");
-    // 支持 Answer 对象或直接值；flat 中可能是已经 flattened 的值
+    // Support Answer object or direct value; flat may have flattened value
     const addrStr =
       (typeof addr === "string" ? addr.trim() : "") ||
       (flat["job.address"] != null ? String(flat["job.address"]).trim() : "");

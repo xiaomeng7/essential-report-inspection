@@ -66,7 +66,7 @@ export function collectCustomOtherFindings(getValue: (key: string) => unknown): 
       if (r?.room_access === "not_accessible") continue;
       const issue = (r?.issue as string) || "";
       if (issue !== "other") continue;
-      const title = ((r?.issue_other as string) || "").trim() || "自定义问题 (GPO)";
+      const title = ((r?.issue_other as string) || "").trim() || "Custom issue (GPO)";
       customIdx++;
       out.push(createEmptyFinding(`CUSTOM_GPO_${i}_${customIdx}`, title, "gpo", roomLabel(r)));
     }
@@ -79,7 +79,7 @@ export function collectCustomOtherFindings(getValue: (key: string) => unknown): 
       if (r?.room_access === "not_accessible") continue;
       const issues = (r?.issues as string[]) || [];
       if (!issues.includes("other")) continue;
-      const title = ((r?.issue_other as string) || "").trim() || "自定义问题 (灯具/开关)";
+      const title = ((r?.issue_other as string) || "").trim() || "Custom issue (Lighting/Switch)";
       customIdx++;
       out.push(createEmptyFinding(`CUSTOM_LIGHTING_${i}_${customIdx}`, title, "lighting", roomLabel(r)));
     }

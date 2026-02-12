@@ -71,7 +71,7 @@ export function FindingsDebugPage({ onBack }: Props) {
   const loadReview = useCallback(async () => {
     const id = inspectionId.trim();
     if (!id) {
-      setError("请输入 Inspection ID");
+      setError("Please enter Inspection ID");
       return;
     }
     setLoading(true);
@@ -143,7 +143,7 @@ export function FindingsDebugPage({ onBack }: Props) {
       setSelectedFinding(null);
       await loadReview();
     } catch (e) {
-      alert("保存失败：" + (e as Error).message);
+      alert("Save failed: " + (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -153,9 +153,9 @@ export function FindingsDebugPage({ onBack }: Props) {
     <div className="findings-debug-page">
       <div className="findings-debug-page__header">
         <button type="button" onClick={onBack} className="btn-secondary">
-          返回
+          Back
         </button>
-        <h1 className="findings-debug-page__title">Finding 9 维度调试</h1>
+        <h1 className="findings-debug-page__title">Finding 9 dimensions debug</h1>
       </div>
 
       <div className="findings-debug-page__toolbar">
@@ -167,7 +167,7 @@ export function FindingsDebugPage({ onBack }: Props) {
           className="findings-debug-page__input"
         />
         <button type="button" onClick={loadReview} className="btn-primary" disabled={loading}>
-          {loading ? "加载中…" : "加载 Findings"}
+          {loading ? "Loading…" : "Load Findings"}
         </button>
       </div>
 
@@ -176,7 +176,7 @@ export function FindingsDebugPage({ onBack }: Props) {
       {data && (
         <div className="findings-debug-page__list-wrap">
           <p className="findings-debug-page__count">
-            共 {data.findings?.length ?? 0} 条 Finding，点击某条可编辑 9 维度。
+            {data.findings?.length ?? 0} Finding(s). Click one to edit 9 dimensions.
           </p>
           <ul className="findings-debug-page__list">
             {(data.findings ?? []).map((f) => (

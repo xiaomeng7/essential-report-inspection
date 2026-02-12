@@ -112,7 +112,7 @@ function validatePhotoEvidenceBeforeSubmit(state: Record<string, unknown>): stri
     const hasPhoto = Array.isArray(pids) && pids.length > 0;
     if (!hasPhoto) {
       const label = (r.room_type as string) || (r.room_name_custom as string) || `Room ${i + 1}`;
-      return `请为有问题的 GPO 房间「${label}」上传至少一张照片证据后再提交。`;
+      return `Upload at least one photo for GPO room "${label}" with issues before submitting.`;
     }
   }
   const lightingRooms = getVal("lighting.rooms");
@@ -127,7 +127,7 @@ function validatePhotoEvidenceBeforeSubmit(state: Record<string, unknown>): stri
     const hasPhoto = Array.isArray(pids) && pids.length > 0;
     if (!hasPhoto) {
       const label = (r.room_type as string) || (r.room_name_custom as string) || `Room ${i + 1}`;
-      return `请为有问题的灯具/开关房间「${label}」上传至少一张照片证据后再提交。`;
+      return `Upload at least one photo for lighting/switch room "${label}" with issues before submitting.`;
     }
   }
   return null;
@@ -194,7 +194,7 @@ export function Wizard({ onSubmitted }: Props) {
   const isLast = !isStartScreen && step === visibleSteps.length;
   const progress = isStartScreen ? 0 : visibleSteps.length ? (step / visibleSteps.length) * 100 : 0;
 
-  /** 最后一步时：未通过完整性校验则禁止提交（必填项、有问题的房间需照片） */
+  /** On last step: block submit if validation fails (required fields, photos for rooms with issues) */
   const completenessError = isLast ? validatePhotoEvidenceBeforeSubmit(state) : null;
   const submitDisabled = isLast && completenessError != null;
 
@@ -368,11 +368,11 @@ export function Wizard({ onSubmitted }: Props) {
     setServiceM8Error(null);
     setServiceM8Summary(null);
     if (!jobNumber) {
-      setServiceM8Error("请输入 ServiceM8 工作编号。");
+      setServiceM8Error("Please enter ServiceM8 Job / Work Number.");
       return;
     }
     if (jobNumber.length > 32) {
-      setServiceM8Error("工作编号过长，请检查后重试。");
+      setServiceM8Error("Job number too long. Please check and try again.");
       return;
     }
     setServiceM8Loading(true);
@@ -391,36 +391,36 @@ export function Wizard({ onSubmitted }: Props) {
       if (text.trimStart().startsWith("<")) {
         throw new Error(
           res.status === 404
-            ? "预填接口地址不存在（404）。请用 netlify dev 启动本地，或确认 Netlify 已部署最新代码且路由 /api/servicem8/job-prefill 已配置。"
-            : `服务器返回了网页而非数据（HTTP ${res.status}）。请用 netlify dev 启动本地，或检查 Netlify 部署与函数配置。`
+            ? "Prefill endpoint not found (404). Run netlify dev locally, or confirm Netlify deployed and route /api/servicem8/job-prefill is configured."
+            : `Server returned HTML instead of data (HTTP ${res.status}). Run netlify dev locally, or check Netlify deployment and function config.`
         );
       }
       let json: any;
       try {
         json = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error(text.slice(0, 200) || `请求失败（${res.status}）`);
+        throw new Error(text.slice(0, 200) || `Request failed (${res.status})`);
       }
       if (!res.ok || json?.ok === false) {
         const code = json?.error || `HTTP_${res.status}`;
         if (code === "JOB_NOT_FOUND") {
-          throw new Error("未在 ServiceM8 中找到该工作编号。");
+          throw new Error("Job number not found in ServiceM8.");
         }
         if (code === "SERVICE_M8_NOT_CONFIGURED") {
-          throw new Error("ServiceM8 集成未配置，请在 Netlify 环境中设置相关密钥后重试。");
+          throw new Error("ServiceM8 integration not configured. Set SERVICEM8_API_KEY in Netlify environment variables.");
         }
         if (code === "INVALID_JOB_NUMBER") {
-          throw new Error("无效的工作编号，请检查后重试。");
+          throw new Error("Invalid job number. Please check and try again.");
         }
         if (code === "UNAUTHORIZED") {
-          throw new Error("预填接口未授权，请检查前端密钥配置。");
+          throw new Error("Prefill endpoint unauthorized. Check frontend configuration.");
         }
         // Check for ServiceM8 API token error in details
         const details = json?.details || json?.message || "";
-        if (details.includes("invalid_token") || details.includes("API token 无效")) {
-          throw new Error("ServiceM8 API token 无效或已过期。请联系管理员检查 Netlify 环境变量中的 SERVICEM8_API_TOKEN。");
+        if (details.includes("invalid_token") || details.includes("API token invalid")) {
+          throw new Error("ServiceM8 API token invalid or expired. Ask admin to check SERVICEM8_API_KEY in Netlify environment variables.");
         }
-        throw new Error(details || `ServiceM8 调用失败（${code}）`);
+        throw new Error(details || `ServiceM8 call failed (${code})`);
       }
 
       const job = json.job as {
@@ -512,7 +512,7 @@ export function Wizard({ onSubmitted }: Props) {
         cache_hit: !!cacheInfo?.hit,
       });
     } catch (e) {
-      setServiceM8Error((e as Error).message || "ServiceM8 预填失败，请稍后重试。");
+      setServiceM8Error((e as Error).message || "ServiceM8 prefill failed. Please try again later.");
     } finally {
       setServiceM8Loading(false);
     }
@@ -536,21 +536,21 @@ export function Wizard({ onSubmitted }: Props) {
         <div className="start-screen">
           <h1 className="start-screen__title">Start Screen</h1>
           <div className="start-screen__card start-screen__card--brief">
-            <h2 className="start-screen__brief-heading">给检测员</h2>
+            <h2 className="start-screen__brief-heading">For Inspectors</h2>
             <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">任务</h3>
-              <p className="start-screen__brief-text">按流程完成现场电气检查：室内房间 → 配电盘与 RCD → 屋顶空间 → 外部与收尾。逐项填写并拍照留证，有异常或选「Other」时请补充说明。</p>
+              <h3 className="start-screen__brief-label">Task</h3>
+              <p className="start-screen__brief-text">Complete on-site electrical inspection: Indoor rooms → Switchboard & RCD → Roof space → External & finalise. Fill each item and capture photos; add notes when unusual or selecting "Other".</p>
             </section>
             <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">目的</h3>
-              <p className="start-screen__brief-text">为业主/投资人提供一份结构化的电气状况报告，用于风险评估与预算规划；报告将包含优先级、建议时间与 CapEx 区间。</p>
+              <h3 className="start-screen__brief-label">Purpose</h3>
+              <p className="start-screen__brief-text">Provide owners/investors with a structured electrical condition report for risk assessment and budget planning; includes priority, recommended timing and CapEx range.</p>
             </section>
             <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">注意事项</h3>
+              <h3 className="start-screen__brief-label">Notes</h3>
               <ul className="start-screen__brief-list">
-                <li>进入前先填物业地址与委托方，提交后获得 Inspection ID，后续可续传照片。</li>
-                <li>RCD/GPO 等测试结果如实填写，未测项选「未测」勿猜填。</li>
-                <li>每类问题尽量附 1–2 张照片，便于报告引用与客户理解。</li>
+                <li>Fill property address and client before starting; receive Inspection ID after submit, then add photos.</li>
+                <li>RCD/GPO test results: record honestly; select "Not tested" if applicable, do not guess.</li>
+                <li>Attach 1–2 photos per issue type for report reference and client clarity.</li>
               </ul>
             </section>
           </div>
@@ -564,16 +564,16 @@ export function Wizard({ onSubmitted }: Props) {
             </ol>
           </div>
           <div className="start-screen__card">
-            <h2 className="start-screen__brief-heading">ServiceM8 预填（可选）</h2>
+            <h2 className="start-screen__brief-heading">ServiceM8 Prefill (Optional)</h2>
             <p className="start-screen__brief-text">
-              若你手上只有 ServiceM8 工作编号（Job / Work Number），可在此查询客户信息并自动写入「委托方」和「物业地址」。若 ServiceM8 中无地址或地址反查失败，请在表单中手动选择地址。
+              If you only have a ServiceM8 Job / Work Number, use this to fetch client details and auto-fill "Client" and "Property address". If no address in ServiceM8 or geocode fails, select address manually in the form.
             </p>
             <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="text"
                 value={serviceM8JobNumber}
                 onChange={(e) => setServiceM8JobNumber(e.target.value)}
-                placeholder="输入 ServiceM8 Job / Work Number"
+                placeholder="Enter ServiceM8 Job / Work Number"
                 style={{
                   flex: 1,
                   padding: "8px 10px",
@@ -588,7 +588,7 @@ export function Wizard({ onSubmitted }: Props) {
                 onClick={handleServiceM8Prefill}
                 disabled={serviceM8Loading}
               >
-                {serviceM8Loading ? "查询中…" : "Fetch details"}
+                {serviceM8Loading ? "Fetching…" : "Fetch details"}
               </button>
             </div>
             {serviceM8Error && (
@@ -609,7 +609,7 @@ export function Wizard({ onSubmitted }: Props) {
                 }}
               >
                 <p>
-                  <strong>Customer / 委托方：</strong>
+                  <strong>Customer / Client:</strong>
                   {serviceM8Summary.customer_name || "-"}
                 </p>
                 {serviceM8Summary.contact_name && (
@@ -637,13 +637,13 @@ export function Wizard({ onSubmitted }: Props) {
                   </p>
                 )}
                 <p style={{ marginTop: 4, color: "#666" }}>
-                  Data source: ServiceM8 {serviceM8Summary.cache_hit ? "(缓存命中)" : "(实时查询)"} ·{" "}
+                  Data source: ServiceM8 {serviceM8Summary.cache_hit ? "(cached)" : "(live)"} ·{" "}
                   {new Date(serviceM8Summary.fetched_at).toLocaleString()}
                 </p>
                 <p style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
                   {serviceM8Summary.address_auto_filled
-                    ? "地址已自动填入 Property address，请核对后进入下一步。"
-                    : "若未自动填入地址，请在表单中通过「Property address」搜索选择。"}
+                    ? "Address auto-filled in Property address. Please verify and proceed."
+                    : "If address not auto-filled, search and select via Property address in the form."}
                 </p>
               </div>
             )}
@@ -709,7 +709,7 @@ export function Wizard({ onSubmitted }: Props) {
                     setOneClickTestLoading(true);
                     try {
                       const r = await fetch("/sample-inspection-payload.json");
-                      if (!r.ok) throw new Error("测试数据未生成。请先运行: npm run write-sample-payload");
+                      if (!r.ok) throw new Error("Sample data not generated. Run: npm run write-sample-payload");
                       const payload = await r.json();
                       const res = await fetch("/api/submitInspection", {
                         method: "POST",
@@ -729,7 +729,7 @@ export function Wizard({ onSubmitted }: Props) {
                     }
                   }}
                 >
-                  {oneClickTestLoading ? "提交中…" : "一键测试（填充并提交 → 生成报告）"}
+                  {oneClickTestLoading ? "Submitting…" : "One-click test (fill & submit → generate report)"}
                 </button>
                 {oneClickTestError && (
                   <p className="validation-msg" style={{ marginTop: 8 }}>
@@ -739,7 +739,7 @@ export function Wizard({ onSubmitted }: Props) {
               </div>
             )}
 
-            {/* Submit / section errors：缺照片等完整性未通过时禁止提交并提示 */}
+            {/* Submit / section errors: block submit when validation fails (e.g. missing photos) */}
             {(completenessError || currentStep.sectionIds.some((id) => sectionErrors[id]?._submit)) && (
               <div className="wizard-page__card">
                 <p className="validation-msg">

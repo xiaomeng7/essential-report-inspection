@@ -80,7 +80,7 @@ export function ThermalSection({ thermal, onThermalChange }: Props) {
         updateCapture(captureIndexForPhoto, (c) => ({ ...c, [key]: dataUrl }));
       } catch (err) {
         console.error("Compress failed:", err);
-        alert("图片压缩失败，请重试");
+        alert("Image compression failed. Please try again.");
       } finally {
         setCompressing(false);
         setCaptureIndexForPhoto(null);
