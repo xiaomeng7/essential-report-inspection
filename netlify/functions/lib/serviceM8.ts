@@ -27,6 +27,24 @@ function logUpstreamError(status: number, body: string, url: string): void {
   console.error("[servicem8] upstream error:", "status", status, "url", url, "body (first 200):", body.slice(0, 200));
 }
 
+/** Fetch company by UUID. Company = Client/Customer in ServiceM8. */
+async function fetchCompanyName(companyUuid: string): Promise<string | null> {
+  const headers = buildHeaders();
+  const url = `${BASE_URL}/company/${encodeURIComponent(companyUuid)}.json`;
+  const res = await fetch(url, { method: "GET", headers });
+  if (!res.ok) {
+    console.log("[servicem8] company fetch failed", res.status, companyUuid);
+    return null;
+  }
+  try {
+    const data = (await res.json()) as Record<string, unknown>;
+    const name = (data.name as string | undefined)?.trim();
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
 function ensureLocalEnv(): void {
   if (process.env.SERVICEM8_API_KEY) return;
   if (process.env.NETLIFY_DEV !== "true" && !process.env.NETLIFY) return;
@@ -270,26 +288,43 @@ export async function fetchJobByUuid(
   const address =
     (first.address as string | undefined) ??
     (first.site_address as string | undefined) ??
+    (first.job_address as string | undefined) ??
     null;
+  const suburb = (first.suburb as string | undefined) ?? (first.geo_city as string | undefined) ?? null;
+  const state = (first.state as string | undefined) ?? (first.geo_state as string | undefined) ?? null;
+  const postcode = (first.postcode as string | undefined) ?? (first.geo_postcode as string | undefined) ?? null;
+
+  let customerName =
+    (first.client_company as string | undefined)?.trim() ||
+    (first.client_name as string | undefined)?.trim() ||
+    (first.company_name as string | undefined)?.trim() ||
+    (first.customer_name as string | undefined)?.trim() ||
+    contactName ||
+    "";
+
+  // ServiceM8: Client/Customer = Company. Job has company_uuid, name is in /company/{uuid}
+  if (!customerName && (first.company_uuid as string | undefined)) {
+    const companyName = await fetchCompanyName(first.company_uuid as string);
+    if (companyName) customerName = companyName;
+  }
 
   const normalized: NormalizedJob = {
     job_uuid: uuid,
     job_number: num,
-    customer_name:
-      (first.client_company as string | undefined) ||
-      (first.client_name as string | undefined) ||
-      contactName ||
-      "",
+    customer_name: customerName,
     contact_name: contactName,
     phone,
     email,
     address: {
       line1: address,
       line2: null,
-      suburb: (first.suburb as string | undefined) ?? null,
-      state: (first.state as string | undefined) ?? null,
-      postcode: (first.postcode as string | undefined) ?? null,
-      full_address: address,
+      suburb,
+      state,
+      postcode,
+      full_address:
+        address ||
+        [address, suburb, state, postcode].filter(Boolean).join(", ") ||
+        null,
     },
   };
 
