@@ -1146,6 +1146,7 @@
           "max": 99,
           "required_when": "rcd_tests.performed==true",
           "skippable": true,
+          "helper_text": "Skip if some RCDs were not tested; provide reason.",
           "ui": "number"
         },
         {
@@ -1155,7 +1156,7 @@
           "min": 0,
           "max": 99,
           "required_when": "rcd_tests.performed==true",
-          "skippable": true,
+          "skippable": false,
           "ui": "number"
         },
         {
@@ -1165,24 +1166,25 @@
           "min": 0,
           "max": 99,
           "required_when": "rcd_tests.performed==true",
-          "skippable": true,
+          "skippable": false,
           "ui": "number",
           "on_issue_capture": true
         },
         {
           "key": "rcd_tests.borderline_or_nuisance",
-          "label": "Nuisance trip / borderline behaviour",
-          "type": "string",
+          "label": "Nuisance trip observed?",
+          "type": "boolean",
           "required": false,
-          "skippable": true,
-          "ui": "textarea"
+          "skippable": false,
+          "helper_text": "RCD trips without a real fault (e.g. transient loads, borderline sensitivity).",
+          "ui": "radio_yes_no"
         },
         {
           "key": "rcd_tests.tester_info",
           "label": "Tester model/serial (optional)",
           "type": "string",
           "required": false,
-          "skippable": true,
+          "skippable": false,
           "ui": "text"
         }
       ],
