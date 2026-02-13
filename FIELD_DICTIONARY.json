@@ -233,6 +233,17 @@
       "fault",
       "not_tested"
     ],
+    "protection_device_rating_amps": [
+      "16",
+      "20",
+      "32",
+      "40"
+    ],
+    "cable_size_mm2": [
+      "2.5",
+      "4",
+      "6"
+    ],
     "ac_type": [
       "split",
       "ducted"
@@ -1466,12 +1477,24 @@
           "ui": "radio_yes_no"
         },
         {
-          "key": "internal.kitchen.oven_dedicated_circuit_device",
-          "label": "Device name (if dedicated circuit is Yes)",
-          "type": "string",
+          "key": "internal.kitchen.oven_protection_device_rating",
+          "label": "Protection device current rating (A) – RCBO/breaker",
+          "type": "enum",
+          "enum": "protection_device_rating_amps",
           "required_when": "internal.kitchen.oven_dedicated_circuit==true",
           "skippable": true,
-          "ui": "text"
+          "helper_text": "e.g. 16A, 20A, 32A",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.kitchen.oven_cable_size_mm2",
+          "label": "Oven supply cable size (mm²)",
+          "type": "enum",
+          "enum": "cable_size_mm2",
+          "required_when": "internal.kitchen.oven_dedicated_circuit==true",
+          "skippable": true,
+          "helper_text": "2.5, 4, or 6 mm²",
+          "ui": "radio"
         },
         {
           "key": "internal.kitchen.cooktop_present",
@@ -1532,16 +1555,38 @@
           "on_issue_capture": true
         },
         {
-          "key": "internal.kitchen.cooktop_cable_mm2",
-          "label": "Supply cable size (mm²) – if electric/induction",
-          "type": "number",
-          "min": 0,
-          "max": 25,
+          "key": "internal.kitchen.cooktop_dedicated_circuit",
+          "label": "Cooktop on dedicated circuit? (if electric/induction)",
+          "type": "boolean",
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.cooktop_present==true",
-          "helper_text": "For electric hotplate/induction; e.g. 4, 6",
-          "ui": "number"
+          "show_when": "internal.kitchen.cooktop_type!=gas",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.cooktop_protection_device_rating",
+          "label": "Protection device current rating (A) – RCBO/breaker",
+          "type": "enum",
+          "enum": "protection_device_rating_amps",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "show_when": "internal.kitchen.cooktop_type!=gas",
+          "helper_text": "e.g. 16A, 20A, 32A",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.kitchen.cooktop_cable_size_mm2",
+          "label": "Cooktop supply cable size (mm²)",
+          "type": "enum",
+          "enum": "cable_size_mm2",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "show_when": "internal.kitchen.cooktop_type!=gas",
+          "helper_text": "2.5, 4, or 6 mm²",
+          "ui": "radio"
         },
         {
           "key": "internal.kitchen.cooktop_isolator_visible",
@@ -1550,6 +1595,7 @@
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.cooktop_present==true",
+          "show_when": "internal.kitchen.cooktop_type!=gas",
           "helper_text": "Confirm for electric hotplate/induction",
           "ui": "radio_yes_no"
         },
@@ -1618,11 +1664,12 @@
           "ui": "radio_yes_no"
         },
         {
-          "key": "internal.kitchen.grease_residue",
-          "label": "Grease residue on rangehood filter/cover?",
+          "key": "internal.kitchen.gpo_switches_grease_oil",
+          "label": "GPO and switches in kitchen coated with grease/oil?",
           "type": "boolean",
           "required": false,
           "skippable": true,
+          "helper_text": "Kitchen power points and light switches – grease/oil contamination",
           "ui": "radio_yes_no",
           "on_issue_capture": true
         }

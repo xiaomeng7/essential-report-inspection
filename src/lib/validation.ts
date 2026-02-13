@@ -34,13 +34,23 @@ function getValue(obj: unknown, path: string): unknown {
 }
 
 function evalSimple(expr: string, data: Record<string, unknown>): boolean {
+  const neqMatch = expr.match(/^(.+?)!=(.+)$/);
+  if (neqMatch) {
+    const [, left, right] = neqMatch;
+    const key = left.trim();
+    const val = right.trim();
+    const v = getValue(data, key);
+    if (val === "true") return v !== true;
+    if (val === "false") return v !== false;
+    if (/^\d+$/.test(val)) return Number(v) !== Number(val);
+    return v !== val;
+  }
   const match = expr.match(/^(.+?)==(.+)$/);
   if (!match) return false;
   const [, left, right] = match;
   const key = left.trim();
   const val = right.trim();
   const v = getValue(data, key);
-  console.log(`evalSimple: expr="${expr}", key="${key}", val="${val}", v=`, v, "type=", typeof v);
   if (val === "true") return v === true;
   if (val === "false") return v === false;
   if (/^\d+$/.test(val)) return Number(v) === Number(val);

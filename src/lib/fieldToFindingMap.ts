@@ -46,7 +46,7 @@ export const FIELD_TO_FINDING: Record<string, string> = {
   "internal.bare_wire_visible": "NON_STANDARD_WORK",
 
   // Kitchen
-  "internal.kitchen.grease_residue": "FITTING_OVERHEAT",
+  "internal.kitchen.gpo_switches_grease_oil": "FITTING_OVERHEAT",
 
   // Bathroom
   "internal.bathroom.moisture_staining": "MATERIAL_DEGRADATION",

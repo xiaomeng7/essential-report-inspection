@@ -282,7 +282,7 @@
       "_comment": "========== INTERNAL - KITCHEN Section S3C ==========",
       "finding": "GREASE_FIRE_RISK",
       "condition": {
-        "field": "internal.kitchen.grease_residue",
+        "field": "internal.kitchen.gpo_switches_grease_oil",
         "operator": "eq",
         "value": true
       }

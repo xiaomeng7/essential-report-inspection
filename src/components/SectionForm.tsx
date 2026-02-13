@@ -83,6 +83,15 @@ function evalRequiredWhen(expr: string, flat: Record<string, unknown>): boolean 
     }
     return false;
   }
+  const neq = expr.indexOf("!=");
+  if (neq !== -1) {
+    const left = expr.slice(0, neq).trim();
+    const right = expr.slice(neq + 2).trim();
+    const v = getNested(flat, left);
+    if (right === "true") return v !== true;
+    if (right === "false") return v !== false;
+    return v !== right;
+  }
   const eq = expr.indexOf("==");
   if (eq === -1) return false;
   const left = expr.slice(0, eq).trim();
