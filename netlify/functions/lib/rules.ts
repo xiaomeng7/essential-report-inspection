@@ -418,22 +418,6 @@ export function flattenFacts(raw: Record<string, unknown>): Record<string, unkno
     }
   };
   walk(raw, "");
-
-  // Derive internal.* from lighting.rooms (merged S3B fields into per-room)
-  const lightingRooms = getAt(out, "lighting.rooms") as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(lightingRooms)) {
-    const existing = getAt(out, "internal") as Record<string, unknown> | undefined;
-    const internal: Record<string, unknown> = existing ? { ...existing } : {};
-    for (const r of lightingRooms) {
-      if (r?.switch_plate_cracked === true) internal.switch_plate_cracked = true;
-      if (r?.switch_body_moves === true) internal.switch_body_moves = true;
-      if (r?.unusual_audible_sound === true) internal.unusual_audible_sound = true;
-      if (r?.light_fitting_moves === true) internal.light_fitting_moves = true;
-      if (r?.bare_wire_visible === true) internal.bare_wire_visible = true;
-    }
-    out.internal = internal;
-  }
-
   return out;
 }
 
@@ -461,7 +445,7 @@ function loadIssueToFinding(): typeof issueToFindingCache {
   }
   issueToFindingCache = {
     gpo_room_issue: { missing_earth: "GPO_EARTH_FAULT", polarity_reversed: "POLARITY_ISSUE_DETECTED", no_power: "GPO_MECHANICAL_LOOSE", loose: "GPO_MECHANICAL_LOOSE", plug_disengages: "GPO_MECHANICAL_LOOSE", cracks_visible: "DAMAGED_OUTLET_OR_SWITCH", burn_marks: "GPO_OVERHEATING", damage: "DAMAGED_OUTLET_OR_SWITCH", overheating: "GPO_OVERHEATING", surface_warm: "GPO_OVERHEATING", other: null },
-    lighting_switch_issue: { fitting_overheat: "FITTING_OVERHEAT", fitting_not_working: "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE", switch_loose: "SWITCH_LOOSE_MOUNTING", switch_arcing: "SWITCH_ARCING", switch_unresponsive: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", dimmer_not_working: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", other: null },
+    lighting_switch_issue: { fitting_overheat: "FITTING_OVERHEAT", fitting_not_working: "LIGHT_FITTING_NONCOMPLIANT_OR_UNSAFE", switch_loose: "SWITCH_LOOSE_MOUNTING", switch_arcing: "SWITCH_ARCING", switch_unresponsive: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", dimmer_not_working: "SWITCH_MOVEMENT_UNEVEN_OR_OBSTRUCTED", switch_plate_cracked: "SWITCH_PLATE_DAMAGED", switch_body_moves: "SWITCH_LOOSE_MOUNTING", unusual_audible_sound: "AUDIBLE_ARCING", light_fitting_moves: "LIGHT_FITTING_LOOSE", lamp_halogen: "FITTING_OVERHEAT", lamp_incandescent: "FITTING_OVERHEAT", bare_wire_visible: "BARE_WIRE_EXPOSED", other: null },
   };
   return issueToFindingCache;
 }

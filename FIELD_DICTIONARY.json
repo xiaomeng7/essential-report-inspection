@@ -192,6 +192,13 @@
       "switch_arcing",
       "switch_unresponsive",
       "dimmer_not_working",
+      "switch_plate_cracked",
+      "switch_body_moves",
+      "unusual_audible_sound",
+      "light_fitting_moves",
+      "lamp_halogen",
+      "lamp_incandescent",
+      "bare_wire_visible",
       "other"
     ],
     "smoke_alarm_type": [
@@ -1416,12 +1423,6 @@
             "room_not_accessible_reason_other": { "type": "string", "required": false, "label": "Reason (when Other)" },
             "issues": { "type": "array_string", "required": false, "label": "Issues (lighting/switch)" },
             "issue_other": { "type": "string", "required": false, "label": "Describe issue (when Other)" },
-            "switch_plate_cracked": { "type": "boolean", "required": false, "label": "Switch plate cracked or damaged?" },
-            "switch_body_moves": { "type": "boolean", "required": false, "label": "Switch body moves when touched?" },
-            "unusual_audible_sound": { "type": "boolean", "required": false, "label": "Unusual audible sound (buzz, crackle)?" },
-            "light_fitting_moves": { "type": "boolean", "required": false, "label": "Light fitting moves when lightly touched?" },
-            "lamp_type": { "type": "enum", "enum": "lamp_type", "required": false, "label": "Lamp type observed" },
-            "bare_wire_visible": { "type": "boolean", "required": false, "label": "Bare metal wire core visible? (photo)" },
             "photo_ids": { "type": "array_string", "required": false, "label": "Photo evidence (required when issues present)" },
             "note": { "type": "string", "required": false, "label": "Note" }
           },

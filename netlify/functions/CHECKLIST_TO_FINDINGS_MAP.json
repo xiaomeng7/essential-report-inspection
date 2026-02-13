@@ -279,47 +279,6 @@
       }
     },
     {
-      "_comment": "========== INTERNAL - LIGHTING & SWITCHES Section S3B ==========",
-      "finding": "SWITCH_PLATE_DAMAGED",
-      "condition": {
-        "field": "internal.switch_plate_cracked",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
-      "finding": "SWITCH_LOOSE_MOUNTING",
-      "condition": {
-        "field": "internal.switch_body_moves",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
-      "finding": "AUDIBLE_ARCING",
-      "condition": {
-        "field": "internal.unusual_audible_sound",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
-      "finding": "LIGHT_FITTING_LOOSE",
-      "condition": {
-        "field": "internal.light_fitting_moves",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
-      "finding": "BARE_WIRE_EXPOSED",
-      "condition": {
-        "field": "internal.bare_wire_visible",
-        "operator": "eq",
-        "value": true
-      }
-    },
-    {
       "_comment": "========== INTERNAL - KITCHEN Section S3C ==========",
       "finding": "GREASE_FIRE_RISK",
       "condition": {

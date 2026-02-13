@@ -1031,6 +1031,13 @@ const LIGHTING_SWITCH_ISSUE_LABELS: Record<string, string> = {
   switch_arcing: "Switch arcing",
   switch_unresponsive: "Switch unresponsive",
   dimmer_not_working: "Dimmer not working",
+  switch_plate_cracked: "Switch plate cracked",
+  switch_body_moves: "Switch body moves",
+  unusual_audible_sound: "Audible sound (buzz/crackle)",
+  light_fitting_moves: "Light fitting moves",
+  lamp_halogen: "Halogen lamp (overheating risk)",
+  lamp_incandescent: "Incandescent lamp (overheating risk)",
+  bare_wire_visible: "Bare wire visible",
   other: "Other",
 };
 
@@ -1051,12 +1058,6 @@ function LightingRoomTable({
   const [notAccessibleReasonOther, setNotAccessibleReasonOther] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [issueOther, setIssueOther] = useState("");
-  const [switchPlateCracked, setSwitchPlateCracked] = useState<boolean | "">("");
-  const [switchBodyMoves, setSwitchBodyMoves] = useState<boolean | "">("");
-  const [unusualAudibleSound, setUnusualAudibleSound] = useState<boolean | "">("");
-  const [lightFittingMoves, setLightFittingMoves] = useState<boolean | "">("");
-  const [lampType, setLampType] = useState("");
-  const [bareWireVisible, setBareWireVisible] = useState<boolean | "">("");
   const [note, setNote] = useState("");
   const [photoIds, setPhotoIds] = useState<string[]>([]);
   const [duplicateRoomError, setDuplicateRoomError] = useState("");
@@ -1064,7 +1065,6 @@ function LightingRoomTable({
   const roomTypeOpts = getEnum("room_type");
   const lightingSwitchIssueOpts = getEnum("lighting_switch_issue");
   const notAccessibleReasonOpts = getEnum("room_not_accessible_reason");
-  const lampTypeOpts = getEnum("lamp_type");
   const isAccessible = roomAccess !== "not_accessible";
   const needNotAccessibleReason = !isAccessible && !notAccessibleReason;
   const needNotAccessibleReasonOther = !isAccessible && notAccessibleReason === "other" && !notAccessibleReasonOther.trim();
@@ -1133,12 +1133,6 @@ function LightingRoomTable({
         room_not_accessible_reason_other: !isAccessible && notAccessibleReason === "other" ? notAccessibleReasonOther.trim() : "",
         issues: isAccessible ? [...issues] : [],
         issue_other: isAccessible && hasIssueOther ? issueOther.trim() : "",
-        switch_plate_cracked: isAccessible && switchPlateCracked === true ? true : undefined,
-        switch_body_moves: isAccessible && switchBodyMoves === true ? true : undefined,
-        unusual_audible_sound: isAccessible && unusualAudibleSound === true ? true : undefined,
-        light_fitting_moves: isAccessible && lightFittingMoves === true ? true : undefined,
-        lamp_type: isAccessible && lampType ? lampType : undefined,
-        bare_wire_visible: isAccessible && bareWireVisible === true ? true : undefined,
         photo_ids: isAccessible && hasIssues ? [...photoIds] : [],
         note: isAccessible ? note.trim() : "",
       },
@@ -1150,12 +1144,6 @@ function LightingRoomTable({
     setNotAccessibleReasonOther("");
     setIssues([]);
     setIssueOther("");
-    setSwitchPlateCracked("");
-    setSwitchBodyMoves("");
-    setUnusualAudibleSound("");
-    setLightFittingMoves("");
-    setLampType("");
-    setBareWireVisible("");
     setNote("");
     setPhotoIds([]);
   };
@@ -1207,20 +1195,6 @@ function LightingRoomTable({
       const ids = row.photo_ids as string[] | undefined;
       if (!Array.isArray(ids) || ids.length === 0) return "—";
       return ids.length === 1 ? "1 photo" : `${ids.length} photos`;
-    }
-    return "—";
-  };
-
-  const displayObservations = (row: Record<string, unknown>) => {
-    if (row.room_access !== "not_accessible") {
-      const parts: string[] = [];
-      if (row.switch_plate_cracked === true) parts.push("Plate:Y");
-      if (row.switch_body_moves === true) parts.push("Body:Y");
-      if (row.unusual_audible_sound === true) parts.push("Sound:Y");
-      if (row.light_fitting_moves === true) parts.push("Fit:Y");
-      if (row.bare_wire_visible === true) parts.push("Bare:Y");
-      if (row.lamp_type) parts.push(String(row.lamp_type).replace(/_/g, " "));
-      return parts.length ? parts.join(", ") : "—";
     }
     return "—";
   };
@@ -1303,65 +1277,6 @@ function LightingRoomTable({
                     </label>
                   ))}
                 </div>
-              </div>
-              <div className="field">
-                <label>Observations (Yes/No)</label>
-                <div className="lighting-room-form__checkboxes" style={{ flexWrap: "wrap", gap: "12px 24px" }}>
-                  <label className="lighting-room-form__checkbox">
-                    <span style={{ marginRight: 4 }}>Switch plate cracked?</span>
-                    <input type="radio" name="sp" checked={switchPlateCracked === true} onChange={() => setSwitchPlateCracked(true)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>Y</span>
-                    <input type="radio" name="sp" checked={switchPlateCracked === false} onChange={() => setSwitchPlateCracked(false)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>N</span>
-                    <input type="radio" name="sp" checked={switchPlateCracked === ""} onChange={() => setSwitchPlateCracked("")} disabled={disabled} />
-                    <span>—</span>
-                  </label>
-                  <label className="lighting-room-form__checkbox">
-                    <span style={{ marginRight: 4 }}>Switch body moves?</span>
-                    <input type="radio" name="sb" checked={switchBodyMoves === true} onChange={() => setSwitchBodyMoves(true)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>Y</span>
-                    <input type="radio" name="sb" checked={switchBodyMoves === false} onChange={() => setSwitchBodyMoves(false)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>N</span>
-                    <input type="radio" name="sb" checked={switchBodyMoves === ""} onChange={() => setSwitchBodyMoves("")} disabled={disabled} />
-                    <span>—</span>
-                  </label>
-                  <label className="lighting-room-form__checkbox">
-                    <span style={{ marginRight: 4 }}>Audible sound?</span>
-                    <input type="radio" name="ua" checked={unusualAudibleSound === true} onChange={() => setUnusualAudibleSound(true)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>Y</span>
-                    <input type="radio" name="ua" checked={unusualAudibleSound === false} onChange={() => setUnusualAudibleSound(false)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>N</span>
-                    <input type="radio" name="ua" checked={unusualAudibleSound === ""} onChange={() => setUnusualAudibleSound("")} disabled={disabled} />
-                    <span>—</span>
-                  </label>
-                  <label className="lighting-room-form__checkbox">
-                    <span style={{ marginRight: 4 }}>Fitting moves?</span>
-                    <input type="radio" name="lf" checked={lightFittingMoves === true} onChange={() => setLightFittingMoves(true)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>Y</span>
-                    <input type="radio" name="lf" checked={lightFittingMoves === false} onChange={() => setLightFittingMoves(false)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>N</span>
-                    <input type="radio" name="lf" checked={lightFittingMoves === ""} onChange={() => setLightFittingMoves("")} disabled={disabled} />
-                    <span>—</span>
-                  </label>
-                  <label className="lighting-room-form__checkbox">
-                    <span style={{ marginRight: 4 }}>Bare wire visible?</span>
-                    <input type="radio" name="bw" checked={bareWireVisible === true} onChange={() => setBareWireVisible(true)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>Y</span>
-                    <input type="radio" name="bw" checked={bareWireVisible === false} onChange={() => setBareWireVisible(false)} disabled={disabled} />
-                    <span style={{ marginRight: 8 }}>N</span>
-                    <input type="radio" name="bw" checked={bareWireVisible === ""} onChange={() => setBareWireVisible("")} disabled={disabled} />
-                    <span>—</span>
-                  </label>
-                </div>
-              </div>
-              <div className="field">
-                <label>Lamp type</label>
-                <select value={lampType} onChange={(e) => setLampType(e.target.value)} disabled={disabled} style={{ maxWidth: 180 }}>
-                  <option value="">—</option>
-                  {lampTypeOpts.map((o) => (
-                    <option key={o} value={o}>{o.replace(/_/g, " ")}</option>
-                  ))}
-                </select>
               </div>
               {hasIssueOther && (
                 <div className="field">
@@ -1457,7 +1372,6 @@ function LightingRoomTable({
                 <th>Access</th>
                 <th>Reason (if not accessible)</th>
                 <th>Issues</th>
-                <th>Observations</th>
                 <th>Photos</th>
                 <th>Note</th>
                 <th className="lighting-room-table__action" />
@@ -1470,7 +1384,6 @@ function LightingRoomTable({
                   <td>{displayRoomAccess(row)}</td>
                   <td>{displayNotAccessibleReason(row)}</td>
                   <td>{displayIssues(row)}</td>
-                  <td>{displayObservations(row)}</td>
                   <td>{displayPhotos(row)}</td>
                   <td>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
                   <td className="lighting-room-table__action">
