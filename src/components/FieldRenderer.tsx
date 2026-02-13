@@ -982,42 +982,44 @@ function GpoRoomTable({
         )}
       </div>
       {rows.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+        <div className="lighting-room-table-wrap" style={{ marginTop: 8 }}>
+          <table className="lighting-room-table">
           <thead>
-            <tr style={{ borderBottom: "2px solid #ddd" }}>
-              <th style={{ textAlign: "left", padding: 6 }}>Room</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Access</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Reason (if not accessible)</th>
-              <th style={{ textAlign: "right", padding: 6 }}>GPO count</th>
-              <th style={{ textAlign: "right", padding: 6 }}>Tested</th>
-              <th style={{ textAlign: "right", padding: 6 }}>Pass</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Issue</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Note</th>
-              <th style={{ textAlign: "left", padding: 6 }}>To sink (mm / notes)</th>
-              <th style={{ textAlign: "left", padding: 6 }}>Photos</th>
-              <th style={{ width: 80 }} />
+            <tr>
+              <th>Room</th>
+              <th>Access</th>
+              <th>Reason (if not accessible)</th>
+              <th style={{ textAlign: "right" }}>GPO count</th>
+              <th style={{ textAlign: "right" }}>Tested</th>
+              <th style={{ textAlign: "right" }}>Pass</th>
+              <th>Issue</th>
+              <th>Note</th>
+              <th>To sink (mm / notes)</th>
+              <th>Photos</th>
+              <th className="lighting-room-table__action" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: 6 }}>{displayRoomName(row)}</td>
-                <td style={{ padding: 6 }}>{displayRoomAccess(row)}</td>
-                <td style={{ padding: 6 }}>{displayNotAccessibleReason(row)}</td>
-                <td style={{ padding: 6, textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.gpo_count) ?? 0) : "—"}</td>
-                <td style={{ padding: 6, textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.tested_count) ?? 0) : "—"}</td>
-                <td style={{ padding: 6, textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.pass_count) ?? 0) : "—"}</td>
-                <td style={{ padding: 6 }}>{displayIssue(row)}</td>
-                <td style={{ padding: 6 }}>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
-                <td style={{ padding: 6 }}>{displaySinkPosition(row)}</td>
-                <td style={{ padding: 6 }}>{displayPhotos(row)}</td>
-                <td style={{ padding: 6 }}>
-                  <button type="button" onClick={() => removeRow(i)} className="btn-secondary" disabled={disabled} aria-label="Remove row">×</button>
+              <tr key={i}>
+                <td>{displayRoomName(row)}</td>
+                <td>{displayRoomAccess(row)}</td>
+                <td>{displayNotAccessibleReason(row)}</td>
+                <td style={{ textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.gpo_count) ?? 0) : "—"}</td>
+                <td style={{ textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.tested_count) ?? 0) : "—"}</td>
+                <td style={{ textAlign: "right" }}>{isRowAccessible(row) ? (Number(row.pass_count) ?? 0) : "—"}</td>
+                <td>{displayIssue(row)}</td>
+                <td>{isRowAccessible(row) ? ((row.note as string) || "—") : "—"}</td>
+                <td>{displaySinkPosition(row)}</td>
+                <td>{displayPhotos(row)}</td>
+                <td>
+                  <button type="button" onClick={() => removeRow(i)} className="btn-secondary lighting-room-table__remove" disabled={disabled} aria-label="Remove row">×</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
