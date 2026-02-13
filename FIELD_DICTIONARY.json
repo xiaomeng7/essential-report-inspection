@@ -302,6 +302,22 @@
       "heat_damage",
       "other"
     ],
+    "bathroom_heater_type": [
+      "heat_lamp",
+      "fan_heater",
+      "radiant_panel",
+      "infrared",
+      "combined",
+      "other"
+    ],
+    "bathroom_heater_power_kw": [
+      "1",
+      "1.5",
+      "2",
+      "2.5",
+      "3",
+      "label_not_visible"
+    ],
     "light_fitting_type": [
       "downlight",
       "batten",
@@ -1784,6 +1800,71 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "internal.bathroom.heater_present",
+          "label": "Heater present in bathroom?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.heater_type",
+          "label": "Heater type",
+          "type": "enum",
+          "enum": "bathroom_heater_type",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.bathroom.heater_rated_power_kw",
+          "label": "Heater rated power (kW)",
+          "type": "enum",
+          "enum": "bathroom_heater_power_kw",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "helper_text": "From nameplate; select 'Label not visible' if unreadable",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.bathroom.heater_working_properly",
+          "label": "Heater working properly?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.heater_fan_working",
+          "label": "Fan working? (if fan heater / combined)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.heater_noise",
+          "label": "Excessive noise from heater?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.bathroom.heater_dirty",
+          "label": "Heater dirty / dust buildup?",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "show_when": "internal.bathroom.heater_present==true",
+          "ui": "radio_yes_no"
+        },
+        {
           "key": "internal.bathroom.moisture_staining",
           "label": "Moisture staining visible? (photo)",
           "type": "boolean",
@@ -1932,7 +2013,7 @@
     },
     {
       "id": "S3G_EXTERIOR_GARAGE",
-      "title": "Internal Installation – Exterior & Garage",
+      "title": "External – Exterior & Garage",
       "fields": [
         {
           "key": "internal.exterior.outdoor_power_point",

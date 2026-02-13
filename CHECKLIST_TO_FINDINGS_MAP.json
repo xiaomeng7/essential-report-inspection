@@ -354,7 +354,7 @@
       }
     },
     {
-      "_comment": "========== INTERNAL - EXTERIOR & GARAGE Section S3G ==========",
+      "_comment": "========== EXTERNAL - EXTERIOR & GARAGE Section S3G ==========",
       "finding": "OUTDOOR_COVER_MISSING",
       "condition": {
         "field": "internal.exterior.cover_broken_missing",
