@@ -233,6 +233,30 @@
       "fault",
       "not_tested"
     ],
+    "oven_type": [
+      "electric",
+      "gas"
+    ],
+    "oven_rated_power_kw": [
+      "2.4",
+      "3.6",
+      "4.2",
+      "4.8",
+      "5",
+      "6",
+      "7.2",
+      "label_not_visible"
+    ],
+    "cooktop_rated_power_kw": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "label_not_visible"
+    ],
     "protection_device_rating_amps": [
       "16",
       "20",
@@ -1457,6 +1481,17 @@
           "ui": "radio_yes_no"
         },
         {
+          "key": "internal.kitchen.oven_type",
+          "label": "Oven type?",
+          "type": "enum",
+          "enum": "oven_type",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.oven_present==true",
+          "helper_text": "Electric or gas",
+          "ui": "radio"
+        },
+        {
           "key": "internal.kitchen.oven_condition",
           "label": "Oven function / condition?",
           "type": "enum",
@@ -1468,12 +1503,35 @@
           "ui": "radio"
         },
         {
-          "key": "internal.kitchen.oven_dedicated_circuit",
-          "label": "Oven on dedicated circuit (visible)?",
+          "key": "internal.kitchen.oven_rated_power_kw",
+          "label": "Oven rated power (kW) – if electric",
+          "type": "enum",
+          "enum": "oven_rated_power_kw",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.oven_present==true",
+          "show_when": "internal.kitchen.oven_type==electric",
+          "helper_text": "From nameplate; select 'Label not visible' if unreadable",
+          "ui": "radio"
+        },
+        {
+          "key": "internal.kitchen.oven_isolator_visible",
+          "label": "Isolating switch visible nearby? (if electric)",
           "type": "boolean",
           "required": false,
           "skippable": true,
           "required_when": "internal.kitchen.oven_present==true",
+          "show_when": "internal.kitchen.oven_type==electric",
+          "ui": "radio_yes_no"
+        },
+        {
+          "key": "internal.kitchen.oven_dedicated_circuit",
+          "label": "Oven on dedicated circuit (visible)? (if electric)",
+          "type": "boolean",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.oven_present==true",
+          "show_when": "internal.kitchen.oven_type==electric",
           "ui": "radio_yes_no"
         },
         {
@@ -1483,6 +1541,7 @@
           "enum": "protection_device_rating_amps",
           "required_when": "internal.kitchen.oven_dedicated_circuit==true",
           "skippable": true,
+          "show_when": "internal.kitchen.oven_type==electric",
           "helper_text": "e.g. 16A, 20A, 32A",
           "ui": "radio"
         },
@@ -1493,6 +1552,7 @@
           "enum": "cable_size_mm2",
           "required_when": "internal.kitchen.oven_dedicated_circuit==true",
           "skippable": true,
+          "show_when": "internal.kitchen.oven_type==electric",
           "helper_text": "2.5, 4, or 6 mm²",
           "ui": "radio"
         },
@@ -1553,6 +1613,18 @@
           "required_when": "internal.kitchen.cooktop_present==true",
           "ui": "radio_yes_no",
           "on_issue_capture": true
+        },
+        {
+          "key": "internal.kitchen.cooktop_rated_power_kw",
+          "label": "Cooktop rated power (kW) – if electric/induction",
+          "type": "enum",
+          "enum": "cooktop_rated_power_kw",
+          "required": false,
+          "skippable": true,
+          "required_when": "internal.kitchen.cooktop_present==true",
+          "show_when": "internal.kitchen.cooktop_type!=gas",
+          "helper_text": "From nameplate; select 'Label not visible' if unreadable",
+          "ui": "radio"
         },
         {
           "key": "internal.kitchen.cooktop_dedicated_circuit",
