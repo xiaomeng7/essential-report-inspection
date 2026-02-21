@@ -52,6 +52,14 @@ function testEnergyExplicitSelectionOnly(): void {
     energyPlan.merged.capexRows.length > 0,
     "Energy capex rows should be generated from verifiable signals"
   );
+  assert(
+    energyPlan.merged.capexRows.every((r) => typeof r.rowKey === "string" && r.rowKey.startsWith("capex:energy:")),
+    "Energy capex rows must carry global rowKey"
+  );
+  assert(
+    energyPlan.merged.findings.every((f) => f.evidenceCoverage && f.evidenceCoverage !== "unknown"),
+    "Energy findings should carry evidenceCoverage from mapper"
+  );
 }
 
 function testEnergyDeterminism(): void {

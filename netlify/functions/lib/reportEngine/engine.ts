@@ -105,7 +105,7 @@ function mergeContributions(
     const isCritical = item.importance === "critical";
     const allowDuplicates = item.allowDuplicates === true || isCritical;
     const textKey = textCanonicalKey(item.text);
-    const key = item.key;
+    const key = item.rowKey ?? item.key;
 
     if (!allowDuplicates) {
       if (seenByKey.has(key)) continue;
@@ -298,7 +298,7 @@ export function compareLegacyVsMergedCapexRows(
       .map((line) => line.trim())
       .filter((line) => line.length > 0 && line.includes("|"))
   );
-  const mergedSet = new Set(mergedRows.map((row) => row.key.trim()).filter(Boolean));
+  const mergedSet = new Set(mergedRows.map((row) => (row.rowKey ?? row.key).trim()).filter(Boolean));
 
   const onlyInLegacy = [...legacySet].filter((x) => !mergedSet.has(x));
   const onlyInMerged = [...mergedSet].filter((x) => !legacySet.has(x));

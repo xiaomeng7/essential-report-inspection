@@ -26,6 +26,7 @@ export type FindingBlock = {
   evidenceRefs: string[];
   photos: string[];
   html: string;
+  evidenceCoverage?: "measured" | "observed" | "declared" | "unknown";
   score?: number;
   sortKey?: string;
   createdAt?: string;
@@ -36,6 +37,7 @@ export type ContributionImportance = "critical" | "normal";
 export type ContentContribution = {
   key: string;
   text: string;
+  rowKey?: string;
   moduleId?: ModuleId;
   importance?: ContributionImportance;
   allowDuplicates?: boolean;

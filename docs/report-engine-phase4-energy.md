@@ -36,6 +36,10 @@ Extracted from `inspection.raw` via fixed candidate paths:
 Only non-empty extracted values produce output.
 If no verifiable signals are present: module returns empty output.
 
+Implementation note:
+- Candidate path extraction is externalized in `reportEngine/inputMappers/energyMapper.ts`
+- Mapper output contract: `{ energy?: EnergyInput, evidenceRefs: string[], evidenceCoverage }`
+
 ## Energy Output Shape
 
 When active and evidence exists, module contributes:
@@ -45,6 +49,8 @@ When active and evidence exists, module contributes:
 - finding block contributions (`ENERGY_CAPACITY_STRUCTURE`, `ENERGY_FUTURE_LOAD_PATHWAY`)
 
 All contributions include stable keys and deterministic sorting hooks.
+CapEx rows include globally unique `rowKey` (format: `capex:<moduleId>:<slug>`).
+Findings include `evidenceCoverage` (`measured|observed|declared|unknown`) for future wording control.
 
 ## Regression Tests Added
 
@@ -54,4 +60,10 @@ All contributions include stable keys and deterministic sorting hooks.
 
 Existing phase-3 tests continue to pass:
 - `scripts/test-report-engine-phase3.ts`
+
+## Injection Gate (Required Before Template Wiring)
+
+When any merged content is injected into Word template slots, legacy slot sources must switch to merged as the single source of truth for those slots.
+
+This is mandatory to avoid duplicate content (especially CapEx rows and findings summaries).
 
