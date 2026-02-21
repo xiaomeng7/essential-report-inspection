@@ -17,6 +17,7 @@ export type ReportRequest = {
 };
 
 export type FindingBlock = {
+  key: string;
   id: string;
   moduleId: ModuleId;
   title: string;
@@ -25,12 +26,26 @@ export type FindingBlock = {
   evidenceRefs: string[];
   photos: string[];
   html: string;
+  score?: number;
+  sortKey?: string;
+  createdAt?: string;
+};
+
+export type ContributionImportance = "critical" | "normal";
+
+export type ContentContribution = {
+  key: string;
+  text: string;
+  moduleId?: ModuleId;
+  importance?: ContributionImportance;
+  allowDuplicates?: boolean;
+  sortKey?: string;
 };
 
 export type ModuleComputeOutput = {
-  executiveSummaryContrib: string[];
-  whatThisMeansContrib: string[];
-  capexRowsContrib: string[];
+  executiveSummaryContrib: ContentContribution[];
+  whatThisMeansContrib: ContentContribution[];
+  capexRowsContrib: ContentContribution[];
   findingsContrib: FindingBlock[];
 };
 
@@ -38,14 +53,14 @@ export type ReportPlan = {
   profile: ReportProfileId;
   modules: ModuleId[];
   sectionWeights: Record<string, number>;
-  summaryFocus: string[];
-  whatThisMeansFocus: string[];
-  capexRows: string[];
+  summaryFocus: ContentContribution[];
+  whatThisMeansFocus: ContentContribution[];
+  capexRows: ContentContribution[];
   findingsBlocks: FindingBlock[];
   merged: {
-    executiveSummary: string[];
-    whatThisMeans: string[];
-    capexRows: string[];
+    executiveSummary: ContentContribution[];
+    whatThisMeans: ContentContribution[];
+    capexRows: ContentContribution[];
     findings: FindingBlock[];
   };
 };

@@ -1,6 +1,7 @@
 import { moduleRegistry } from "./modules";
 import { resolveProfile } from "./profiles";
 import type {
+  ContentContribution,
   FindingBlock,
   ModuleId,
   ModuleComputeOutput,
@@ -17,27 +18,17 @@ function resolveModules(profile: ReportProfileId, requestedModules?: ModuleId[])
   return base.filter((id) => moduleRegistry[id] !== undefined);
 }
 
-function uniqueStrings(values: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    const normalized = value.trim();
-    if (!normalized) continue;
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    result.push(normalized);
-  }
-  return result;
+function textCanonicalKey(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.,;:!?()[\]{}"'`]/g, "");
 }
 
 function moduleOrderByProfile(profile: ReportProfileId): ModuleId[] {
-  // Merge priority by profile intent:
-  // - investor: risk/capex first
-  // - owner: optimization + capacity first
-  // - tenant: transparency + safety first
-  if (profile === "owner") return ["energy", "capacity", "safety", "lifecycle"];
-  if (profile === "tenant") return ["safety", "capacity", "lifecycle", "energy"];
-  return ["safety", "capacity", "lifecycle", "energy"];
+  // Deterministic source: profile.modulePriority, never rely on registry insertion order.
+  return resolveProfile(profile).modulePriority;
 }
 
 function findingPriorityRank(priority?: string): number {
@@ -48,11 +39,96 @@ function findingPriorityRank(priority?: string): number {
   return 99;
 }
 
+function densityPolicy(density: "compact" | "standard" | "detailed") {
+  if (density === "compact") {
+    return {
+      maxFindingsTotal: 8,
+      maxFindingsPerModule: 3,
+      maxBulletsPerModule: 2,
+      maxBulletsTotal: 8,
+    };
+  }
+  if (density === "detailed") {
+    return {
+      maxFindingsTotal: 24,
+      maxFindingsPerModule: 999,
+      maxBulletsPerModule: 999,
+      maxBulletsTotal: 64,
+    };
+  }
+  return {
+    maxFindingsTotal: 16,
+    maxFindingsPerModule: 6,
+    maxBulletsPerModule: 4,
+    maxBulletsTotal: 16,
+  };
+}
+
+function normalizeContrib(moduleId: ModuleId, items: ContentContribution[]): ContentContribution[] {
+  return items
+    .filter((item) => item && item.text && item.text.trim().length > 0)
+    .map((item) => ({
+      ...item,
+      moduleId: item.moduleId ?? moduleId,
+      importance: item.importance ?? "normal",
+      key: item.key?.trim() || textCanonicalKey(item.text),
+    }));
+}
+
+function mergeContributions(
+  profile: ReportProfileId,
+  density: "compact" | "standard" | "detailed",
+  items: ContentContribution[]
+): ContentContribution[] {
+  const policy = densityPolicy(density);
+  const moduleOrder = moduleOrderByProfile(profile);
+  const moduleRank = new Map<ModuleId, number>(moduleOrder.map((m, idx) => [m, idx]));
+  const sorted = [...items].sort((a, b) => {
+    const mod = (moduleRank.get(a.moduleId as ModuleId) ?? 99) - (moduleRank.get(b.moduleId as ModuleId) ?? 99);
+    if (mod !== 0) return mod;
+    const keyA = a.sortKey ?? a.key;
+    const keyB = b.sortKey ?? b.key;
+    return keyA.localeCompare(keyB);
+  });
+
+  const result: ContentContribution[] = [];
+  const seenByKey = new Set<string>();
+  const seenByText = new Set<string>();
+  const perModuleCount = new Map<ModuleId, number>();
+
+  for (const item of sorted) {
+    const moduleId = item.moduleId as ModuleId;
+    const used = perModuleCount.get(moduleId) ?? 0;
+    if (used >= policy.maxBulletsPerModule) continue;
+    if (result.length >= policy.maxBulletsTotal) break;
+
+    const isCritical = item.importance === "critical";
+    const allowDuplicates = item.allowDuplicates === true || isCritical;
+    const textKey = textCanonicalKey(item.text);
+    const key = item.key;
+
+    if (!allowDuplicates) {
+      if (seenByKey.has(key)) continue;
+      if (seenByText.has(textKey)) continue;
+    }
+
+    result.push(item);
+    perModuleCount.set(moduleId, used + 1);
+    if (!allowDuplicates) {
+      seenByKey.add(key);
+      seenByText.add(textKey);
+    }
+  }
+
+  return result;
+}
+
 function mergeFindings(
   profile: ReportProfileId,
   density: "compact" | "standard" | "detailed",
   blocks: FindingBlock[]
 ): FindingBlock[] {
+  const policy = densityPolicy(density);
   const moduleOrder = moduleOrderByProfile(profile);
   const moduleRank = new Map<ModuleId, number>(moduleOrder.map((m, idx) => [m, idx]));
   const sorted = [...blocks].sort((a, b) => {
@@ -60,11 +136,45 @@ function mergeFindings(
     if (mod !== 0) return mod;
     const pri = findingPriorityRank(a.priority) - findingPriorityRank(b.priority);
     if (pri !== 0) return pri;
-    return a.title.localeCompare(b.title);
+    const scoreA = a.score ?? 0;
+    const scoreB = b.score ?? 0;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    const photosA = Array.isArray(a.photos) ? a.photos.length : 0;
+    const photosB = Array.isArray(b.photos) ? b.photos.length : 0;
+    if (photosA !== photosB) return photosB - photosA;
+    const skA = a.sortKey ?? a.key ?? a.id;
+    const skB = b.sortKey ?? b.key ?? b.id;
+    return skA.localeCompare(skB);
   });
 
-  const maxItems = density === "compact" ? 8 : density === "detailed" ? 24 : 16;
-  return sorted.slice(0, maxItems);
+  // Deterministic clipping:
+  // 1) Keep priority tiers in order IMMEDIATE -> RECOMMENDED -> PLAN.
+  // 2) Enforce per-module cap.
+  // 3) Enforce total cap.
+  const result: FindingBlock[] = [];
+  const perModuleCount = new Map<ModuleId, number>();
+  const perKey = new Set<string>();
+  const tiers = [
+    (b: FindingBlock) => findingPriorityRank(b.priority) === 1,
+    (b: FindingBlock) => findingPriorityRank(b.priority) === 2,
+    (b: FindingBlock) => findingPriorityRank(b.priority) === 3,
+    (b: FindingBlock) => findingPriorityRank(b.priority) > 3,
+  ];
+
+  for (const tier of tiers) {
+    for (const item of sorted) {
+      if (!tier(item)) continue;
+      if (result.length >= policy.maxFindingsTotal) return result;
+      const count = perModuleCount.get(item.moduleId) ?? 0;
+      if (count >= policy.maxFindingsPerModule) continue;
+      const key = item.key || `${item.moduleId}:${item.id}:${item.title}`;
+      if (perKey.has(key)) continue;
+      result.push(item);
+      perKey.add(key);
+      perModuleCount.set(item.moduleId, count + 1);
+    }
+  }
+  return result;
 }
 
 function mergeModuleOutput(
@@ -72,13 +182,19 @@ function mergeModuleOutput(
   density: "compact" | "standard" | "detailed",
   outputs: ModuleComputeOutput[]
 ): ReportPlan["merged"] {
-  const executiveSummary = uniqueStrings(
+  const executiveSummary = mergeContributions(
+    profile,
+    density,
     outputs.flatMap((o) => o.executiveSummaryContrib)
   );
-  const whatThisMeans = uniqueStrings(
+  const whatThisMeans = mergeContributions(
+    profile,
+    density,
     outputs.flatMap((o) => o.whatThisMeansContrib)
   );
-  const capexRows = uniqueStrings(
+  const capexRows = mergeContributions(
+    profile,
+    density,
     outputs.flatMap((o) => o.capexRowsContrib)
   );
   const findings = mergeFindings(
@@ -124,11 +240,21 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
       request: { ...request, profile, modules },
       plan,
     });
-    outputs.push(output);
-    plan.summaryFocus.push(...output.executiveSummaryContrib);
-    plan.whatThisMeansFocus.push(...output.whatThisMeansContrib);
-    plan.capexRows.push(...output.capexRowsContrib);
-    plan.findingsBlocks.push(...output.findingsContrib);
+    const normalizedOutput: ModuleComputeOutput = {
+      executiveSummaryContrib: normalizeContrib(moduleId, output.executiveSummaryContrib),
+      whatThisMeansContrib: normalizeContrib(moduleId, output.whatThisMeansContrib),
+      capexRowsContrib: normalizeContrib(moduleId, output.capexRowsContrib),
+      findingsContrib: output.findingsContrib.map((f) => ({
+        ...f,
+        key: f.key || `${moduleId}:${f.id}:${f.title}`,
+        moduleId: f.moduleId ?? moduleId,
+      })),
+    };
+    outputs.push(normalizedOutput);
+    plan.summaryFocus.push(...normalizedOutput.executiveSummaryContrib);
+    plan.whatThisMeansFocus.push(...normalizedOutput.whatThisMeansContrib);
+    plan.capexRows.push(...normalizedOutput.capexRowsContrib);
+    plan.findingsBlocks.push(...normalizedOutput.findingsContrib);
   }
 
   /**
@@ -156,4 +282,29 @@ export async function buildTemplateDataWithLegacyPath<T extends TemplateData>(
   const plan = buildReportPlan(request);
   const templateData = await legacyBuilder();
   return { templateData, plan };
+}
+
+/**
+ * Phase 3 guard: compare legacy CapEx rows with merged rows in shadow mode.
+ * Default investor path should remain aligned before enabling merged rows as source of truth.
+ */
+export function compareLegacyVsMergedCapexRows(
+  legacyRows: string,
+  mergedRows: ContentContribution[]
+): { aligned: boolean; onlyInLegacy: string[]; onlyInMerged: string[] } {
+  const legacySet = new Set(
+    (legacyRows || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && line.includes("|"))
+  );
+  const mergedSet = new Set(mergedRows.map((row) => row.key.trim()).filter(Boolean));
+
+  const onlyInLegacy = [...legacySet].filter((x) => !mergedSet.has(x));
+  const onlyInMerged = [...mergedSet].filter((x) => !legacySet.has(x));
+  return {
+    aligned: onlyInLegacy.length === 0 && onlyInMerged.length === 0,
+    onlyInLegacy,
+    onlyInMerged,
+  };
 }

@@ -50,17 +50,20 @@ Source: `netlify/functions/lib/reportEngine/engine.ts`
 
 ### 3.1 Executive Summary
 - Merge all module `executiveSummaryContrib`
-- Deduplicate by normalized string
+- Deduplicate in deterministic order:
+  - key-based dedupe first
+  - text-canonical dedupe second
+- `importance: "critical"` or `allowDuplicates: true` bypasses dedupe
 - Respect profile-aware module order priority
 
 ### 3.2 What This Means
 - Merge all module `whatThisMeansContrib`
-- Deduplicate by normalized string
+- Same deterministic dedupe strategy (key first, text second)
 - Same ordering strategy as executive summary
 
 ### 3.3 CapEx Rows
 - Merge all module `capexRowsContrib`
-- Deduplicate by normalized string
+- Deduplicate by stable `key` (prevents double counting)
 - Same profile-aware module order
 
 ### 3.4 Findings
@@ -71,11 +74,30 @@ Source: `netlify/functions/lib/reportEngine/engine.ts`
      - `IMMEDIATE` / `URGENT`
      - `RECOMMENDED` / `RECOMMENDED_0_3_MONTHS`
      - `PLAN` / `PLAN_MONITOR`
-  3. Title
+  3. Same-level deterministic keys:
+     - score (desc)
+     - photo count (desc)
+     - sortKey/key/id (asc)
 - Apply narrative density cap:
   - `compact`: max 8
   - `standard`: max 16
   - `detailed`: max 24
+
+### 3.5 Narrative Density Boundary
+- `compact`:
+  - findings total <= 8
+  - findings per module <= 3
+  - bullets per module <= 2
+- `standard`:
+  - findings total <= 16
+  - findings per module <= 6
+  - bullets per module <= 4
+- `detailed`:
+  - findings total <= 24
+  - findings per module <= high threshold (no practical clipping)
+  - bullets per module <= high threshold
+
+Clipping order is fixed by priority tier: IMMEDIATE -> RECOMMENDED -> PLAN.
 
 ## 4) Profile-Aware Module Order
 
@@ -93,3 +115,9 @@ Phase 3 remains backward-compatible by design:
 - Module merged outputs are produced as plan metadata and do not yet override default Word output fields.
 
 This guarantees default investor output stability while enabling Phase 4 feature expansion.
+
+## 6) CapEx Double-Count Guard
+
+`compareLegacyVsMergedCapexRows(...)` is provided in engine for shadow-mode alignment checks:
+- compare legacy CapEx rows vs merged CapEx row keys
+- detect divergence before switching merged rows as source of truth in later phases
