@@ -39,8 +39,15 @@ export type ReportPlan = {
   modules: ModuleId[];
   sectionWeights: Record<string, number>;
   summaryFocus: string[];
+  whatThisMeansFocus: string[];
   capexRows: string[];
   findingsBlocks: FindingBlock[];
+  merged: {
+    executiveSummary: string[];
+    whatThisMeans: string[];
+    capexRows: string[];
+    findings: FindingBlock[];
+  };
 };
 
 export type TemplateData = Record<string, string | number>;
