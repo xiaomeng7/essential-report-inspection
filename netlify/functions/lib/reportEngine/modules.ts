@@ -1,4 +1,5 @@
 import type { ModuleComputeOutput, ModuleId, ReportModule } from "./types";
+import { energyModule } from "./energyModule";
 
 function emptyOutput(): ModuleComputeOutput {
   return {
@@ -20,13 +21,6 @@ const capacityModule: ReportModule = {
   id: "capacity",
   name: "Capacity Module",
   applicability: () => true,
-  compute: () => emptyOutput(),
-};
-
-const energyModule: ReportModule = {
-  id: "energy",
-  name: "Energy Module",
-  applicability: (profile) => profile === "owner" || profile === "investor",
   compute: () => emptyOutput(),
 };
 
