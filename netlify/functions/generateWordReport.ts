@@ -29,6 +29,7 @@ import { customDimensionsToFindingDimensions, profileToFindingDimensions, overal
 import type { CustomFindingDimensions } from "./lib/customFindingPriority";
 import type { FindingDimensions } from "./lib/derivePropertySignals";
 import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
+import { buildTemplateDataWithLegacyPath } from "./lib/reportEngine";
 import { 
   ensureAllPlaceholders, 
   DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS,
@@ -2184,7 +2185,13 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const responses = await loadResponses(event);
     
     // Build computed fields (for Markdown generation); use enriched findings for consistency with reportData
-    const reportData = await buildReportData(inspection, event);
+    const { templateData: reportData } = await buildTemplateDataWithLegacyPath(
+      {
+        inspection,
+        profile: "investor",
+      },
+      () => buildReportData(inspection, event)
+    );
     const globalOverridesForHandler = event ? await loadFindingDimensionsGlobal(event) : {};
     const enrichedFindings = await enrichFindingsWithCalculatedPriority(inspection, event, {
       globalOverrides: globalOverridesForHandler as Record<string, import("./lib/customFindingPriority").FindingDimensionsDebugOverride>,
