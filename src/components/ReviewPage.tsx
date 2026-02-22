@@ -129,6 +129,28 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
+  // Derive 3-line summary from raw_data for quick review (display only, no data change)
+  const raw = (data.raw_data ?? {}) as Record<string, unknown>;
+  const energy = raw.energy_v2 as Record<string, unknown> | undefined;
+  const supply = energy?.supply as Record<string, unknown> | undefined;
+  const stress = energy?.stressTest as Record<string, unknown> | undefined;
+  const enhancedSkip = energy?.enhancedSkipReason as Record<string, unknown> | undefined;
+  const circuits = Array.isArray(energy?.circuits) ? (energy.circuits as unknown[]) : [];
+  const mainLoadStatus =
+    supply
+      ? `${String(supply.phaseSupply ?? "-")} phase, ${supply.mainSwitchA != null ? `${supply.mainSwitchA}A` : "main switch?"}${supply.voltageV != null ? `, ${supply.voltageV}V` : ""}`
+      : "—";
+  const stressLevel =
+    stress
+      ? Boolean(stress.performed)
+        ? `${stress.totalCurrentA != null ? `${stress.totalCurrentA}A` : stress.currentA_L1 != null ? `${stress.currentA_L1}/${stress.currentA_L2}/${stress.currentA_L3}A` : "recorded"}`
+        : "Not performed"
+      : "—";
+  const optionalCircuitInfo =
+    circuits.length > 0
+      ? `Provided (${circuits.length} circuit${circuits.length === 1 ? "" : "s"})`
+      : (enhancedSkip?.code ? `Skipped (${String(enhancedSkip.code)})` : "—");
+
   // Display priority: enhanced HTML > template HTML > original report HTML
   const displayHtml = enhancedHtml || templateHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
@@ -145,6 +167,23 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   return (
     <div className="review-page">
+      {/* Summary of Critical Findings (for review) - display only */}
+      <div style={{
+        backgroundColor: "#f8f9fa",
+        border: "1px solid #dee2e6",
+        borderRadius: 8,
+        padding: "12px 16px",
+        marginBottom: 20,
+        fontSize: 14
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Summary of Critical Findings (for review)</div>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <li><strong>Main Load Status:</strong> {mainLoadStatus}</li>
+          <li><strong>Stress Level:</strong> {stressLevel}</li>
+          <li><strong>Optional Circuit Info:</strong> {optionalCircuitInfo}</li>
+        </ul>
+      </div>
+
       {/* Success banner after submission */}
       <div style={{
         backgroundColor: "#d4edda",

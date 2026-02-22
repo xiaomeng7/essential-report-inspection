@@ -6,12 +6,11 @@ import { useInspection, type IssueDetailsByField } from "../hooks/useInspection"
 import { SectionForm } from "./SectionForm";
 import { SectionPhotoEvidence } from "./SectionPhotoEvidence";
 import { ThermalSection } from "./ThermalSection";
-import { getWizardPages } from "../lib/inspectionBlocks";
+import { getWizardPages, VIRTUAL_STEP_IDS } from "../lib/inspectionBlocks";
 import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
 import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
 import { getFindingForField } from "../lib/fieldToFindingMap";
 import type { SectionDef } from "../lib/fieldDictionary";
-import { deriveAutoSelectionFromSnapshot, getRecommendationText } from "../lib/reportSelectionPolicy";
 
 const GATE_KEYS = new Set([
   "rcd_tests.performed",
@@ -193,6 +192,7 @@ export function Wizard({ onSubmitted }: Props) {
   const snapshotHasBattery = Boolean(getValue("snapshot_intake.hasBattery"));
   const [energyDefaultsApplied, setEnergyDefaultsApplied] = useState(false);
   const [energyEnhancedExpanded, setEnergyEnhancedExpanded] = useState(false);
+  const [inspectionGuideExpanded, setInspectionGuideExpanded] = useState(false);
   const energyPhaseSupply = String(getValue("energy_v2.supply.phaseSupply") ?? "single");
   const energyStressPerformed = Boolean(getValue("energy_v2.stressTest.performed") ?? true);
   const energyEnhancedSkipCode = String(getValue("energy_v2.enhancedSkipReason.code") ?? "");
@@ -200,22 +200,6 @@ export function Wizard({ onSubmitted }: Props) {
   const energyCircuits = Array.isArray(getValue("energy_v2.circuits"))
     ? (getValue("energy_v2.circuits") as Array<Record<string, unknown>>)
     : DEFAULT_ENERGY_V2_CIRCUITS;
-
-  const recommendation = deriveAutoSelectionFromSnapshot({
-    occupancyType:
-      snapshotOccupancy === "owner_occupied" || snapshotOccupancy === "investment" || snapshotOccupancy === "tenant"
-        ? snapshotOccupancy
-        : undefined,
-    primaryGoal:
-      snapshotPrimaryGoal === "risk" ||
-      snapshotPrimaryGoal === "energy" ||
-      snapshotPrimaryGoal === "balanced" ||
-      snapshotPrimaryGoal === "reduce_bill" ||
-      snapshotPrimaryGoal === "reduce_risk" ||
-      snapshotPrimaryGoal === "plan_upgrade"
-        ? snapshotPrimaryGoal
-        : undefined,
-  });
 
   const toggleConcern = (value: string, checked: boolean) => {
     const next = checked
@@ -259,30 +243,29 @@ export function Wizard({ onSubmitted }: Props) {
       const sectionIds = page.sectionIds.filter(
         (id) => !isSectionGatedOut(id, state) && !isSectionAutoSkipped(id, state)
       );
-      if (sectionIds.length > 0) {
+      if (sectionIds.length > 0 || VIRTUAL_STEP_IDS.has(page.id)) {
         out.push({ pageId: page.id, pageTitle: page.titleEn, sectionIds });
       }
     }
     return out;
   }, [state]);
 
-  /** Step 0 = Start Screen; steps 1..N = content pages. */
-  const isStartScreen = step === 0;
-  const currentStep = isStartScreen ? null : visibleSteps[step - 1] ?? null;
+  /** Step 0..N-1 = content pages; no separate start screen. */
+  const currentStep = visibleSteps[step] ?? null;
   const isFirst = step === 0;
-  const isLast = !isStartScreen && step === visibleSteps.length;
-  const progress = isStartScreen ? 0 : visibleSteps.length ? (step / visibleSteps.length) * 100 : 0;
+  const isLast = visibleSteps.length > 0 && step === visibleSteps.length - 1;
+  const progress = visibleSteps.length ? ((step + 1) / visibleSteps.length) * 100 : 0;
+  const isJobClient = currentStep?.pageId === "job_client";
+  const isEnergyMainLoad = currentStep?.pageId === "energy_main_load";
+  const isEnergyStress = currentStep?.pageId === "energy_stress";
+  const isEnergyEnhanced = currentStep?.pageId === "energy_enhanced";
+  const isSnapshotIntake = currentStep?.pageId === "snapshot_intake";
 
   /** On last step: block submit if validation fails (required fields, photos for rooms with issues) */
   const completenessError = isLast ? validatePhotoEvidenceBeforeSubmit(state) : null;
   const submitDisabled = isLast && completenessError != null;
 
   const goNext = () => {
-    if (isStartScreen) {
-      setStep(1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
     if (!currentStep) return;
     const sectionsToValidate = currentStep.sectionIds;
     let allValid = true;
@@ -428,7 +411,6 @@ export function Wizard({ onSubmitted }: Props) {
     }
   };
 
-  const currentPageHasS0 = currentStep?.sectionIds.includes(S0_START_CONTEXT);
   const currentPageIsInternalRooms = currentStep?.pageId === "internal_rooms";
   const currentPageIsSwitchboardRcd = currentStep?.pageId === "switchboard_rcd";
   const currentPageIsRoof = currentStep?.pageId === "roof_space";
@@ -605,47 +587,45 @@ export function Wizard({ onSubmitted }: Props) {
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <p className="progress-text">
-          {isStartScreen
-            ? "Start"
-            : `Page ${step} of ${visibleSteps.length}: ${currentStep?.pageTitle ?? ""}`}
+          {visibleSteps.length > 0
+            ? `Step ${step + 1} of ${visibleSteps.length}: ${currentStep?.pageTitle ?? ""}`
+            : "Loading…"}
         </p>
       </div>
 
-      {isStartScreen && (
+      {isJobClient && (
         <div className="start-screen">
-          <h1 className="start-screen__title">Start Screen</h1>
-          <div className="start-screen__card start-screen__card--brief">
-            <h2 className="start-screen__brief-heading">For Inspectors</h2>
-            <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">Task</h3>
-              <p className="start-screen__brief-text">Complete on-site electrical inspection: Indoor rooms → Switchboard & RCD → Roof space → External & finalise. Fill each item and capture photos; add notes when unusual or selecting "Other".</p>
-            </section>
-            <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">Purpose</h3>
-              <p className="start-screen__brief-text">Provide owners/investors with a structured electrical condition report for risk assessment and budget planning; includes priority, recommended timing and CapEx range.</p>
-            </section>
-            <section className="start-screen__brief-section">
-              <h3 className="start-screen__brief-label">Notes</h3>
-              <ul className="start-screen__brief-list">
-                <li>Fill property address and client before starting; receive Inspection ID after submit, then add photos.</li>
-                <li>RCD/GPO test results: record honestly; select "Not tested" if applicable, do not guess.</li>
-                <li>Attach 1–2 photos per issue type for report reference and client clarity.</li>
-              </ul>
-            </section>
-          </div>
-          <div className="start-screen__card">
-            <p className="start-screen__workflow-heading">Workflow</p>
-            <ol className="start-screen__workflow-list">
-              <li>Indoor Rooms</li>
-              <li>Switchboard + RCD + Earthing</li>
-              <li>Roof Space</li>
-              <li>External + Finalise</li>
-            </ol>
+          <h1 className="start-screen__title">Job & Client Context</h1>
+          <div className="accordion" style={{ marginBottom: 16 }}>
+            <div
+              className="accordion-toggle"
+              onClick={() => setInspectionGuideExpanded((v) => !v)}
+              role="button"
+              tabIndex={0}
+            >
+              Inspection Guide (click to expand)
+              <span>{inspectionGuideExpanded ? "▼" : "▶"}</span>
+            </div>
+            {inspectionGuideExpanded && (
+              <div className="accordion-content open">
+                <h3>Task</h3>
+                <p>Complete on-site electrical inspection: Indoor rooms → Safety device tests → Roof space → External & finalise. Fill each item and capture photos; add notes when unusual or selecting "Other".</p>
+                <h3>Purpose</h3>
+                <p>Provide owners/investors with a structured electrical condition report for risk assessment and budget planning; includes priority, recommended timing and CapEx range.</p>
+                <h3>Notes</h3>
+                <ul>
+                  <li>Fill property address and client before starting; receive Inspection ID after submit, then add photos.</li>
+                  <li>Safety device test results: record honestly; select "Not tested" if applicable, do not guess.</li>
+                  <li>Attach 1–2 photos per issue type for report reference and client clarity.</li>
+                </ul>
+                <p><strong>Workflow:</strong> Indoor Rooms → Safety Device Tests → Roof Space → External + Finalise</p>
+              </div>
+            )}
           </div>
           <div className="start-screen__card">
             <h2 className="start-screen__brief-heading">ServiceM8 Prefill (Optional)</h2>
             <p className="start-screen__brief-text">
-              If you only have a ServiceM8 Job / Work Number, use this to fetch client details and auto-fill "Client" and "Property address". If no address in ServiceM8 or geocode fails, select address manually in the form.
+              Prefill with ServiceM8 helps auto-fill job and client details. Enter Job / Work Number to fetch and auto-fill "Client" and "Property address". If no address in ServiceM8 or geocode fails, select address manually in the form below.
             </p>
             <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
               <input
@@ -727,322 +707,289 @@ export function Wizard({ onSubmitted }: Props) {
               </div>
             )}
           </div>
-          <div className="start-screen__card">
-            <h2 className="start-screen__brief-heading">Snapshot Intake (Optional, customer-facing summary)</h2>
-            <p className="start-screen__brief-text">
-              Capture role, goal, and key energy context. This is written to <code>raw.snapshot_intake</code> and used by report auto-selection.
-            </p>
-            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-              <label>
-                <strong>Q1 你属于哪种情况？</strong>
-                <select
-                  value={snapshotOccupancy}
-                  onChange={(e) => setAnswer("snapshot_intake.occupancyType", { value: e.target.value, status: "answered" })}
-                  style={{ marginTop: 6, width: "100%" }}
-                >
-                  <option value="">请选择</option>
-                  <option value="owner_occupied">我是自住房屋主</option>
-                  <option value="investment">我是投资房房东</option>
-                  <option value="tenant">我是租客</option>
-                </select>
-              </label>
-
-              <label>
-                <strong>Q2 你这次最想解决什么？</strong>
-                <select
-                  value={snapshotPrimaryGoal}
-                  onChange={(e) => setAnswer("snapshot_intake.primaryGoal", { value: e.target.value, status: "answered" })}
-                  style={{ marginTop: 6, width: "100%" }}
-                >
-                  <option value="">请选择</option>
-                  <option value="reduce_bill">我想搞清楚电费钱花在哪里</option>
-                  <option value="reduce_risk">我想降低安全/合规不确定性</option>
-                  <option value="plan_upgrade">我准备升级，想先确认路径与预算</option>
-                  <option value="balanced">我不确定</option>
-                </select>
-              </label>
-
-              <div>
-                <strong>Q3 房屋系统（可选）</strong>
-                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotHasSolar}
-                      onChange={(e) => setAnswer("snapshot_intake.hasSolar", { value: e.target.checked, status: "answered" })}
-                    />{" "}
-                    太阳能
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotHasBattery}
-                      onChange={(e) => setAnswer("snapshot_intake.hasBattery", { value: e.target.checked, status: "answered" })}
-                    />{" "}
-                    电池
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotHasEv}
-                      onChange={(e) => setAnswer("snapshot_intake.hasEv", { value: e.target.checked, status: "answered" })}
-                    />{" "}
-                    电动车/一年内计划购买
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <strong>Q4 最近是否遇到以下情况（可选）</strong>
-                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotConcerns.includes("high_bill")}
-                      onChange={(e) => toggleConcern("high_bill", e.target.checked)}
-                    />{" "}
-                    电费明显上涨/难以解释
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotConcerns.includes("safety_uncertainty")}
-                      onChange={(e) => toggleConcern("safety_uncertainty", e.target.checked)}
-                    />{" "}
-                    经常跳闸/担心线路老化
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={snapshotConcerns.includes("upgrade_planning")}
-                      onChange={(e) => toggleConcern("upgrade_planning", e.target.checked)}
-                    />{" "}
-                    准备装修/加装设备但不确定容量
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: 8 }}>
-                <strong>Q5 联系方式（可选）</strong>
-                <input
-                  type="text"
-                  placeholder="姓名"
-                  value={String(getValue("snapshot_intake.contact.name") ?? "")}
-                  onChange={(e) => setAnswer("snapshot_intake.contact.name", { value: e.target.value, status: "answered" })}
+          <div className="wizard-page__section-card">
+            <h2 className="wizard-page__section-title">Property address and client</h2>
+            <p className="section-guidance">Confirm or enter property address, client type and occupancy.</p>
+            {(() => {
+              const s0 = sectionById[S0_START_CONTEXT] as SectionDef | undefined;
+              if (!s0) return null;
+              return (
+                <SectionForm
+                  section={s0}
+                  state={state}
+                  setAnswer={setAnswer}
+                  setAnswerWithGateCheck={setAnswerWithGateCheck}
+                  getValue={getValue}
+                  getAnswer={getAnswer}
+                  errors={sectionErrors[s0.id] ?? {}}
+                  gateKeys={GATE_KEYS}
+                  getIssueDetail={getIssueDetail}
+                  setIssueDetail={setIssueDetail}
                 />
-                <input
-                  type="text"
-                  placeholder="电话"
-                  value={String(getValue("snapshot_intake.contact.phone") ?? "")}
-                  onChange={(e) => setAnswer("snapshot_intake.contact.phone", { value: e.target.value, status: "answered" })}
-                />
-                <input
-                  type="email"
-                  placeholder="邮箱"
-                  value={String(getValue("snapshot_intake.contact.email") ?? "")}
-                  onChange={(e) => setAnswer("snapshot_intake.contact.email", { value: e.target.value, status: "answered" })}
-                />
-                <input
-                  type="text"
-                  placeholder="地址"
-                  value={String(getValue("snapshot_intake.contact.address") ?? "")}
-                  onChange={(e) => setAnswer("snapshot_intake.contact.address", { value: e.target.value, status: "answered" })}
-                />
-              </div>
-
-              <div style={{ marginTop: 4, padding: 10, border: "1px solid #e5e7eb", borderRadius: 6 }}>
-                <strong>系统推荐方案</strong>
-                <p style={{ marginTop: 6 }}>
-                  根据您的选择，我们建议本次报告包含：{getRecommendationText(recommendation.profile)}
-                </p>
-              </div>
-            </div>
+              );
+            })()}
           </div>
-          <div className="start-screen__card">
-            <h2 className="start-screen__brief-heading">Energy Stress Test (v2)</h2>
-            <p className="start-screen__brief-text">
-              Record pressure test and circuit current measurements. Data is saved to <code>raw.energy_v2</code>.
-            </p>
-            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-              <div style={{ display: "grid", gap: 6 }}>
-                <strong>Baseline Load Test (required)</strong>
-                <label>
-                  Phase:
-                  <select
-                    value={energyPhaseSupply}
-                    onChange={(e) => setAnswer("energy_v2.supply.phaseSupply", { value: e.target.value, status: "answered" })}
-                    style={{ marginLeft: 8 }}
-                  >
-                    <option value="single">single</option>
-                    <option value="three">three</option>
-                  </select>
-                </label>
-                {energyPhaseSupply === "single" ? (
-                  <label>
-                    Voltage (V):
-                    <input
-                      type="number"
-                      value={String(getValue("energy_v2.supply.voltageV") ?? 230)}
-                      onChange={(e) => setAnswer("energy_v2.supply.voltageV", { value: Number(e.target.value), status: "answered" })}
-                      style={{ marginLeft: 8 }}
-                    />
-                  </label>
-                ) : (
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>L1 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL1V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL1V", { value: Number(e.target.value), status: "answered" })} /></label>
-                    <label>L2 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL2V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL2V", { value: Number(e.target.value), status: "answered" })} /></label>
-                    <label>L3 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL3V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL3V", { value: Number(e.target.value), status: "answered" })} /></label>
-                  </div>
-                )}
-                <label>
-                  Main Switch (A):
-                  <input
-                    type="number"
-                    value={String(getValue("energy_v2.supply.mainSwitchA") ?? "")}
-                    onChange={(e) => setAnswer("energy_v2.supply.mainSwitchA", { value: Number(e.target.value), status: "answered" })}
-                    style={{ marginLeft: 8 }}
-                  />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <strong>Stress Test (required)</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={energyStressPerformed}
-                    onChange={(e) => setAnswer("energy_v2.stressTest.performed", { value: e.target.checked, status: "answered" })}
-                  />{" "}
-                  Performed
-                </label>
-                <label>Duration (sec): <input type="number" value={String(getValue("energy_v2.stressTest.durationSec") ?? 60)} onChange={(e) => setAnswer("energy_v2.stressTest.durationSec", { value: Number(e.target.value), status: "answered" })} /></label>
-                {energyPhaseSupply === "single" ? (
-                  <label>Total Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.totalCurrentA") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.totalCurrentA", { value: Number(e.target.value), status: "answered" })} /></label>
-                ) : (
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>L1 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L1") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L1", { value: Number(e.target.value), status: "answered" })} /></label>
-                    <label>L2 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L2") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L2", { value: Number(e.target.value), status: "answered" })} /></label>
-                    <label>L3 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L3") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L3", { value: Number(e.target.value), status: "answered" })} /></label>
-                  </div>
-                )}
-                <label>Not tested reasons (comma separated): <input type="text" value={String((getValue("energy_v2.stressTest.notTestedReasons") as string[] | undefined)?.join(", ") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.notTestedReasons", { value: e.target.value.split(",").map((x) => x.trim()).filter(Boolean), status: "answered" })} /></label>
-              </div>
-
-              <div style={{ display: "grid", gap: 8, borderTop: "1px solid #e5e7eb", paddingTop: 10 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-                  <strong>Enhanced Circuits (optional, default 6 rows)</strong>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setEnergyEnhancedExpanded((v) => !v)}
-                  >
-                    {energyEnhancedExpanded ? "Collapse" : "Expand"}
-                  </button>
-                </div>
-                {!energyEnhancedExpanded && (
-                  <p style={{ margin: 0, color: "#6b7280", fontSize: 13 }}>
-                    Enhanced section is collapsed by default. Expand to edit circuits/tariff, or skip with reason.
-                  </p>
-                )}
-                {energyEnhancedExpanded && (
-                  <>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      {energyCircuits.map((row, idx) => (
-                        <div key={`energy-circuit-${idx}`} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr auto", gap: 6 }}>
-                          <input
-                            type="text"
-                            value={String(row.label ?? "")}
-                            onChange={(e) => updateEnergyCircuit(idx, { label: e.target.value })}
-                            placeholder="label"
-                          />
-                          <select
-                            value={String(row.category ?? "other")}
-                            onChange={(e) => updateEnergyCircuit(idx, { category: e.target.value })}
-                          >
-                            <option value="hot_water">hot_water</option>
-                            <option value="ac">ac</option>
-                            <option value="cooking">cooking</option>
-                            <option value="lighting">lighting</option>
-                            <option value="power">power</option>
-                            <option value="other">other</option>
-                          </select>
-                          <input
-                            type="number"
-                            value={String(row.measuredCurrentA ?? "")}
-                            onChange={(e) => updateEnergyCircuit(idx, { measuredCurrentA: e.target.value === "" ? "" : Number(e.target.value) })}
-                            placeholder="A"
-                          />
-                          <select
-                            value={String(row.evidenceCoverage ?? "measured")}
-                            onChange={(e) => updateEnergyCircuit(idx, { evidenceCoverage: e.target.value })}
-                          >
-                            <option value="measured">measured</option>
-                            <option value="declared">declared</option>
-                          </select>
-                          <button type="button" className="btn-secondary" onClick={() => removeEnergyCircuit(idx)}>删除</button>
-                        </div>
-                      ))}
-                      <button type="button" className="btn-secondary" onClick={addEnergyCircuit}>+ 添加分路</button>
-                    </div>
-
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <strong>Tariff (optional)</strong>
-                      <label>rate_c_per_kwh: <input type="number" value={String(getValue("energy_v2.tariff.rate_c_per_kwh") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.rate_c_per_kwh", { value: Number(e.target.value), status: "answered" })} /></label>
-                      <label>supply_c_per_day: <input type="number" value={String(getValue("energy_v2.tariff.supply_c_per_day") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.supply_c_per_day", { value: Number(e.target.value), status: "answered" })} /></label>
-                    </div>
-                  </>
-                )}
-
-                <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      if (!energyEnhancedSkipCode) {
-                        setAnswer("energy_v2.enhancedSkipReason.code", { value: "customer_not_allowed", status: "answered" });
-                      }
-                      setEnergyEnhancedExpanded(false);
-                    }}
-                  >
-                    Skip Enhanced (record reason)
-                  </button>
-                  <label>
-                    Skip reason:
-                    <select
-                      value={energyEnhancedSkipCode}
-                      onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.code", { value: e.target.value, status: "answered" })}
-                      style={{ marginLeft: 8 }}
-                    >
-                      <option value="">-- select --</option>
-                      <option value="customer_not_allowed">customer not allowed</option>
-                      <option value="time_insufficient">time insufficient</option>
-                      <option value="site_uncontrollable">site/device uncontrollable</option>
-                      <option value="other">other</option>
-                    </select>
-                  </label>
-                  <label>
-                    Skip note:
-                    <input
-                      type="text"
-                      value={energyEnhancedSkipNote}
-                      onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.note", { value: e.target.value, status: "answered" })}
-                      placeholder="optional note"
-                      style={{ marginLeft: 8 }}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+          <div className="section wizard-page__card">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={oneClickTestLoading}
+              onClick={async () => {
+                setOneClickTestError(null);
+                setOneClickTestLoading(true);
+                try {
+                  const r = await fetch("/sample-inspection-payload.json");
+                  if (!r.ok) throw new Error("Sample data not generated. Run: npm run write-sample-payload");
+                  const payload = await r.json();
+                  const res = await fetch("/api/submitInspection", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  });
+                  if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || `HTTP ${res.status}`);
+                  }
+                  const data = (await res.json()) as { inspection_id: string };
+                  onSubmitted(data.inspection_id);
+                } catch (e) {
+                  setOneClickTestError((e as Error).message);
+                } finally {
+                  setOneClickTestLoading(false);
+                }
+              }}
+            >
+              {oneClickTestLoading ? "Submitting…" : "One-click test (fill & submit → generate report)"}
+            </button>
+            {oneClickTestError && <p className="validation-msg" style={{ marginTop: 8 }}>{oneClickTestError}</p>}
           </div>
           <div className="start-screen__actions">
             <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
-              Start / Continue
+              Next: Continue Inspection
             </button>
           </div>
         </div>
       )}
 
-      {!isStartScreen && currentStep && (
+      {isEnergyMainLoad && (
+        <div className="wizard-page">
+          <h1 className="wizard-page__title">Step 1 – Main Load & Voltage</h1>
+          <p className="section-guidance">Measure main supply phase, voltage, and main switch rating.</p>
+          <div className="start-screen__card">
+            <div style={{ display: "grid", gap: 10 }}>
+              <label>
+                Phase:
+                <select
+                  value={energyPhaseSupply}
+                  onChange={(e) => setAnswer("energy_v2.supply.phaseSupply", { value: e.target.value, status: "answered" })}
+                  style={{ marginLeft: 8 }}
+                >
+                  <option value="single">single</option>
+                  <option value="three">three</option>
+                </select>
+              </label>
+              {energyPhaseSupply === "single" ? (
+                <label>
+                  Voltage (V):
+                  <input
+                    type="number"
+                    value={String(getValue("energy_v2.supply.voltageV") ?? 230)}
+                    onChange={(e) => setAnswer("energy_v2.supply.voltageV", { value: Number(e.target.value), status: "answered" })}
+                    style={{ marginLeft: 8 }}
+                  />
+                </label>
+              ) : (
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label>L1 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL1V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL1V", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L2 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL2V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL2V", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L3 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL3V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL3V", { value: Number(e.target.value), status: "answered" })} /></label>
+                </div>
+              )}
+              <label>
+                Main Switch (A):
+                <input
+                  type="number"
+                  value={String(getValue("energy_v2.supply.mainSwitchA") ?? "")}
+                  onChange={(e) => setAnswer("energy_v2.supply.mainSwitchA", { value: Number(e.target.value), status: "answered" })}
+                  style={{ marginLeft: 8 }}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="start-screen__actions">
+            <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
+              Next: Continue Inspection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isEnergyStress && (
+        <div className="wizard-page">
+          <h1 className="wizard-page__title">Step 2 – Load Stress Test</h1>
+          <p className="section-guidance">Record total current with key appliances ON to assess load stress.</p>
+          <div className="start-screen__card">
+            <div style={{ display: "grid", gap: 10 }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={energyStressPerformed}
+                  onChange={(e) => setAnswer("energy_v2.stressTest.performed", { value: e.target.checked, status: "answered" })}
+                />{" "}
+                Performed
+              </label>
+              <label>Duration (sec): <input type="number" value={String(getValue("energy_v2.stressTest.durationSec") ?? 60)} onChange={(e) => setAnswer("energy_v2.stressTest.durationSec", { value: Number(e.target.value), status: "answered" })} /></label>
+              {energyPhaseSupply === "single" ? (
+                <label>Total Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.totalCurrentA") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.totalCurrentA", { value: Number(e.target.value), status: "answered" })} /></label>
+              ) : (
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label>L1 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L1") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L1", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L2 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L2") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L2", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L3 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L3") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L3", { value: Number(e.target.value), status: "answered" })} /></label>
+                </div>
+              )}
+              <label>Not tested reasons (comma separated): <input type="text" value={String((getValue("energy_v2.stressTest.notTestedReasons") as string[] | undefined)?.join(", ") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.notTestedReasons", { value: e.target.value.split(",").map((x) => x.trim()).filter(Boolean), status: "answered" })} /></label>
+            </div>
+          </div>
+          <div className="start-screen__actions">
+            <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
+              Next: Continue Inspection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isEnergyEnhanced && (
+        <div className="wizard-page">
+          <h1 className="wizard-page__title">Step 3 – Optional Circuit Breakdown</h1>
+          <p className="section-guidance">Optional: enhance your report by measuring individual circuits. Skip if time limited.</p>
+          <p className="small" style={{ color: "#6b7280", marginBottom: 12 }}>Optional: expand to measure circuits individually for more accurate energy use insights.</p>
+          <div className="start-screen__card">
+            <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <strong>Circuit breakdown (optional)</strong>
+              <button type="button" className="btn-secondary" onClick={() => setEnergyEnhancedExpanded((v) => !v)}>
+                {energyEnhancedExpanded ? "Collapse" : "Expand"}
+              </button>
+            </div>
+            {!energyEnhancedExpanded && (
+              <p style={{ margin: 0, color: "#6b7280", fontSize: 13 }}>
+                Optional: enhance your report by measuring individual circuits. Skip if time limited.
+              </p>
+            )}
+            {energyEnhancedExpanded && (
+              <>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {energyCircuits.map((row, idx) => (
+                    <div key={`energy-circuit-${idx}`} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr auto", gap: 6 }}>
+                      <input type="text" value={String(row.label ?? "")} onChange={(e) => updateEnergyCircuit(idx, { label: e.target.value })} placeholder="label" />
+                      <select value={String(row.category ?? "other")} onChange={(e) => updateEnergyCircuit(idx, { category: e.target.value })}>
+                        <option value="hot_water">hot_water</option>
+                        <option value="ac">ac</option>
+                        <option value="cooking">cooking</option>
+                        <option value="lighting">lighting</option>
+                        <option value="power">power</option>
+                        <option value="other">other</option>
+                      </select>
+                      <input type="number" value={String(row.measuredCurrentA ?? "")} onChange={(e) => updateEnergyCircuit(idx, { measuredCurrentA: e.target.value === "" ? "" : Number(e.target.value) })} placeholder="A" />
+                      <select value={String(row.evidenceCoverage ?? "measured")} onChange={(e) => updateEnergyCircuit(idx, { evidenceCoverage: e.target.value })}>
+                        <option value="measured">measured</option>
+                        <option value="declared">declared</option>
+                      </select>
+                      <button type="button" className="btn-secondary" onClick={() => removeEnergyCircuit(idx)}>Remove</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn-secondary" onClick={addEnergyCircuit}>+ Add circuit</button>
+                </div>
+                <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+                  <strong>Tariff (optional)</strong>
+                  <label>rate_c_per_kwh: <input type="number" value={String(getValue("energy_v2.tariff.rate_c_per_kwh") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.rate_c_per_kwh", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>supply_c_per_day: <input type="number" value={String(getValue("energy_v2.tariff.supply_c_per_day") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.supply_c_per_day", { value: Number(e.target.value), status: "answered" })} /></label>
+                </div>
+              </>
+            )}
+            <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+              <button type="button" className="btn-secondary" onClick={() => { if (!energyEnhancedSkipCode) setAnswer("energy_v2.enhancedSkipReason.code", { value: "time_insufficient", status: "answered" }); setEnergyEnhancedExpanded(false); }}>
+                Skip Optional Tests
+              </button>
+              <label>Skip reason:
+                <select value={energyEnhancedSkipCode} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.code", { value: e.target.value, status: "answered" })} style={{ marginLeft: 8 }}>
+                  <option value="">-- select --</option>
+                  <option value="customer_not_allowed">customer not allowed</option>
+                  <option value="time_insufficient">time insufficient</option>
+                  <option value="site_uncontrollable">site/device uncontrollable</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+              <label>Skip note: <input type="text" value={energyEnhancedSkipNote} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.note", { value: e.target.value, status: "answered" })} placeholder="optional note" style={{ marginLeft: 8 }} /></label>
+            </div>
+          </div>
+          <div className="start-screen__actions">
+            <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
+              Next: Continue Inspection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isSnapshotIntake && (
+        <div className="wizard-page">
+          <h1 className="wizard-page__title">Snapshot Intake (Optional)</h1>
+          <p className="section-guidance">These optional questions help tailor your report recommendations. Ask only if customer is present.</p>
+            <p className="small" style={{ marginBottom: 12 }}>These questions help diagnose your electrical usage and potential energy cost issues.</p>
+            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+              <label>
+                <strong>A) Customer context – What best describes you?</strong>
+                <select value={snapshotOccupancy} onChange={(e) => setAnswer("snapshot_intake.occupancyType", { value: e.target.value, status: "answered" })} style={{ marginTop: 6, width: "100%" }}>
+                  <option value="">Select</option>
+                  <option value="owner_occupied">Owner occupied (homeowner)</option>
+                  <option value="investment">Investment property landlord</option>
+                  <option value="tenant">Tenant</option>
+                </select>
+              </label>
+              <label>
+                <strong>B) What do you want to solve most?</strong>
+                <select value={snapshotPrimaryGoal} onChange={(e) => setAnswer("snapshot_intake.primaryGoal", { value: e.target.value, status: "answered" })} style={{ marginTop: 6, width: "100%" }}>
+                  <option value="">Select</option>
+                  <option value="reduce_bill">Understand where electricity costs go</option>
+                  <option value="reduce_risk">Reduce safety/compliance uncertainty</option>
+                  <option value="plan_upgrade">Planning upgrade – confirm path & budget</option>
+                  <option value="balanced">Not sure</option>
+                </select>
+              </label>
+              <div>
+                <strong>C) Property systems (optional)</strong>
+                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+                  <label><input type="checkbox" checked={snapshotHasSolar} onChange={(e) => setAnswer("snapshot_intake.hasSolar", { value: e.target.checked, status: "answered" })} /> Solar</label>
+                  <label><input type="checkbox" checked={snapshotHasBattery} onChange={(e) => setAnswer("snapshot_intake.hasBattery", { value: e.target.checked, status: "answered" })} /> Battery</label>
+                  <label><input type="checkbox" checked={snapshotHasEv} onChange={(e) => setAnswer("snapshot_intake.hasEv", { value: e.target.checked, status: "answered" })} /> EV / planning to buy within 12 months</label>
+                </div>
+              </div>
+              <div>
+                <strong>D) Symptoms (optional)</strong>
+                <p className="small">Select any you have experienced; it helps us focus testing.</p>
+                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("high_bill")} onChange={(e) => toggleConcern("high_bill", e.target.checked)} /> High or unexplained bills</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("safety_uncertainty")} onChange={(e) => toggleConcern("safety_uncertainty", e.target.checked)} /> Tripping / concern about aging wiring</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("upgrade_planning")} onChange={(e) => toggleConcern("upgrade_planning", e.target.checked)} /> Planning reno / adding equipment – capacity unclear</label>
+                </div>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <strong>E) Contact info (optional)</strong>
+                <input type="text" placeholder="Name" value={String(getValue("snapshot_intake.contact.name") ?? "")} onChange={(e) => setAnswer("snapshot_intake.contact.name", { value: e.target.value, status: "answered" })} />
+                <input type="text" placeholder="Phone" value={String(getValue("snapshot_intake.contact.phone") ?? "")} onChange={(e) => setAnswer("snapshot_intake.contact.phone", { value: e.target.value, status: "answered" })} />
+                <input type="email" placeholder="Email" value={String(getValue("snapshot_intake.contact.email") ?? "")} onChange={(e) => setAnswer("snapshot_intake.contact.email", { value: e.target.value, status: "answered" })} />
+                <input type="text" placeholder="Address" value={String(getValue("snapshot_intake.contact.address") ?? "")} onChange={(e) => setAnswer("snapshot_intake.contact.address", { value: e.target.value, status: "answered" })} />
+              </div>
+            </div>
+          <div className="start-screen__actions">
+            <button type="button" className="btn-primary start-screen__btn" onClick={goNext}>
+              Next: Continue Inspection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStep && !isJobClient && !isEnergyMainLoad && !isEnergyStress && !isEnergyEnhanced && !isSnapshotIntake && (
         <>
           <div className="wizard-page">
             <h1 className="wizard-page__title">{currentStep.pageTitle}</h1>
@@ -1059,12 +1006,16 @@ export function Wizard({ onSubmitted }: Props) {
               </div>
             )}
 
-            {/* Page 2 – Switchboard & RCD: compliance emphasis */}
+            {/* Page 2 – Safety Device Functional Tests (Switchboard & RCD): collapsible notes */}
             {currentPageIsSwitchboardRcd && (
-              <div className="wizard-page__banner wizard-page__banner--compliance">
-                <p className="wizard-page__banner-heading">Compliance-related</p>
-                <p>Switchboard condition, RCD presence and testing, labelling and enclosure.</p>
-              </div>
+              <details className="wizard-page__card" style={{ marginBottom: 12 }}>
+                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Inspection Notes / Tips</summary>
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee", fontSize: 14, color: "#444" }}>
+                  <p><strong>Safety Device Functional Tests</strong> (RCD/GPO): Switchboard condition, RCD presence and testing, labelling and enclosure.</p>
+                  <p style={{ marginTop: 8 }}>GPO (power points): test results by room; note any failures and add photos. Do not guess if not tested — record accurately or mark as not tested.</p>
+                  <p style={{ marginTop: 8 }}>Photos: capture switchboard label, RCD test results, and any visible defects. Ensure good lighting and avoid glare.</p>
+                </div>
+              </details>
             )}
 
             {/* Page 3 – Roof: one-time access note */}
@@ -1080,48 +1031,6 @@ export function Wizard({ onSubmitted }: Props) {
               <div className="wizard-page__banner wizard-page__banner--info">
                 <p className="wizard-page__banner-heading">Earthing & external</p>
                 <p>Earthing system and external electrical items before leaving site.</p>
-              </div>
-            )}
-
-            {/* S0: one-click test */}
-            {currentPageHasS0 && (
-              <div className="section wizard-page__card">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={oneClickTestLoading}
-                  onClick={async () => {
-                    setOneClickTestError(null);
-                    setOneClickTestLoading(true);
-                    try {
-                      const r = await fetch("/sample-inspection-payload.json");
-                      if (!r.ok) throw new Error("Sample data not generated. Run: npm run write-sample-payload");
-                      const payload = await r.json();
-                      const res = await fetch("/api/submitInspection", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                      });
-                      if (!res.ok) {
-                        const text = await res.text();
-                        throw new Error(text || `HTTP ${res.status}`);
-                      }
-                      const data = (await res.json()) as { inspection_id: string };
-                      onSubmitted(data.inspection_id);
-                    } catch (e) {
-                      setOneClickTestError((e as Error).message);
-                    } finally {
-                      setOneClickTestLoading(false);
-                    }
-                  }}
-                >
-                  {oneClickTestLoading ? "Submitting…" : "One-click test (fill & submit → generate report)"}
-                </button>
-                {oneClickTestError && (
-                  <p className="validation-msg" style={{ marginTop: 8 }}>
-                    {oneClickTestError}
-                  </p>
-                )}
               </div>
             )}
 
@@ -1201,7 +1110,7 @@ export function Wizard({ onSubmitted }: Props) {
         </>
       )}
 
-      {!isStartScreen && (
+      {true && (
         <>
           <div className="actions actions--mobile">
             <button type="button" className="btn-secondary" onClick={goBack} disabled={isFirst}>

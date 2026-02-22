@@ -1,10 +1,11 @@
 /**
- * Logical blocks for inspection flow: technician fills one block at a time
- * (e.g. Meter Box → main switch, consumer main, earthing, RCD) to avoid running around.
+ * Logical blocks for inspection flow: on-site execution order.
  *
- * WIZARD_PAGES defines the field-technician-friendly page order:
- * Page 1 Internal Rooms (Lighting, Switches, GPO), Page 2 Switchboard & RCD,
- * Page 3 Roof Space, Page 4 Earthing & External, then other steps.
+ * Order: Job & Client → Main Load → Stress Test → Optional Circuit → Snapshot Intake
+ *        → Access → Internal Rooms → Switchboard & RCD → Earthing & External → ...
+ *
+ * Virtual steps (energy_main_load, energy_stress, energy_enhanced, snapshot_intake)
+ * have empty sectionIds and are rendered by Wizard with custom UI.
  */
 
 export type BlockDef = {
@@ -14,9 +15,21 @@ export type BlockDef = {
   sectionIds: string[];
 };
 
-/** Wizard step order: each step is one "page" (one or more sections). Used for layout only; payload unchanged. */
+/** Virtual step IDs (no FIELD_DICTIONARY sections; Wizard renders custom UI). */
+export const VIRTUAL_STEP_IDS = new Set([
+  "energy_main_load",
+  "energy_stress",
+  "energy_enhanced",
+  "snapshot_intake",
+]);
+
+/** Wizard step order: matches on-site execution sequence. */
 export const WIZARD_PAGES: BlockDef[] = [
-  { id: "context", title: "Property Information", titleEn: "Property Information", sectionIds: ["S0_START_CONTEXT"] },
+  { id: "job_client", title: "Job & Client Context", titleEn: "Job & Client Context", sectionIds: ["S0_START_CONTEXT"] },
+  { id: "energy_main_load", title: "Main Load & Voltage", titleEn: "Main Load & Voltage", sectionIds: [] },
+  { id: "energy_stress", title: "Load Stress Test", titleEn: "Load Stress Test", sectionIds: [] },
+  { id: "energy_enhanced", title: "Optional Circuit Breakdown", titleEn: "Optional Circuit Breakdown", sectionIds: [] },
+  { id: "snapshot_intake", title: "Snapshot Intake (Optional)", titleEn: "Snapshot Intake (Optional)", sectionIds: [] },
   { id: "access", title: "Access & Limitations", titleEn: "Access & Limitations", sectionIds: ["S1_ACCESS_LIMITATIONS"] },
   {
     id: "internal_rooms",
@@ -27,7 +40,7 @@ export const WIZARD_PAGES: BlockDef[] = [
   {
     id: "switchboard_rcd",
     title: "Switchboard & RCD",
-    titleEn: "Switchboard & RCD",
+    titleEn: "Safety Device Functional Tests",
     sectionIds: [
       "S2_SUPPLY_OVERVIEW",
       "S2_MAIN_SWITCH",
