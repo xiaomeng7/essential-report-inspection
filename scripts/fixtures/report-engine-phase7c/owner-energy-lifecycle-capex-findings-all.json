@@ -1,0 +1,24 @@
+{
+  "name": "owner-energy-lifecycle-capex-findings-all",
+  "profile": "owner",
+  "modules": [
+    "energy",
+    "lifecycle"
+  ],
+  "density": "detailed",
+  "mergedFindingsCount": 6,
+  "mergedModuleOrder": [
+    "energy",
+    "energy",
+    "energy",
+    "lifecycle",
+    "lifecycle",
+    "lifecycle"
+  ],
+  "slotSource": {
+    "source": "merged",
+    "reason": "MERGED_FINDINGS_APPLIED"
+  },
+  "hasSentinel": true,
+  "pageBreakCount": 6
+}

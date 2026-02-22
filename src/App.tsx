@@ -5,6 +5,7 @@ import { SuccessPage } from "./components/SuccessPage";
 import { ConfigAdmin } from "./components/ConfigAdmin";
 import { AdminFindingsDimensionsPage } from "./components/AdminFindingsDimensionsPage";
 import { AdminFindingsPage } from "./components/AdminFindingsPage";
+import { AdminTelemetryPage } from "./components/AdminTelemetryPage";
 
 function App() {
   const [reviewId, setReviewId] = useState<string | null>(null);
@@ -84,6 +85,7 @@ function App() {
   const isFindingsDimsRoute = pathname === "/admin/findings-dims" || pathname.startsWith("/admin/findings-dims");
   const isAdminFindingsRoute = pathname === "/admin/findings" || pathname.startsWith("/admin/findings/");
   const isConfigAdminRoute = pathname === "/admin/config" || pathname.startsWith("/admin/config/");
+  const isTelemetryAdminRoute = pathname === "/admin/telemetry" || pathname.startsWith("/admin/telemetry/");
   const isAdminRoute = pathname === "/admin/rules" || pathname.startsWith("/admin/rules/");
   const idFromRoute = isReviewRoute ? pathname.replace(/^\/review\//, "") : null;
   const successIdFromRoute = isSuccessRoute ? pathname.replace(/^\/success\//, "") : null;
@@ -145,6 +147,17 @@ function App() {
   if (isAdminFindingsRoute) {
     return (
       <AdminFindingsPage
+        onBack={() => {
+          window.history.replaceState(null, "", "/");
+          setPathname("/");
+        }}
+      />
+    );
+  }
+
+  if (isTelemetryAdminRoute) {
+    return (
+      <AdminTelemetryPage
         onBack={() => {
           window.history.replaceState(null, "", "/");
           setPathname("/");

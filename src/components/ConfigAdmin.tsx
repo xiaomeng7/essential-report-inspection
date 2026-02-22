@@ -696,6 +696,14 @@ export function ConfigAdmin({ onBack }: Props) {
             </p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={() => {
+                window.history.replaceState(null, "", "/admin/telemetry");
+              }}
+              className="btn-secondary"
+            >
+              Telemetry dashboard
+            </button>
             <button onClick={onBack} className="btn-secondary">Back to home</button>
           </div>
         </div>

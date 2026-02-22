@@ -1286,7 +1286,7 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 
 ## 6. Observations and evidence
 
-SENTINEL_FINDINGS_V1
+<!-- SENTINEL_FINDINGS_V1 -->
 
 {{FINDING_PAGES_HTML}}
 
@@ -1434,7 +1434,11 @@ export async function buildStructuredReport(
     { minLen: 15 }
   );
   const execCore = deduped.exec || built.EXEC_SUMMARY_CORE;
-  const whatThisMeansSection = deduped.interp || built.INTERPRETATION_GUIDANCE;
+  const whatThisMeansSection = String(
+    reportData.WHAT_THIS_MEANS_SECTION ??
+    deduped.interp ??
+    built.INTERPRETATION_GUIDANCE
+  );
   const decisionPathways = deduped.decision || built.DECISION_PATHWAYS_BULLETS;
 
   if (process.env.NODE_ENV !== "production") {
@@ -1462,7 +1466,13 @@ export async function buildStructuredReport(
     OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
     OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? computed.RISK_RATING ?? "🟡 Moderate"),
     EXECUTIVE_DECISION_SIGNALS: (() => {
-      const v = execCore || (reportData.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_DECISION_SIGNALS ?? computed.EXECUTIVE_SUMMARY ?? defaultText.EXECUTIVE_SUMMARY ?? "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.");
+      const v =
+        reportData.EXECUTIVE_DECISION_SIGNALS ??
+        execCore ??
+        computed.EXECUTIVE_DECISION_SIGNALS ??
+        computed.EXECUTIVE_SUMMARY ??
+        defaultText.EXECUTIVE_SUMMARY ??
+        "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
       const s = String(v ?? "");
       return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
     })(),
@@ -1481,9 +1491,9 @@ export async function buildStructuredReport(
     SCOPE_SECTION: scopeOnly || defaultText.SCOPE_SECTION || "This assessment is non-invasive and limited to accessible areas only.",
     LIMITATIONS_SECTION: limitationsOnly,
     METHODOLOGY_SECTION: methodologySection,
-    FINDING_PAGES_HTML: observedConditions,
+    FINDING_PAGES_HTML: String(reportData.FINDING_PAGES_HTML ?? observedConditions),
     THERMAL_SECTION: thermalSection,
-    CAPEX_TABLE_ROWS: capexTableRows,
+    CAPEX_TABLE_ROWS: String(reportData.CAPEX_TABLE_ROWS ?? capexTableRows),
     CAPEX_DISCLAIMER_LINE: (() => {
       const v = reportData.CAPEX_DISCLAIMER_LINE ?? capexDisclaimer;
       const s = String(v ?? capexDisclaimer);

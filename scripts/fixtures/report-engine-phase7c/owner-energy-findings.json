@@ -1,0 +1,20 @@
+{
+  "name": "owner-energy-findings",
+  "profile": "owner",
+  "modules": [
+    "energy"
+  ],
+  "density": "standard",
+  "mergedFindingsCount": 3,
+  "mergedModuleOrder": [
+    "energy",
+    "energy",
+    "energy"
+  ],
+  "slotSource": {
+    "source": "merged",
+    "reason": "MERGED_FINDINGS_APPLIED"
+  },
+  "hasSentinel": true,
+  "pageBreakCount": 3
+}

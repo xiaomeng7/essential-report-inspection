@@ -1,5 +1,10 @@
 import { moduleRegistry } from "./modules";
 import { resolveProfile } from "./profiles";
+import { runDistributedEnergyAssetsEngineFromRaw } from "./distributedEnergyAssetsEngine";
+import { runBaselineLoadEngine } from "./baselineLoadEngine";
+import { runEnhancedEnergyEngine } from "./enhancedEnergyEngine";
+import { profileRenderMerged } from "./profileRenderer";
+import { assertReportInputs } from "../report/preflight/assertReportInputs";
 import type {
   ContentContribution,
   FindingBlock,
@@ -24,6 +29,24 @@ function textCanonicalKey(text: string): string {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/[.,;:!?()[\]{}"'`]/g, "");
+}
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "row";
+}
+
+function ensureCapexRowKey(item: ContentContribution, moduleId: ModuleId): ContentContribution {
+  if (item.rowKey && item.rowKey.startsWith("capex:")) return item;
+  const seed = item.key?.trim() || item.text?.trim() || "capex-row";
+  const slug = slugify(seed.replace(/\|/g, " "));
+  return {
+    ...item,
+    rowKey: `capex:${moduleId}:${slug}`,
+  };
 }
 
 function moduleOrderByProfile(profile: ReportProfileId): ModuleId[] {
@@ -229,10 +252,32 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
       capexRows: [],
       findings: [],
     },
+    debug: {},
   };
 
   const outputs: ModuleComputeOutput[] = [];
+
+  const baselineOutput = runBaselineLoadEngine(request.inspection.raw);
+  const normalizedBaselineOutput: ModuleComputeOutput = {
+    executiveSummaryContrib: normalizeContrib("energy", baselineOutput.output.executiveSummaryContrib),
+    whatThisMeansContrib: normalizeContrib("energy", baselineOutput.output.whatThisMeansContrib),
+    capexRowsContrib: normalizeContrib("energy", baselineOutput.output.capexRowsContrib).map((item) =>
+      ensureCapexRowKey(item, "energy")
+    ),
+    findingsContrib: baselineOutput.output.findingsContrib.map((f) => ({
+      ...f,
+      key: f.key || `energy:${f.id}:${f.title}`,
+      moduleId: f.moduleId ?? "energy",
+    })),
+  };
+  outputs.push(normalizedBaselineOutput);
+  plan.summaryFocus.push(...normalizedBaselineOutput.executiveSummaryContrib);
+  plan.whatThisMeansFocus.push(...normalizedBaselineOutput.whatThisMeansContrib);
+  plan.capexRows.push(...normalizedBaselineOutput.capexRowsContrib);
+  plan.findingsBlocks.push(...normalizedBaselineOutput.findingsContrib);
+
   for (const moduleId of modules) {
+    if (moduleId === "energy") continue;
     const module = moduleRegistry[moduleId];
     if (!module || !module.applicability(profile, request)) continue;
 
@@ -243,7 +288,9 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
     const normalizedOutput: ModuleComputeOutput = {
       executiveSummaryContrib: normalizeContrib(moduleId, output.executiveSummaryContrib),
       whatThisMeansContrib: normalizeContrib(moduleId, output.whatThisMeansContrib),
-      capexRowsContrib: normalizeContrib(moduleId, output.capexRowsContrib),
+      capexRowsContrib: normalizeContrib(moduleId, output.capexRowsContrib).map((item) =>
+        ensureCapexRowKey(item, moduleId)
+      ),
       findingsContrib: output.findingsContrib.map((f) => ({
         ...f,
         key: f.key || `${moduleId}:${f.id}:${f.title}`,
@@ -257,6 +304,44 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
     plan.findingsBlocks.push(...normalizedOutput.findingsContrib);
   }
 
+  const enhancedEnergyOutput = runEnhancedEnergyEngine(request.inspection.raw, profile, baselineOutput.metrics);
+  const normalizedEnhancedEnergyOutput: ModuleComputeOutput = {
+    executiveSummaryContrib: normalizeContrib("energy", enhancedEnergyOutput.executiveSummaryContrib),
+    whatThisMeansContrib: normalizeContrib("energy", enhancedEnergyOutput.whatThisMeansContrib),
+    capexRowsContrib: normalizeContrib("energy", enhancedEnergyOutput.capexRowsContrib).map((item) =>
+      ensureCapexRowKey(item, "energy")
+    ),
+    findingsContrib: enhancedEnergyOutput.findingsContrib.map((f) => ({
+      ...f,
+      key: f.key || `energy:${f.id}:${f.title}`,
+      moduleId: f.moduleId ?? "energy",
+    })),
+  };
+  outputs.push(normalizedEnhancedEnergyOutput);
+  plan.summaryFocus.push(...normalizedEnhancedEnergyOutput.executiveSummaryContrib);
+  plan.whatThisMeansFocus.push(...normalizedEnhancedEnergyOutput.whatThisMeansContrib);
+  plan.capexRows.push(...normalizedEnhancedEnergyOutput.capexRowsContrib);
+  plan.findingsBlocks.push(...normalizedEnhancedEnergyOutput.findingsContrib);
+
+  const assetsOutput = runDistributedEnergyAssetsEngineFromRaw(request.inspection.raw, profile, baselineOutput.metrics);
+  const normalizedAssetsOutput: ModuleComputeOutput = {
+    executiveSummaryContrib: normalizeContrib("energy", assetsOutput.executiveSummaryContrib),
+    whatThisMeansContrib: normalizeContrib("energy", assetsOutput.whatThisMeansContrib),
+    capexRowsContrib: normalizeContrib("energy", assetsOutput.capexRowsContrib).map((item) =>
+      ensureCapexRowKey(item, "energy")
+    ),
+    findingsContrib: assetsOutput.findingsContrib.map((f) => ({
+      ...f,
+      key: f.key || `energy:${f.id}:${f.title}`,
+      moduleId: f.moduleId ?? "energy",
+    })),
+  };
+  outputs.push(normalizedAssetsOutput);
+  plan.summaryFocus.push(...normalizedAssetsOutput.executiveSummaryContrib);
+  plan.whatThisMeansFocus.push(...normalizedAssetsOutput.whatThisMeansContrib);
+  plan.capexRows.push(...normalizedAssetsOutput.capexRowsContrib);
+  plan.findingsBlocks.push(...normalizedAssetsOutput.findingsContrib);
+
   /**
    * Phase 3 merge rules (contract):
    * 1) Executive summary: module outputs are deduplicated and merged in profile-aware module order.
@@ -265,7 +350,16 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
    * 4) Findings: sorted by module order, then by internal priority (IMMEDIATE -> RECOMMENDED -> PLAN),
    *    and clipped by narrative density (compact/standard/detailed).
    */
-  plan.merged = mergeModuleOutput(profile, density, outputs);
+  plan.merged = profileRenderMerged(profile, mergeModuleOutput(profile, density, outputs));
+  const preflight = assertReportInputs(request.inspection.raw, plan.merged, {
+    stressLevel: baselineOutput.metrics.stressLevel,
+    profile,
+  });
+  plan.debug = {
+    ...(plan.debug || {}),
+    preflight,
+  };
+  console.log("[report-preflight]", JSON.stringify(plan.debug.preflight));
 
   return plan;
 }

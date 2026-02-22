@@ -9,6 +9,19 @@ export type ReportEngineOptions = {
   budgetBias?: "conservative" | "balanced" | "proactive";
 };
 
+export type ReportEngineInjectionMode =
+  | "legacy"
+  | "merged_what_this_means"
+  | "merged_exec+wtm"
+  | "merged_all";
+
+export type ReportEngineInjectionFlags = {
+  whatThisMeans: boolean;
+  executive: boolean;
+  capex: boolean;
+  findings: boolean;
+};
+
 export type ReportRequest = {
   inspection: StoredInspection;
   profile?: ReportProfileId;
@@ -38,6 +51,10 @@ export type ContentContribution = {
   key: string;
   text: string;
   rowKey?: string;
+  amountLow?: number;
+  amountHigh?: number;
+  currency?: "AUD" | string;
+  amountIsTbd?: boolean;
   moduleId?: ModuleId;
   importance?: ContributionImportance;
   allowDuplicates?: boolean;
@@ -64,6 +81,27 @@ export type ReportPlan = {
     whatThisMeans: ContentContribution[];
     capexRows: ContentContribution[];
     findings: FindingBlock[];
+  };
+  debug?: {
+    preflight?: {
+      warnings: Array<{ code: string; message: string; meta?: Record<string, unknown> }>;
+      flags: Record<string, boolean | undefined>;
+      summary: {
+        warningCounts: Record<string, number>;
+        hasAnyWarning: boolean;
+        severity: "none" | "low" | "medium" | "high";
+        baselineComplete: boolean;
+        enhancedComplete: boolean;
+        assetsCoverage: "observed" | "declared" | "unknown";
+        tariffSource: "customer" | "default" | "missing";
+        circuitsCount: number;
+        enhancedSkipped: boolean;
+        enhancedSkipCode?: string;
+        enhancedSkipNote?: string;
+        subscriptionLead: boolean;
+        subscriptionLeadReasons: string[];
+      };
+    };
   };
 };
 

@@ -29,7 +29,17 @@ import { customDimensionsToFindingDimensions, profileToFindingDimensions, overal
 import type { CustomFindingDimensions } from "./lib/customFindingPriority";
 import type { FindingDimensions } from "./lib/derivePropertySignals";
 import type { ReportData as PlaceholderReportData } from "../../src/reporting/placeholderMap";
-import { buildTemplateDataWithLegacyPath } from "./lib/reportEngine";
+import {
+  applyMergedOverrides,
+  buildReportEngineTelemetry,
+  buildTemplateDataWithLegacyPath,
+  emitReportEngineTelemetry,
+  type ModuleId,
+  type ReportEngineInjectionMode,
+  type ReportProfileId,
+} from "./lib/reportEngine";
+import { extractSnapshotSignals } from "./lib/report/extractSnapshotSignals";
+import { resolveReportSelection } from "./lib/report/resolveReportSelection";
 import { 
   ensureAllPlaceholders, 
   DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS,
@@ -2103,6 +2113,49 @@ function formatFindingsText(items: string[], defaultText: string): string {
   return items.map(item => `• ${item}`).join("\n");
 }
 
+const MODULE_SET = new Set<ModuleId>(["safety", "capacity", "energy", "lifecycle"]);
+const PROFILE_SET = new Set<ReportProfileId>(["investor", "owner", "tenant"]);
+
+function parseModules(raw: unknown): ModuleId[] | undefined {
+  const arr = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+    ? raw.split(",").map((x) => x.trim()).filter(Boolean)
+    : [];
+  const modules = arr
+    .map((x) => String(x).trim())
+    .filter((x): x is ModuleId => MODULE_SET.has(x as ModuleId));
+  return modules.length > 0 ? modules : undefined;
+}
+
+function parseProfile(raw: unknown): ReportProfileId | undefined {
+  if (typeof raw !== "string") return undefined;
+  const p = raw.trim() as ReportProfileId;
+  return PROFILE_SET.has(p) ? p : undefined;
+}
+
+function parseInjectionMode(raw: unknown): ReportEngineInjectionMode | undefined {
+  if (typeof raw !== "string") return undefined;
+  const normalized = raw.trim() as ReportEngineInjectionMode;
+  if (
+    normalized === "legacy" ||
+    normalized === "merged_what_this_means" ||
+    normalized === "merged_exec+wtm" ||
+    normalized === "merged_all"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function parseBoolean(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw !== "string") return undefined;
+  if (/^(1|true|yes|on)$/i.test(raw.trim())) return true;
+  if (/^(0|false|no|off)$/i.test(raw.trim())) return false;
+  return undefined;
+}
+
 export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext) => {
   if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
     return { 
@@ -2132,16 +2185,40 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     }
     console.log("[report-fp] BUILD COMMIT_REF/CONTEXT/BRANCH:", buildRef, "package.version:", pkgVersion);
 
+    // Extract request knobs from query/body.
+    const body = event.httpMethod === "POST" ? JSON.parse(event.body || "{}") : {};
+    const query = new URLSearchParams(event.rawQuery || "");
+
     // Extract inspection_id from query string or POST body
     let inspection_id: string | undefined;
-    
-    if (event.httpMethod === "GET") {
-      const params = new URLSearchParams(event.rawQuery || "");
-      inspection_id = params.get("inspection_id") || undefined;
-    } else if (event.httpMethod === "POST") {
-      const body = JSON.parse(event.body || "{}");
-      inspection_id = body.inspection_id;
-    }
+    inspection_id =
+      (event.httpMethod === "GET" ? query.get("inspection_id") : undefined) ||
+      (body as Record<string, unknown>).inspection_id as string | undefined;
+
+    const requestProfileOverride =
+      parseProfile(query.get("profile")) ||
+      parseProfile((body as Record<string, unknown>).profile);
+    const requestModulesOverride =
+      parseModules(query.get("modules")) ||
+      parseModules((body as Record<string, unknown>).modules);
+    const injectionMode =
+      parseInjectionMode(query.get("report_engine_injection_mode")) ||
+      parseInjectionMode((body as Record<string, unknown>).report_engine_injection_mode) ||
+      "legacy";
+    const injection = {
+      whatThisMeans:
+        parseBoolean(query.get("inject_what_this_means")) ??
+        parseBoolean((body as Record<string, unknown>).inject_what_this_means),
+      executive:
+        parseBoolean(query.get("inject_executive")) ??
+        parseBoolean((body as Record<string, unknown>).inject_executive),
+      capex:
+        parseBoolean(query.get("inject_capex")) ??
+        parseBoolean((body as Record<string, unknown>).inject_capex),
+      findings:
+        parseBoolean(query.get("inject_findings")) ??
+        parseBoolean((body as Record<string, unknown>).inject_findings),
+    };
     
     if (!inspection_id || typeof inspection_id !== "string") {
       return {
@@ -2183,14 +2260,104 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     
     // Load responses for Markdown generation
     const responses = await loadResponses(event);
+    const baseUrlForMerged = getBaseUrl(event);
+    const signingSecretForMerged = process.env.REPORT_PHOTO_SIGNING_SECRET;
+    const snapshotSignals = extractSnapshotSignals((inspection.raw || {}) as Record<string, unknown>);
+    const snapshotFoundFields = {
+      occupancyType: snapshotSignals.occupancyType !== undefined,
+      primaryGoal: snapshotSignals.primaryGoal !== undefined,
+      hasEv: snapshotSignals.hasEv !== undefined,
+      hasSolar: snapshotSignals.hasSolar !== undefined,
+      hasBattery: snapshotSignals.hasBattery !== undefined,
+    };
+    console.log("[report-engine] snapshot signals extracted:", {
+      foundFields: snapshotFoundFields,
+      values: {
+        occupancyType: snapshotSignals.occupancyType,
+        primaryGoal: snapshotSignals.primaryGoal,
+        hasEv: snapshotSignals.hasEv,
+        hasSolar: snapshotSignals.hasSolar,
+        hasBattery: snapshotSignals.hasBattery,
+      },
+      paths: snapshotSignals.sources || {},
+      coverage: snapshotSignals.coverage || "unknown",
+    });
+    const resolvedSelection = resolveReportSelection(snapshotSignals, {
+      profile: requestProfileOverride,
+      modules: requestModulesOverride,
+    });
+    const resolvedProfile = resolvedSelection.profile;
+    const resolvedModules = resolvedSelection.modules;
+    console.log("[report-engine] resolved selection:", {
+      source: resolvedSelection.source,
+      resolvedProfile,
+      resolvedModules: resolvedModules || [],
+      resolvedWeights: resolvedSelection.weights,
+      snapshotSignals: resolvedSelection.snapshotSignals,
+      snapshotSignalSources: resolvedSelection.snapshotSignals.sources || {},
+      snapshotSignalCoverage: resolvedSelection.snapshotSignals.coverage || "unknown",
+      requestOverrides: {
+        profile: requestProfileOverride,
+        modules: requestModulesOverride || [],
+      },
+    });
     
     // Build computed fields (for Markdown generation); use enriched findings for consistency with reportData
-    const { templateData: reportData } = await buildTemplateDataWithLegacyPath(
+    const { templateData: reportDataLegacy, plan } = await buildTemplateDataWithLegacyPath(
       {
         inspection,
-        profile: "investor",
+        profile: resolvedProfile,
+        modules: resolvedModules,
       },
       () => buildReportData(inspection, event)
+    );
+    const overrideResult = applyMergedOverrides(
+      reportDataLegacy as Record<string, unknown>,
+      plan,
+      {
+        mode: injectionMode,
+        injection,
+        hasExplicitModules: Array.isArray(resolvedModules) && resolvedModules.length > 0,
+        inspectionId: inspection.inspection_id,
+        baseUrl: baseUrlForMerged,
+        signingSecret: signingSecretForMerged,
+      }
+    );
+    const reportData = overrideResult.templateData as typeof reportDataLegacy;
+    console.log("[report-engine] injection config:", {
+      profile: resolvedProfile,
+      modules: resolvedModules || [],
+      mode: injectionMode,
+      resolved: overrideResult.injection,
+      slotSourceMap: overrideResult.slotSourceMap,
+    });
+    if (plan.debug?.preflight) {
+      console.log("[report-preflight]", JSON.stringify(plan.debug.preflight));
+      console.log(
+        "[report-preflight-summary]",
+        JSON.stringify({
+          inspection_id: inspection.inspection_id,
+          profile: resolvedProfile,
+          modulesSelected: resolvedModules || [],
+          injected: {
+            exec: overrideResult.injection.executive,
+            wtm: overrideResult.injection.whatThisMeans,
+            capex: overrideResult.injection.capex,
+            findings: overrideResult.injection.findings,
+          },
+          summary: plan.debug.preflight.summary,
+        })
+      );
+    }
+    emitReportEngineTelemetry(
+      buildReportEngineTelemetry({
+        reportId: inspection.inspection_id,
+        profile: resolvedProfile,
+        modules: resolvedModules || [],
+        injectionMode,
+        slotSourceMap: overrideResult.slotSourceMap,
+        plan,
+      })
     );
     const globalOverridesForHandler = event ? await loadFindingDimensionsGlobal(event) : {};
     const enrichedFindings = await enrichFindingsWithCalculatedPriority(inspection, event, {
@@ -2285,8 +2452,6 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("[report][RUN_ID]", RUN_ID, "before buildReportMarkdown/buildReportHtml");
     let reportHtml: string;
     try {
-      const baseUrl = getBaseUrl(event);
-      const signingSecret = process.env.REPORT_PHOTO_SIGNING_SECRET;
       const structuredReport = await buildStructuredReport({
         inspection: { ...inspection, findings: handlerFindingsWithPriority },
         canonical,
@@ -2296,8 +2461,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         event,
         coverData,
         reportData: reportData as Record<string, unknown>,
-        baseUrl,
-        signingSecret,
+        baseUrl: baseUrlForMerged,
+        signingSecret: signingSecretForMerged,
       });
       assertReportReady(structuredReport);
       reportHtml = markdownToHtml(renderReportFromSlots(structuredReport));
@@ -2464,29 +2629,24 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       throw new Error("找不到 report-template-md.docx 模板文件。请确保构建时复制了该文件到 netlify/functions/ 目录。");
     }
     
-    // Check if template contains REPORT_BODY_HTML placeholder
-    // This is a required protection: throw error if placeholder is missing
-    // Note: Word may split placeholders across XML nodes, so we check for the text content
+    // Check template: renderDocxByMergingCoverAndBody merges cover (template) + body (reportHtml) separately.
+    // The template does NOT need REPORT_BODY_HTML - body is merged from HTML conversion. Slot-based templates (OVERALL_STATUS_BADGE, etc.) are valid.
     const templateZip = new PizZip(templateBuffer);
     const templateDocumentXml = templateZip.files["word/document.xml"]?.asText() || "";
     console.log("[docx-diag][RUN_ID=" + RUN_ID + "] templateDocumentXmlLength=" + templateDocumentXml.length);
     
-    // P0: REPORT_BODY_HTML is REQUIRED - template must contain continuous placeholder
-    const templatePathForError = foundMdTemplate ? templatePathHit : possibleMdPaths[0];
-    const hasPlaceholder = templateDocumentXml.includes("REPORT_BODY_HTML") ||
+    const hasReportBodyPlaceholder = templateDocumentXml.includes("REPORT_BODY_HTML") ||
       templateDocumentXml.includes("report_body_html") ||
       templateDocumentXml.includes("Report_Body_Html");
-
-    if (!hasPlaceholder) {
-      // Detect split placeholder: tag name exists but full {{TAG}} doesn't
+    if (hasReportBodyPlaceholder) {
       const isSplit = detectSplitTag(templateDocumentXml, "REPORT_BODY_HTML");
       if (isSplit) {
         throw new Error("TEMPLATE_TAG_SPLIT: REPORT_BODY_HTML is split across Word XML runs. Re-enter {{REPORT_BODY_HTML}} as continuous text in template.");
       }
-      throw new Error("TEMPLATE_MISSING_TAG: REPORT_BODY_HTML not found in template. path=" + templatePathForError);
+      console.log("[docx-diag][RUN_ID=" + RUN_ID + "] template placeholder check: REPORT_BODY_HTML present");
+    } else {
+      console.log("[docx-diag][RUN_ID=" + RUN_ID + "] template uses slot-based placeholders (no REPORT_BODY_HTML); body merged via renderDocxByMergingCoverAndBody");
     }
-
-    console.log("[docx-diag][RUN_ID=" + RUN_ID + "] template placeholder check: REPORT_BODY_HTML present (continuous)");
     
     // Hard assertions before renderDocx
     const undefKeys = Object.entries(templateData).filter(([, v]) => v === undefined).map(([k]) => k);

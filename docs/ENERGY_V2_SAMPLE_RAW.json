@@ -1,0 +1,46 @@
+{
+  "job": {
+    "address": "REDACTED",
+    "supply_phase": "single"
+  },
+  "snapshot_intake": {
+    "occupancyType": "owner_occupied",
+    "primaryGoal": "reduce_bill"
+  },
+  "energy_v2": {
+    "supply": {
+      "phaseSupply": "single",
+      "voltageV": 230,
+      "mainSwitchA": 63
+    },
+    "stressTest": {
+      "performed": true,
+      "durationSec": 60,
+      "totalCurrentA": 47
+    },
+    "circuits": [
+      {
+        "label": "Hot Water",
+        "category": "hot_water",
+        "measuredCurrentA": 16,
+        "evidenceCoverage": "measured"
+      },
+      {
+        "label": "A-C",
+        "category": "ac",
+        "measuredCurrentA": 18,
+        "evidenceCoverage": "measured"
+      },
+      {
+        "label": "Lighting",
+        "category": "lighting",
+        "measuredCurrentA": 7,
+        "evidenceCoverage": "measured"
+      }
+    ],
+    "tariff": {
+      "rate_c_per_kwh": 42,
+      "supply_c_per_day": 120
+    }
+  }
+}

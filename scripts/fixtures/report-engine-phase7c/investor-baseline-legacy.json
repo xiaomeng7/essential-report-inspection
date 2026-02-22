@@ -1,0 +1,16 @@
+{
+  "name": "investor-baseline-legacy",
+  "profile": "investor",
+  "modules": [],
+  "density": "standard",
+  "mergedFindingsCount": 1,
+  "mergedModuleOrder": [
+    "energy"
+  ],
+  "slotSource": {
+    "source": "legacy",
+    "reason": "NO_EXPLICIT_MODULES"
+  },
+  "hasSentinel": false,
+  "pageBreakCount": 0
+}

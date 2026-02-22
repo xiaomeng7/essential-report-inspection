@@ -1,0 +1,72 @@
+{
+  "job": {
+    "address": "REDACTED",
+    "address_place_id": "REDACTED_PLACE_ID",
+    "address_components": {
+      "suburb": "Adelaide",
+      "state": "SA",
+      "postcode": "5000"
+    },
+    "supply_phase": "single",
+    "property_age_band": "1990-2010"
+  },
+  "snapshot_intake": {
+    "occupancyType": "owner_occupied",
+    "primaryGoal": "reduce_bill",
+    "hasEv": true,
+    "hasSolar": false,
+    "hasBattery": false
+  },
+  "switchboard": {
+    "type": "old cb",
+    "main_switch_rating": 63
+  },
+  "measured": {
+    "load_current": 47,
+    "voltage": 230
+  },
+  "energy_v2": {
+    "supply": {
+      "phaseSupply": "single",
+      "voltageV": 230,
+      "mainSwitchA": 63
+    },
+    "stressTest": {
+      "performed": true,
+      "durationSec": 60,
+      "totalCurrentA": 47
+    },
+    "circuits": [
+      {
+        "label": "Hot Water",
+        "category": "hot_water",
+        "measuredCurrentA": 16,
+        "evidenceCoverage": "measured"
+      },
+      {
+        "label": "A-C",
+        "category": "ac",
+        "measuredCurrentA": 18,
+        "evidenceCoverage": "measured"
+      },
+      {
+        "label": "Lighting",
+        "category": "lighting",
+        "measuredCurrentA": 7,
+        "evidenceCoverage": "measured"
+      }
+    ],
+    "tariff": {
+      "rate_c_per_kwh": 42,
+      "supply_c_per_day": 120
+    }
+  },
+  "lifecycle": {
+    "photo_ids": [
+      "P01"
+    ]
+  },
+  "rcd_coverage": "partial",
+  "visible_thermal_stress": "yes",
+  "high_load_devices": "Hot Water, A-C"
+}

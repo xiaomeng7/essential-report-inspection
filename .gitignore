@@ -39,3 +39,6 @@ lerna-debug.log*
 
 # Netlify
 .netlify/
+
+# ServiceM8 export (contains customer contact data)
+servicem8_*.csv

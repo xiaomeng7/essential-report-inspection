@@ -1,5 +1,6 @@
 import type { ModuleComputeOutput, ModuleId, ReportModule } from "./types";
 import { energyModule } from "./energyModule";
+import { lifecycleModule } from "./lifecycleModule";
 
 function emptyOutput(): ModuleComputeOutput {
   return {
@@ -20,13 +21,6 @@ const safetyModule: ReportModule = {
 const capacityModule: ReportModule = {
   id: "capacity",
   name: "Capacity Module",
-  applicability: () => true,
-  compute: () => emptyOutput(),
-};
-
-const lifecycleModule: ReportModule = {
-  id: "lifecycle",
-  name: "Lifecycle Module",
   applicability: () => true,
   compute: () => emptyOutput(),
 };

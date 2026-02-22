@@ -12,6 +12,7 @@ import { upsertInspection, updateInspectionReportKey, upsertInspectionFindings }
 import { upsertInspectionCore, upsertInspectionFindings as upsertInspectionFindingsCore, upsertInspectionPhotos } from "./lib/dbInspectionsCore";
 import { normalizeInspection } from "./lib/normalizeInspection";
 import { isDbConfigured, sql } from "./lib/db";
+import { prepareSubmissionRaw } from "./lib/report/prepareSubmissionRaw";
 
 const WORD_GENERATE_TIMEOUT_MS = 12_000;
 
@@ -36,6 +37,8 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.error("JSON parse error:", e);
     return { statusCode: 400, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
+  // Canonical intake normalization entry for submission payload.
+  raw = prepareSubmissionRaw(raw);
 
   // Address validation: require address_place_id and suburb/state/postcode
   const extractValue = (v: unknown): unknown => {
@@ -382,22 +385,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     const baseUrlRaw = getBaseUrl(event);
     const baseUrl = baseUrlRaw && String(baseUrlRaw).startsWith("http") ? String(baseUrlRaw).replace(/\/$/, "") : "https://inspection.bhtechnology.com.au";
     
-    // Extract address and technician name for email
-    // Helper function to extract value from Answer object (handles nested Answer objects)
-    const extractValue = (v: unknown): unknown => {
-      if (v == null) return undefined;
-      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return v;
-      if (typeof v === "object" && "value" in (v as object)) {
-        const answerValue = (v as { value: unknown }).value;
-        // If the value itself is an Answer object (nested), recursively extract
-        if (typeof answerValue === "object" && answerValue !== null && "value" in (answerValue as object)) {
-          return extractValue(answerValue);
-        }
-        return answerValue;
-      }
-      return undefined;
-    };
-    
+    // Extract address and technician name for email (uses extractValue from handler scope)
     const address = (raw.job as Record<string, unknown>)?.address;
     const addressValue = extractValue(address) as string | undefined;
     

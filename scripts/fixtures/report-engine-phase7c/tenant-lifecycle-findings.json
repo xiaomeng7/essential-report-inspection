@@ -1,0 +1,19 @@
+{
+  "name": "tenant-lifecycle-findings",
+  "profile": "tenant",
+  "modules": [
+    "lifecycle"
+  ],
+  "density": "standard",
+  "mergedFindingsCount": 2,
+  "mergedModuleOrder": [
+    "lifecycle",
+    "energy"
+  ],
+  "slotSource": {
+    "source": "merged",
+    "reason": "MERGED_FINDINGS_APPLIED"
+  },
+  "hasSentinel": true,
+  "pageBreakCount": 2
+}
