@@ -1,9 +1,11 @@
 /**
  * CHANGELOG: Inspection Summary block updated with 4-item list and helper text. UI-only.
+ * CHANGELOG: Review-level heuristic alerts (stress test, circuit breakdown, photos/notes, bill). Non-blocking.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PhotoEvidenceSection } from "./PhotoEvidenceSection";
 import { CustomFindingsModal, type CustomFindingInput } from "./CustomFindingsModal";
+import { computeHeuristicAlerts } from "../lib/reviewHeuristics";
 
 type Props = {
   inspectionId: string;
@@ -132,6 +134,11 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   }
   if (!data) return null;
 
+  const alerts = computeHeuristicAlerts({
+    raw_data: data.raw_data,
+    findings: data.findings,
+  });
+
   // Derive 3-line summary from raw_data for quick review (display only, no data change)
   const raw = (data.raw_data ?? {}) as Record<string, unknown>;
   const energy = raw.energy_v2 as Record<string, unknown> | undefined;
@@ -153,8 +160,38 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
     });
   }
 
+  const alertBannerStyle = {
+    padding: "12px 16px",
+    borderRadius: 8,
+    marginBottom: 12,
+    fontSize: 14,
+    border: "1px solid #dee2e6",
+  };
+
   return (
     <div className="review-page">
+      {/* Heuristic alerts - advisory only, do not block submission */}
+      {alerts.stressTestRequired && (
+        <div style={{ ...alertBannerStyle, backgroundColor: "#fff3cd", borderColor: "#ffc107", color: "#856404" }}>
+          <strong>Stress Test not performed.</strong> This measurement is important for load assessment. Confirm to submit without it.
+        </div>
+      )}
+      {alerts.circuitBreakdownRecommended && (
+        <div style={{ ...alertBannerStyle, backgroundColor: "#e7f3ff", borderColor: "#2196f3", color: "#0d47a1" }}>
+          <strong>Optional circuit breakdown recommended</strong> given installed assets.
+        </div>
+      )}
+      {alerts.photosNotesSuggested && (
+        <div style={{ ...alertBannerStyle, backgroundColor: "#f5f5f5", borderColor: "#bdbdbd", color: "#424242" }}>
+          No photos or notes provided. It is recommended to attach evidence for issues found.
+        </div>
+      )}
+      {alerts.billCalibrationSuggested && (
+        <div style={{ ...alertBannerStyle, backgroundColor: "#e8f5e9", borderColor: "#81c784", color: "#2e7d32" }}>
+          Utility billing data was not provided — estimates may vary. Consider asking customer for bills.
+        </div>
+      )}
+
       {/* Inspection Summary - display only, review key items before submission */}
       <div style={{
         backgroundColor: "#f8f9fa",

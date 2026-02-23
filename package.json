@@ -31,6 +31,7 @@
     "test:snapshot-inspection-e2e": "tsx scripts/test-snapshot-inspection-e2e.ts",
     "test:snapshot-selection": "npx tsx scripts/test-snapshot-selection-flow.ts",
     "test:energy-v2-raw": "npx tsx scripts/test-energy-v2-raw-normalization.ts",
+    "test:review-heuristics": "npx tsx scripts/test-review-heuristics.ts",
     "test:submit-raw-e2e": "npx tsx scripts/test-submit-inspection-raw-e2e.ts",
     "test:assets-energy-engine": "npx tsx scripts/test-assets-energy-engine.ts",
     "test:canonical-extractors": "npx tsx scripts/test-canonical-extractors.ts",

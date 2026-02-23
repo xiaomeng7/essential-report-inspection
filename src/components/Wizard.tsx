@@ -1,6 +1,7 @@
 /**
  * CHANGELOG: Refined labels, placeholders, helper text for Job/Prefill, Main Load, Stress Test,
  * Optional Circuit, Customer Intake sections. UI-only; no field keys or payload changes.
+ * CHANGELOG: Pre-submit heuristic alerts (stress test, circuit breakdown, bill calibration). Non-blocking.
  */
 import { useEffect, useState, useMemo } from "react";
 import { getSections } from "../lib/fieldDictionary";
@@ -14,6 +15,7 @@ import { getWizardPages, VIRTUAL_STEP_IDS } from "../lib/inspectionBlocks";
 import { assignStagedPhotosToFindings } from "../lib/sectionToFindingsMap";
 import { uploadInspectionPhoto } from "../lib/uploadInspectionPhotoApi";
 import { getFindingForField } from "../lib/fieldToFindingMap";
+import { computeHeuristicAlerts } from "../lib/reviewHeuristics";
 import type { SectionDef } from "../lib/fieldDictionary";
 
 const GATE_KEYS = new Set([
@@ -1074,6 +1076,41 @@ export function Wizard({ onSubmitted }: Props) {
                 <p>Earthing system and external electrical items before leaving site.</p>
               </div>
             )}
+
+            {/* Pre-submit heuristic alerts – advisory only, do not block */}
+            {isLast && (() => {
+              const preSubmitRaw: Record<string, unknown> = {
+                energy_v2: {
+                  stressTest: { performed: getValue("energy_v2.stressTest.performed") },
+                  circuits: getValue("energy_v2.circuits"),
+                },
+                snapshot_intake: {
+                  occupancyType: getValue("snapshot_intake.occupancyType"),
+                  hasSolar: getValue("snapshot_intake.hasSolar"),
+                  hasEv: getValue("snapshot_intake.hasEv"),
+                  hasBattery: getValue("snapshot_intake.hasBattery"),
+                  billBand: getValue("snapshot_intake.billBand"),
+                  billUploadWilling: getValue("snapshot_intake.billUploadWilling"),
+                },
+                signoff: { office_notes_internal: getValue("signoff.office_notes_internal") },
+                access: { notes: getValue("access.notes") },
+                notes: getValue("notes"),
+                technician_notes: getValue("technician_notes"),
+              };
+              const preSubmitAlerts = computeHeuristicAlerts({ raw_data: preSubmitRaw, findings: undefined });
+              const hasAny = preSubmitAlerts.stressTestRequired || preSubmitAlerts.circuitBreakdownRecommended || preSubmitAlerts.billCalibrationSuggested;
+              if (!hasAny) return null;
+              const Banner = ({ msg, bg, border, color }: { msg: React.ReactNode; bg: string; border: string; color: string }) => (
+                <div style={{ padding: "12px 16px", borderRadius: 8, marginBottom: 12, fontSize: 14, backgroundColor: bg, border: `1px solid ${border}`, color }}>{msg}</div>
+              );
+              return (
+                <div style={{ marginBottom: 12 }}>
+                  {preSubmitAlerts.stressTestRequired && <Banner msg={<><strong>Stress Test not performed.</strong> This measurement is important for load assessment. Confirm to submit without it.</>} bg="#fff3cd" border="#ffc107" color="#856404" />}
+                  {preSubmitAlerts.circuitBreakdownRecommended && <Banner msg={<><strong>Optional circuit breakdown recommended</strong> given installed assets.</>} bg="#e7f3ff" border="#2196f3" color="#0d47a1" />}
+                  {preSubmitAlerts.billCalibrationSuggested && <Banner msg="Utility billing data was not provided — estimates may vary. Consider asking customer for bills." bg="#e8f5e9" border="#81c784" color="#2e7d32" />}
+                </div>
+              );
+            })()}
 
             {/* Submit / section errors: block submit when validation fails (e.g. missing photos) */}
             {(completenessError || currentStep.sectionIds.some((id) => sectionErrors[id]?._submit)) && (
