@@ -1,3 +1,6 @@
+/**
+ * CHANGELOG: Inspection Summary block updated with 4-item list and helper text. UI-only.
+ */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PhotoEvidenceSection } from "./PhotoEvidenceSection";
 import { CustomFindingsModal, type CustomFindingInput } from "./CustomFindingsModal";
@@ -136,21 +139,6 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
   const stress = energy?.stressTest as Record<string, unknown> | undefined;
   const enhancedSkip = energy?.enhancedSkipReason as Record<string, unknown> | undefined;
   const circuits = Array.isArray(energy?.circuits) ? (energy.circuits as unknown[]) : [];
-  const mainLoadStatus =
-    supply
-      ? `${String(supply.phaseSupply ?? "-")} phase, ${supply.mainSwitchA != null ? `${supply.mainSwitchA}A` : "main switch?"}${supply.voltageV != null ? `, ${supply.voltageV}V` : ""}`
-      : "—";
-  const stressLevel =
-    stress
-      ? Boolean(stress.performed)
-        ? `${stress.totalCurrentA != null ? `${stress.totalCurrentA}A` : stress.currentA_L1 != null ? `${stress.currentA_L1}/${stress.currentA_L2}/${stress.currentA_L3}A` : "recorded"}`
-        : "Not performed"
-      : "—";
-  const optionalCircuitInfo =
-    circuits.length > 0
-      ? `Provided (${circuits.length} circuit${circuits.length === 1 ? "" : "s"})`
-      : (enhancedSkip?.code ? `Skipped (${String(enhancedSkip.code)})` : "—");
-
   // Display priority: enhanced HTML > template HTML > original report HTML
   const displayHtml = enhancedHtml || templateHtml || data.report_html;
   const isEnhanced = enhancedHtml !== null;
@@ -167,7 +155,7 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
 
   return (
     <div className="review-page">
-      {/* Summary of Critical Findings (for review) - display only */}
+      {/* Inspection Summary - display only, review key items before submission */}
       <div style={{
         backgroundColor: "#f8f9fa",
         border: "1px solid #dee2e6",
@@ -176,11 +164,13 @@ export function ReviewPage({ inspectionId, onBack }: Props) {
         marginBottom: 20,
         fontSize: 14
       }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Summary of Critical Findings (for review)</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Inspection Summary</div>
+        <p style={{ fontSize: 12, color: "#666", marginTop: 0, marginBottom: 8 }}>Review key items before submission.</p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <li><strong>Main Load Status:</strong> {mainLoadStatus}</li>
-          <li><strong>Stress Level:</strong> {stressLevel}</li>
-          <li><strong>Optional Circuit Info:</strong> {optionalCircuitInfo}</li>
+          <li>Main Load &amp; Voltage {supply ? "measured." : "—"}</li>
+          <li>Load Stress measurement {stress ? (Boolean(stress.performed) ? "completed." : "skipped.") : "—"}</li>
+          <li>Optional circuit breakdown {circuits.length > 0 ? "provided." : (enhancedSkip?.code ? "skipped." : "—")}</li>
+          <li>Customer intake responses {raw.snapshot_intake ? "recorded." : "—"}</li>
         </ul>
       </div>
 

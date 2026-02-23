@@ -1,3 +1,7 @@
+/**
+ * CHANGELOG: Refined labels, placeholders, helper text for Job/Prefill, Main Load, Stress Test,
+ * Optional Circuit, Customer Intake sections. UI-only; no field keys or payload changes.
+ */
 import { useEffect, useState, useMemo } from "react";
 import { getSections } from "../lib/fieldDictionary";
 import { isSectionGatedOut, isSectionAutoSkipped } from "../lib/gates";
@@ -625,14 +629,16 @@ export function Wizard({ onSubmitted }: Props) {
           <div className="start-screen__card">
             <h2 className="start-screen__brief-heading">ServiceM8 Prefill (Optional)</h2>
             <p className="start-screen__brief-text">
-              Prefill with ServiceM8 helps auto-fill job and client details. Enter Job / Work Number to fetch and auto-fill "Client" and "Property address". If no address in ServiceM8 or geocode fails, select address manually in the form below.
+              Optional: used to auto-fill job and client details.
             </p>
-            <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ marginTop: 12 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>ServiceM8 Job Number</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
               <input
                 type="text"
                 value={serviceM8JobNumber}
                 onChange={(e) => setServiceM8JobNumber(e.target.value)}
-                placeholder="Enter ServiceM8 Job / Work Number"
+                placeholder="Enter ServiceM8 job/work number"
                 style={{
                   flex: 1,
                   padding: "8px 10px",
@@ -647,8 +653,10 @@ export function Wizard({ onSubmitted }: Props) {
                 onClick={handleServiceM8Prefill}
                 disabled={serviceM8Loading}
               >
-                {serviceM8Loading ? "Fetching…" : "Fetch details"}
+                {serviceM8Loading ? "Fetching…" : "Fetch Job Details"}
               </button>
+              </div>
+              <p className="small" style={{ marginTop: 8, color: "#666" }}>Retrieve client and address from ServiceM8 if available.</p>
             </div>
             {serviceM8Error && (
               <p className="validation-msg" style={{ marginTop: 8 }}>
@@ -777,43 +785,48 @@ export function Wizard({ onSubmitted }: Props) {
           <p className="section-guidance">Measure main supply phase, voltage, and main switch rating.</p>
           <div className="start-screen__card">
             <div style={{ display: "grid", gap: 10 }}>
-              <label>
-                Phase:
+              <div className="field">
+                <label>Supply Phase</label>
                 <select
                   value={energyPhaseSupply}
                   onChange={(e) => setAnswer("energy_v2.supply.phaseSupply", { value: e.target.value, status: "answered" })}
-                  style={{ marginLeft: 8 }}
+                  style={{ marginTop: 4 }}
                 >
-                  <option value="single">single</option>
-                  <option value="three">three</option>
+                  <option value="single">Single Phase</option>
+                  <option value="three">Three Phase</option>
                 </select>
-              </label>
+                <p className="small" style={{ marginTop: 4, color: "#666" }}>Select the electrical supply phase.</p>
+              </div>
               {energyPhaseSupply === "single" ? (
-                <label>
-                  Voltage (V):
+                <div className="field">
+                  <label>Supply Voltage (V)</label>
                   <input
                     type="number"
                     value={String(getValue("energy_v2.supply.voltageV") ?? 230)}
                     onChange={(e) => setAnswer("energy_v2.supply.voltageV", { value: Number(e.target.value), status: "answered" })}
-                    style={{ marginLeft: 8 }}
+                    placeholder="e.g., 230"
+                    style={{ marginTop: 4 }}
                   />
-                </label>
+                  <p className="small" style={{ marginTop: 4, color: "#666" }}>Measured line voltage at main switchboard.</p>
+                </div>
               ) : (
                 <div style={{ display: "grid", gap: 6 }}>
-                  <label>L1 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL1V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL1V", { value: Number(e.target.value), status: "answered" })} /></label>
-                  <label>L2 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL2V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL2V", { value: Number(e.target.value), status: "answered" })} /></label>
-                  <label>L3 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL3V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL3V", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L1 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL1V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL1V", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 230" /></label>
+                  <label>L2 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL2V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL2V", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 230" /></label>
+                  <label>L3 Voltage (V): <input type="number" value={String(getValue("energy_v2.supply.voltageL3V") ?? "")} onChange={(e) => setAnswer("energy_v2.supply.voltageL3V", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 230" /></label>
                 </div>
               )}
-              <label>
-                Main Switch (A):
+              <div className="field">
+                <label>Main Switch Rating (A)</label>
                 <input
                   type="number"
                   value={String(getValue("energy_v2.supply.mainSwitchA") ?? "")}
                   onChange={(e) => setAnswer("energy_v2.supply.mainSwitchA", { value: Number(e.target.value), status: "answered" })}
-                  style={{ marginLeft: 8 }}
+                  placeholder="e.g., 100"
+                  style={{ marginTop: 4 }}
                 />
-              </label>
+                <p className="small" style={{ marginTop: 4, color: "#666" }}>Rated amperage of main circuit breaker.</p>
+              </div>
             </div>
           </div>
           <div className="start-screen__actions">
@@ -836,19 +849,40 @@ export function Wizard({ onSubmitted }: Props) {
                   checked={energyStressPerformed}
                   onChange={(e) => setAnswer("energy_v2.stressTest.performed", { value: e.target.checked, status: "answered" })}
                 />{" "}
-                Performed
+                Stress Test Performed
               </label>
-              <label>Duration (sec): <input type="number" value={String(getValue("energy_v2.stressTest.durationSec") ?? 60)} onChange={(e) => setAnswer("energy_v2.stressTest.durationSec", { value: Number(e.target.value), status: "answered" })} /></label>
+              <p className="small" style={{ marginTop: -4, color: "#666" }}>Check if load stress measurements were completed.</p>
+              <label>Test Duration (seconds) <input type="number" value={String(getValue("energy_v2.stressTest.durationSec") ?? 60)} onChange={(e) => setAnswer("energy_v2.stressTest.durationSec", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 60" style={{ marginLeft: 8 }} /></label>
+              <p className="small" style={{ marginTop: -4, color: "#666" }}>Duration the loads were applied for stress measurement.</p>
               {energyPhaseSupply === "single" ? (
-                <label>Total Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.totalCurrentA") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.totalCurrentA", { value: Number(e.target.value), status: "answered" })} /></label>
+                <>
+                  <label>Measured Total Current (A) <input type="number" value={String(getValue("energy_v2.stressTest.totalCurrentA") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.totalCurrentA", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 85" style={{ marginLeft: 8 }} /></label>
+                  <p className="small" style={{ marginTop: -4, color: "#666" }}>Total current draw with major loads ON.</p>
+                </>
               ) : (
                 <div style={{ display: "grid", gap: 6 }}>
-                  <label>L1 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L1") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L1", { value: Number(e.target.value), status: "answered" })} /></label>
-                  <label>L2 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L2") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L2", { value: Number(e.target.value), status: "answered" })} /></label>
-                  <label>L3 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L3") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L3", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <label>L1 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L1") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L1", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 28" /></label>
+                  <label>L2 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L2") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L2", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 28" /></label>
+                  <label>L3 Current (A): <input type="number" value={String(getValue("energy_v2.stressTest.currentA_L3") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.currentA_L3", { value: Number(e.target.value), status: "answered" })} placeholder="e.g., 28" /></label>
                 </div>
               )}
-              <label>Not tested reasons (comma separated): <input type="text" value={String((getValue("energy_v2.stressTest.notTestedReasons") as string[] | undefined)?.join(", ") ?? "")} onChange={(e) => setAnswer("energy_v2.stressTest.notTestedReasons", { value: e.target.value.split(",").map((x) => x.trim()).filter(Boolean), status: "answered" })} /></label>
+              {!energyStressPerformed && (
+                <div className="field">
+                  <label>If not tested, select reason</label>
+                  <select
+                    value={String((getValue("energy_v2.stressTest.notTestedReasons") as string[] | undefined)?.[0] ?? "")}
+                    onChange={(e) => setAnswer("energy_v2.stressTest.notTestedReasons", { value: e.target.value ? [e.target.value] : [], status: "answered" })}
+                    style={{ marginTop: 4 }}
+                  >
+                    <option value="">-- select --</option>
+                    <option value="customer_declined">Customer declined to test</option>
+                    <option value="safety_access">Safety or access restriction</option>
+                    <option value="equipment_unavailable">Equipment unavailable</option>
+                    <option value="other">Other (specify below)</option>
+                  </select>
+                  <p className="small" style={{ marginTop: 4, color: "#666" }}>Choose why you could not test, if skipped.</p>
+                </div>
+              )}
             </div>
           </div>
           <div className="start-screen__actions">
@@ -863,25 +897,27 @@ export function Wizard({ onSubmitted }: Props) {
         <div className="wizard-page">
           <h1 className="wizard-page__title">Step 3 – Optional Circuit Breakdown</h1>
           <p className="section-guidance">Optional: enhance your report by measuring individual circuits. Skip if time limited.</p>
-          <p className="small" style={{ color: "#6b7280", marginBottom: 12 }}>Optional: expand to measure circuits individually for more accurate energy use insights.</p>
           <div className="start-screen__card">
             <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <strong>Circuit breakdown (optional)</strong>
+              <strong>Detailed Circuit Breakdown (Optional)</strong>
               <button type="button" className="btn-secondary" onClick={() => setEnergyEnhancedExpanded((v) => !v)}>
                 {energyEnhancedExpanded ? "Collapse" : "Expand"}
               </button>
             </div>
             {!energyEnhancedExpanded && (
               <p style={{ margin: 0, color: "#6b7280", fontSize: 13 }}>
-                Optional: enhance your report by measuring individual circuits. Skip if time limited.
+                Expand this section to measure individual circuits for detailed energy distribution insights — optional.
               </p>
             )}
             {energyEnhancedExpanded && (
               <>
                 <div style={{ display: "grid", gap: 6 }}>
                   {energyCircuits.map((row, idx) => (
-                    <div key={`energy-circuit-${idx}`} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr auto", gap: 6 }}>
-                      <input type="text" value={String(row.label ?? "")} onChange={(e) => updateEnergyCircuit(idx, { label: e.target.value })} placeholder="label" />
+                    <div key={`energy-circuit-${idx}`} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr auto", gap: 6, alignItems: "end" }}>
+                      <div>
+                        <label className="small">Circuit Name / Description</label>
+                        <input type="text" value={String(row.label ?? "")} onChange={(e) => updateEnergyCircuit(idx, { label: e.target.value })} placeholder="e.g., Kitchen circuits" style={{ marginTop: 4, width: "100%" }} />
+                      </div>
                       <select value={String(row.category ?? "other")} onChange={(e) => updateEnergyCircuit(idx, { category: e.target.value })}>
                         <option value="hot_water">hot_water</option>
                         <option value="ac">ac</option>
@@ -890,7 +926,10 @@ export function Wizard({ onSubmitted }: Props) {
                         <option value="power">power</option>
                         <option value="other">other</option>
                       </select>
-                      <input type="number" value={String(row.measuredCurrentA ?? "")} onChange={(e) => updateEnergyCircuit(idx, { measuredCurrentA: e.target.value === "" ? "" : Number(e.target.value) })} placeholder="A" />
+                      <div>
+                        <label className="small">Measured Circuit Current (A)</label>
+                        <input type="number" value={String(row.measuredCurrentA ?? "")} onChange={(e) => updateEnergyCircuit(idx, { measuredCurrentA: e.target.value === "" ? "" : Number(e.target.value) })} placeholder="e.g., 15" style={{ marginTop: 4, width: "100%" }} />
+                      </div>
                       <select value={String(row.evidenceCoverage ?? "measured")} onChange={(e) => updateEnergyCircuit(idx, { evidenceCoverage: e.target.value })}>
                         <option value="measured">measured</option>
                         <option value="declared">declared</option>
@@ -901,26 +940,23 @@ export function Wizard({ onSubmitted }: Props) {
                   <button type="button" className="btn-secondary" onClick={addEnergyCircuit}>+ Add circuit</button>
                 </div>
                 <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
-                  <strong>Tariff (optional)</strong>
-                  <label>rate_c_per_kwh: <input type="number" value={String(getValue("energy_v2.tariff.rate_c_per_kwh") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.rate_c_per_kwh", { value: Number(e.target.value), status: "answered" })} /></label>
-                  <label>supply_c_per_day: <input type="number" value={String(getValue("energy_v2.tariff.supply_c_per_day") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.supply_c_per_day", { value: Number(e.target.value), status: "answered" })} /></label>
+                  <strong>Tariff (if known)</strong>
+                  <label>rate_c_per_kwh <input type="number" value={String(getValue("energy_v2.tariff.rate_c_per_kwh") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.rate_c_per_kwh", { value: Number(e.target.value), status: "answered" })} placeholder="cents per kWh" style={{ marginLeft: 8 }} /></label>
+                  <label>supply_c_per_day <input type="number" value={String(getValue("energy_v2.tariff.supply_c_per_day") ?? "")} onChange={(e) => setAnswer("energy_v2.tariff.supply_c_per_day", { value: Number(e.target.value), status: "answered" })} placeholder="cents per day" style={{ marginLeft: 8 }} /></label>
+                  <p className="small" style={{ color: "#666" }}>Use customer&apos;s tariff rate if available.</p>
                 </div>
               </>
             )}
             <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
-              <button type="button" className="btn-secondary" onClick={() => { if (!energyEnhancedSkipCode) setAnswer("energy_v2.enhancedSkipReason.code", { value: "time_insufficient", status: "answered" }); setEnergyEnhancedExpanded(false); }}>
-                Skip Optional Tests
-              </button>
-              <label>Skip reason:
-                <select value={energyEnhancedSkipCode} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.code", { value: e.target.value, status: "answered" })} style={{ marginLeft: 8 }}>
-                  <option value="">-- select --</option>
-                  <option value="customer_not_allowed">customer not allowed</option>
-                  <option value="time_insufficient">time insufficient</option>
-                  <option value="site_uncontrollable">site/device uncontrollable</option>
-                  <option value="other">other</option>
-                </select>
-              </label>
-              <label>Skip note: <input type="text" value={energyEnhancedSkipNote} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.note", { value: e.target.value, status: "answered" })} placeholder="optional note" style={{ marginLeft: 8 }} /></label>
+              <label><strong>Skip Optional Circuit Breakdown</strong></label>
+              <select value={energyEnhancedSkipCode} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.code", { value: e.target.value, status: "answered" })} style={{ maxWidth: 280 }}>
+                <option value="">-- select --</option>
+                <option value="time_insufficient">Time limited</option>
+                <option value="customer_not_allowed">Customer declined</option>
+                <option value="other">Other</option>
+              </select>
+              <p className="small" style={{ color: "#666" }}>If not performing detailed circuits, choose a reason.</p>
+              <label>Skip note (optional): <input type="text" value={energyEnhancedSkipNote} onChange={(e) => setAnswer("energy_v2.enhancedSkipReason.note", { value: e.target.value, status: "answered" })} placeholder="optional note" style={{ marginLeft: 8 }} /></label>
             </div>
           </div>
           <div className="start-screen__actions">
@@ -937,40 +973,45 @@ export function Wizard({ onSubmitted }: Props) {
           <p className="section-guidance">These optional questions help tailor your report recommendations. Ask only if customer is present.</p>
             <p className="small" style={{ marginBottom: 12 }}>These questions help diagnose your electrical usage and potential energy cost issues.</p>
             <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-              <label>
-                <strong>A) Customer context – What best describes you?</strong>
+              <div>
+                <label><strong>Customer Type</strong></label>
                 <select value={snapshotOccupancy} onChange={(e) => setAnswer("snapshot_intake.occupancyType", { value: e.target.value, status: "answered" })} style={{ marginTop: 6, width: "100%" }}>
                   <option value="">Select</option>
-                  <option value="owner_occupied">Owner occupied (homeowner)</option>
-                  <option value="investment">Investment property landlord</option>
-                  <option value="tenant">Tenant</option>
+                  <option value="investment">Investor</option>
+                  <option value="owner_occupied">Homeowner</option>
+                  <option value="tenant">Not sure</option>
                 </select>
-              </label>
-              <label>
-                <strong>B) What do you want to solve most?</strong>
-                <select value={snapshotPrimaryGoal} onChange={(e) => setAnswer("snapshot_intake.primaryGoal", { value: e.target.value, status: "answered" })} style={{ marginTop: 6, width: "100%" }}>
-                  <option value="">Select</option>
-                  <option value="reduce_bill">Understand where electricity costs go</option>
-                  <option value="reduce_risk">Reduce safety/compliance uncertainty</option>
-                  <option value="plan_upgrade">Planning upgrade – confirm path & budget</option>
-                  <option value="balanced">Not sure</option>
-                </select>
-              </label>
-              <div>
-                <strong>C) Property systems (optional)</strong>
-                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                  <label><input type="checkbox" checked={snapshotHasSolar} onChange={(e) => setAnswer("snapshot_intake.hasSolar", { value: e.target.checked, status: "answered" })} /> Solar</label>
-                  <label><input type="checkbox" checked={snapshotHasBattery} onChange={(e) => setAnswer("snapshot_intake.hasBattery", { value: e.target.checked, status: "answered" })} /> Battery</label>
-                  <label><input type="checkbox" checked={snapshotHasEv} onChange={(e) => setAnswer("snapshot_intake.hasEv", { value: e.target.checked, status: "answered" })} /> EV / planning to buy within 12 months</label>
-                </div>
+                <p className="small" style={{ marginTop: 4, color: "#666" }}>Choose what best describes the property owner.</p>
               </div>
               <div>
-                <strong>D) Symptoms (optional)</strong>
-                <p className="small">Select any you have experienced; it helps us focus testing.</p>
+                <label><strong>Primary Goal</strong></label>
+                <select value={snapshotPrimaryGoal} onChange={(e) => setAnswer("snapshot_intake.primaryGoal", { value: e.target.value, status: "answered" })} style={{ marginTop: 6, width: "100%" }}>
+                  <option value="">Select</option>
+                  <option value="reduce_risk">Risk focus</option>
+                  <option value="reduce_bill">Energy focus</option>
+                  <option value="plan_upgrade">Planning upgrade</option>
+                  <option value="balanced">Balanced</option>
+                </select>
+                <p className="small" style={{ marginTop: 4, color: "#666" }}>What is the main concern for this inspection?</p>
+              </div>
+              <div>
+                <label><strong>Installed systems (check all that apply)</strong></label>
                 <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
-                  <label><input type="checkbox" checked={snapshotConcerns.includes("high_bill")} onChange={(e) => toggleConcern("high_bill", e.target.checked)} /> High or unexplained bills</label>
-                  <label><input type="checkbox" checked={snapshotConcerns.includes("safety_uncertainty")} onChange={(e) => toggleConcern("safety_uncertainty", e.target.checked)} /> Tripping / concern about aging wiring</label>
-                  <label><input type="checkbox" checked={snapshotConcerns.includes("upgrade_planning")} onChange={(e) => toggleConcern("upgrade_planning", e.target.checked)} /> Planning reno / adding equipment – capacity unclear</label>
+                  <label><input type="checkbox" checked={snapshotHasSolar} onChange={(e) => setAnswer("snapshot_intake.hasSolar", { value: e.target.checked, status: "answered" })} /> Solar PV</label>
+                  <label><input type="checkbox" checked={snapshotHasBattery} onChange={(e) => setAnswer("snapshot_intake.hasBattery", { value: e.target.checked, status: "answered" })} /> Battery storage</label>
+                  <label><input type="checkbox" checked={snapshotHasEv} onChange={(e) => setAnswer("snapshot_intake.hasEv", { value: e.target.checked, status: "answered" })} /> EV charger</label>
+                </div>
+                <p className="small" style={{ marginTop: 4, color: "#666" }}>Indicate which systems are present or planned.</p>
+              </div>
+              <div>
+                <label><strong>Observed electrical issues</strong></label>
+                <p className="small" style={{ marginTop: 2 }}>Select any symptoms seen or reported.</p>
+                <div style={{ marginTop: 6, display: "grid", gap: 6 }}>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("safety_uncertainty")} onChange={(e) => toggleConcern("safety_uncertainty", e.target.checked)} /> Frequent breaker tripping</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("hot_switch")} onChange={(e) => toggleConcern("hot_switch", e.target.checked)} /> Main switch feels hot</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("high_bill")} onChange={(e) => toggleConcern("high_bill", e.target.checked)} /> Sudden increase in bills</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("upgrade_planning")} onChange={(e) => toggleConcern("upgrade_planning", e.target.checked)} /> Unsure where electricity is used</label>
+                  <label><input type="checkbox" checked={snapshotConcerns.includes("other")} onChange={(e) => toggleConcern("other", e.target.checked)} /> Other</label>
                 </div>
               </div>
               <div style={{ display: "grid", gap: 8 }}>

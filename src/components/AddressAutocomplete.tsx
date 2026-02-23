@@ -1,6 +1,7 @@
 /**
  * AddressAutocomplete: Google Places autocomplete for Australian addresses only.
  * User must select from suggestions; free-text input is not allowed.
+ * CHANGELOG: Property Address placeholder updated to "Auto-filled or enter manually".
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 
@@ -208,7 +209,7 @@ export function AddressAutocomplete({ value, onChange, required = true, disabled
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        placeholder="Start typing address (Australia only)..."
+        placeholder="Auto-filled or enter manually"
         disabled={disabled}
         autoComplete="off"
         aria-autocomplete="list"

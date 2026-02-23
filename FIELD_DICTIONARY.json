@@ -3,6 +3,7 @@
   "generated_at": "2026-01-31T00:00:00+10:30",
   "notes": [
     "Aligned with On-Site Technical Checklist MASTER MERGED (Essential Electrical Report Field Data Standard).",
+    "CHANGELOG: Labels updated for Property Address, Client Type. UI-only.",
     "Section-based wizard; gate logic for skip; each field supports status=answered|skipped."
   ],
   "cross_field_validations": [
@@ -396,7 +397,7 @@
       "fields": [
         {
           "key": "job.address",
-          "label": "Property address",
+          "label": "Property Address",
           "type": "string",
           "required": true,
           "skippable": false,
@@ -404,7 +405,7 @@
         },
         {
           "key": "job.client_type",
-          "label": "Client type",
+          "label": "Client Type",
           "type": "enum",
           "enum": "client_type",
           "required": true,

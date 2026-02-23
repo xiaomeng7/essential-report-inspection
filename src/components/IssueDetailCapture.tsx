@@ -1,6 +1,7 @@
 /**
  * IssueDetailCapture: When a field with on_issue_capture=true triggers (value=true or "yes"),
  * this component expands to capture location, photo(s), and optional notes.
+ * CHANGELOG: Labels/placeholders refined for Inspection Notes and Upload Photos. UI-only.
  */
 import { useRef, useCallback, useState } from "react";
 import { compressImageToDataUrl } from "../lib/compressImageToDataUrl";
@@ -123,8 +124,9 @@ export function IssueDetailCapture({ fieldKey, fieldLabel: _fieldLabel, detail, 
       {/* Photos */}
       <div style={{ marginBottom: 10 }}>
         <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>
-          Photos <span style={{ color: "red" }}>*</span> ({detail.photo_ids.length}/{MAX_PHOTOS})
+          Upload Photos <span style={{ color: "red" }}>*</span> ({detail.photo_ids.length}/{MAX_PHOTOS})
         </label>
+        <p style={{ fontSize: 12, color: "#666", marginTop: 0, marginBottom: 4 }}>Attach 1–2 photos per issue type for clarity.</p>
 
         {/* Photo buttons */}
         {canAddMore && (
@@ -230,12 +232,12 @@ export function IssueDetailCapture({ fieldKey, fieldLabel: _fieldLabel, detail, 
       {/* Notes */}
       <div>
         <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>
-          Notes (optional)
+          Inspection Notes
         </label>
         <textarea
           value={detail.notes}
           onChange={(e) => updateNotes(e.target.value)}
-          placeholder="Additional observations..."
+          placeholder="Add comments about unusual findings"
           rows={2}
           style={{
             width: "100%",
@@ -246,6 +248,7 @@ export function IssueDetailCapture({ fieldKey, fieldLabel: _fieldLabel, detail, 
             resize: "vertical",
           }}
         />
+        <p style={{ fontSize: 12, color: "#666", marginTop: 4 }}>Optional: add notes to clarify issues for the report.</p>
       </div>
     </div>
   );
