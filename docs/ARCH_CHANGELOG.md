@@ -315,3 +315,22 @@
 - 文档更新：
   - `docs/PREFLIGHT_METRICS.md`
   - `docs/TELEMETRY_PRELIGHT_DASHBOARD.md`
+
+## Step 19 - Focus-based Executive Summary
+
+- **新增 focus 评分逻辑**：`scoreRisk` / `scoreEnergy` / `scoreBalanced`，由 `primaryGoal` 或 `weights` 推导；`maxScore` 决定 `isFocusRisk` / `isFocusEnergy` / `isFocusBalanced`。
+- **模板条件块**：Report skeleton 支持 `{{#isFocusRisk}}...{{/isFocusRisk}}` 等 docxtemplater-style 条件渲染，仅渲染对应 focus 区块。
+- **新增变量与规则**：
+  - `stressRatio`：来自 baseline load engine，主开关负载百分比
+  - `tenantChangeSoon`：租户即将变更
+  - `symptomsContainsTripping`：症状包含 "tripping"
+  - `hasDetailedCircuits`：circuits.length >= 2
+  - `billBand`：年度电费区间
+  - `allElectricNoGas`：全电住宅
+  - `hasSolar` / `hasEv`：光伏/电动车
+  - `billUploadWilling`：愿意提供账单校准
+- **三大 focus 区块内容**：
+  - **Risk Focused**：强调安全、责任、合规；高负载压力、租户变更、断路器跳闸、电路明细等条件子块。
+  - **Energy Focused**：强调能效与成本；电费、全电、光伏、EV、账单校准等条件子块。
+  - **Balanced**：综合风险与能效；电路测量是否完成、电费、账单校准等。
+- **测试**：`test:executive-summary-focus` 覆盖 risk-heavy / energy-heavy / balanced / default 四种场景。

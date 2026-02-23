@@ -22,6 +22,7 @@
     "test:capex-custom": "tsx scripts/test-capex-custom.ts",
     "test:property-signals": "tsx scripts/test-property-signals.ts",
     "test:executive-signals": "tsx scripts/test-executive-signals.ts",
+    "test:executive-summary-focus": "tsx scripts/test-executive-summary-focus.ts",
     "test:generate-report": "tsx scripts/test-generate-report.ts",
     "test:data-source-mode": "tsx scripts/test-data-source-mode.ts",
     "export:servicem8": "node scripts/export_servicem8_contacts.js",

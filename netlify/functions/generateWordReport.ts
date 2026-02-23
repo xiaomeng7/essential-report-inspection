@@ -40,6 +40,8 @@ import {
 } from "./lib/reportEngine";
 import { extractSnapshotSignals } from "./lib/report/extractSnapshotSignals";
 import { resolveReportSelection } from "./lib/report/resolveReportSelection";
+import { runBaselineLoadEngine } from "./lib/reportEngine/baselineLoadEngine";
+import { extractEnhancedCircuits } from "./lib/report/canonical/extractEnhancedCircuits";
 import { 
   ensureAllPlaceholders, 
   DEFAULT_PLACEHOLDER_VALUES as PLACEHOLDER_DEFAULTS,
@@ -2452,6 +2454,23 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
     console.log("[report][RUN_ID]", RUN_ID, "before buildReportMarkdown/buildReportHtml");
     let reportHtml: string;
     try {
+      // Build focus context for Executive Summary (stressRatio, hasDetailedCircuits, snapshot signals)
+      const raw = (inspection.raw || {}) as Record<string, unknown>;
+      const baselineMetrics = runBaselineLoadEngine(raw).metrics;
+      const enhancedCircuits = extractEnhancedCircuits(raw);
+      const reportFocus = {
+        primaryGoal: snapshotSignals.primaryGoal,
+        weights: resolvedSelection.weights,
+        stressRatio: baselineMetrics?.stressRatio,
+        tenantChangeSoon: snapshotSignals.tenantChangeSoon,
+        symptoms: snapshotSignals.symptoms ?? [],
+        hasDetailedCircuits: enhancedCircuits.circuits.length >= 2,
+        billBand: snapshotSignals.billBand,
+        allElectricNoGas: snapshotSignals.allElectricNoGas,
+        hasSolar: snapshotSignals.hasSolar,
+        hasEv: snapshotSignals.hasEv,
+        billUploadWilling: snapshotSignals.billUploadWilling,
+      };
       const structuredReport = await buildStructuredReport({
         inspection: { ...inspection, findings: handlerFindingsWithPriority },
         canonical,
@@ -2463,7 +2482,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         reportData: reportData as Record<string, unknown>,
         baseUrl: baseUrlForMerged,
         signingSecret: signingSecretForMerged,
-        reportFocus: { primaryGoal: snapshotSignals.primaryGoal },
+        reportFocus,
       });
       assertReportReady(structuredReport);
       reportHtml = markdownToHtml(renderReportFromSlots(structuredReport));

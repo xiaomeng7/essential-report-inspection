@@ -18,7 +18,14 @@ import { sanitizeForClientReport, replaceMockTextForProduction } from "./sanitiz
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
 import { buildComputedFields } from "./buildComputedFields";
 import { dedupeSentences } from "./textDedupe";
-import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader";
+import {
+  computeFocusScores,
+  deriveFocusFlags,
+  buildRiskFocusedBlock,
+  buildEnergyFocusedBlock,
+  buildBalancedBlock,
+  type ExecutiveSummaryFocusContext,
+} from "./executiveSummaryFocusBuilder";
 import { markdownToHtml } from "./markdownToHtml";
 import type { HandlerEvent } from "@netlify/functions";
 import type { StructuredReport } from "./reportContract";
@@ -1377,9 +1384,20 @@ export function renderReportFromSlots(report: StructuredReport): string {
   return out;
 }
 
-/** primaryGoal from snapshot: risk|reduce_risk|energy|reduce_bill|balanced|plan_upgrade */
+/** Scoring focus and context for focus-based Executive Summary */
 export type ReportFocusParams = {
   primaryGoal?: string;
+  weights?: { energy: number; lifecycle: number };
+  /** Snapshot signals for Executive Summary conditionals */
+  stressRatio?: number;
+  tenantChangeSoon?: boolean;
+  symptoms?: string[];
+  hasDetailedCircuits?: boolean;
+  billBand?: string;
+  allElectricNoGas?: boolean;
+  hasSolar?: boolean;
+  hasEv?: boolean;
+  billUploadWilling?: boolean;
 };
 
 export type BuildStructuredReportParams = BuildReportMarkdownParams & {
@@ -1483,12 +1501,27 @@ export async function buildStructuredReport(
   const methodologySection = buildMethodologySection(defaultText);
   const coverSection = buildCoverSection(canonical, defaultText);
 
-  // Derive focus flags from primaryGoal for focus-based Executive Summary
-  const pg = (reportFocus?.primaryGoal ?? "").toString().toLowerCase().trim();
-  const isFocusRisk = /^(risk|reduce_risk)$/.test(pg);
-  const isFocusEnergy = /^(energy|reduce_bill)$/.test(pg);
-  const isFocusBalanced = /^(balanced|plan_upgrade)$/.test(pg);
-  const isFocusDefault = !isFocusRisk && !isFocusEnergy && !isFocusBalanced;
+  // Derive focus flags from scores (primaryGoal + weights)
+  const focusScores = computeFocusScores(reportFocus?.primaryGoal, reportFocus?.weights);
+  const focusFlags = deriveFocusFlags(focusScores);
+  const { isFocusRisk, isFocusEnergy, isFocusBalanced, isFocusDefault } = focusFlags;
+
+  // Build Executive Summary focus context
+  const focusCtx: ExecutiveSummaryFocusContext = {
+    stressRatio: reportFocus?.stressRatio,
+    tenantChangeSoon: reportFocus?.tenantChangeSoon,
+    symptomsContainsTripping: (reportFocus?.symptoms ?? []).some((s) => /tripping/i.test(String(s))),
+    hasDetailedCircuits: reportFocus?.hasDetailedCircuits,
+    billBand: reportFocus?.billBand,
+    allElectricNoGas: reportFocus?.allElectricNoGas,
+    hasSolar: reportFocus?.hasSolar,
+    hasEv: reportFocus?.hasEv,
+    billUploadWilling: reportFocus?.billUploadWilling,
+  };
+  const execSummaryRiskFocused = isFocusRisk ? buildRiskFocusedBlock(focusCtx) : "";
+  const execSummaryEnergyFocused = isFocusEnergy ? buildEnergyFocusedBlock(focusCtx) : "";
+  const execSummaryBalanced = isFocusBalanced ? buildBalancedBlock(focusCtx) : "";
+
   const execSignalsFinal = (() => {
     const v =
       reportData.EXECUTIVE_DECISION_SIGNALS ??
@@ -1500,12 +1533,6 @@ export async function buildStructuredReport(
     const s = String(v ?? "");
     return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
   })();
-  const focusTemplates = await loadExecutiveSummaryTemplates(event);
-  const execSummaryRiskFocused = isFocusRisk
-    ? (focusTemplates.RISK_FOCUSED || "") + (execSignalsFinal ? "\n\n" + execSignalsFinal : "")
-    : "";
-  const execSummaryEnergyFocused = isFocusEnergy ? (focusTemplates.ENERGY_FOCUSED || "") : "";
-  const execSummaryBalanced = isFocusBalanced ? (focusTemplates.BALANCED || "") : "";
 
   const reportObject = {
     COVER_SECTION: coverSection,
