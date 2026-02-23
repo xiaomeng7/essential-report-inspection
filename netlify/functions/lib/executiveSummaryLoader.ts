@@ -24,6 +24,10 @@ export type ExecutiveSummaryTemplates = {
   LOW: string;
   MODERATE: string;
   HIGH: string;
+  /** Focus-based: Risk / Energy / Balanced (from primaryGoal) */
+  RISK_FOCUSED?: string;
+  ENERGY_FOCUSED?: string;
+  BALANCED?: string;
 };
 
 // Cache for executive summary templates
@@ -66,10 +70,12 @@ function findTemplatesPath(): string {
  * ## HIGH RISK
  * [content]
  */
+type TemplateKey = "LOW" | "MODERATE" | "HIGH" | "RISK_FOCUSED" | "ENERGY_FOCUSED" | "BALANCED";
+
 function parseTemplatesFile(content: string): ExecutiveSummaryTemplates {
   const lines = content.split("\n");
   const result: Partial<ExecutiveSummaryTemplates> = {};
-  let currentKey: "LOW" | "MODERATE" | "HIGH" | null = null;
+  let currentKey: TemplateKey | null = null;
   let currentValue: string[] = [];
   
   for (let i = 0; i < lines.length; i++) {
@@ -82,20 +88,34 @@ function parseTemplatesFile(content: string): ExecutiveSummaryTemplates {
     
     // Check for risk rating header (## LOW RISK, ## MODERATE RISK, ## HIGH RISK)
     const headerMatch = line.match(/^##\s+(LOW|MODERATE|HIGH)\s+RISK$/i);
-    if (headerMatch) {
+    // Check for focus header (### RISK FOCUSED, ### ENERGY FOCUSED, ### BALANCED)
+    const focusMatch = line.match(/^###\s+(RISK FOCUSED|ENERGY FOCUSED|BALANCED)$/i);
+    const match = headerMatch || focusMatch;
+    const keyFromMatch = headerMatch
+      ? (headerMatch[1].toUpperCase() as "LOW" | "MODERATE" | "HIGH")
+      : focusMatch
+        ? (focusMatch[1].toUpperCase().replace(/\s+/g, "_") as "RISK_FOCUSED" | "ENERGY_FOCUSED" | "BALANCED")
+        : null;
+    if (match && keyFromMatch) {
       // Save previous key-value pair
       if (currentKey && currentValue.length > 0) {
-        result[currentKey] = currentValue.join("\n").trim();
+        (result as Record<string, string>)[currentKey] = currentValue.join("\n").trim();
       }
-      
-      // Start new key-value pair
-      const key = headerMatch[1].toUpperCase() as "LOW" | "MODERATE" | "HIGH";
-      currentKey = key;
+      currentKey = keyFromMatch;
       currentValue = [];
       continue;
     }
+
+    // Other ## or ### headers (e.g. ## Focus-based...) — save and stop collecting
+    if (line.startsWith("##") || (line.startsWith("###") && !match)) {
+      if (currentKey && currentValue.length > 0) {
+        (result as Record<string, string>)[currentKey] = currentValue.join("\n").trim();
+      }
+      currentKey = null;
+      currentValue = [];
+      if (!line.startsWith("###")) continue; // for ## we skip; for ### that didn't match, also skip
+    }
     
-    // Collect value lines (skip if no current key)
     if (currentKey) {
       currentValue.push(line);
     }
@@ -103,7 +123,7 @@ function parseTemplatesFile(content: string): ExecutiveSummaryTemplates {
   
   // Save last key-value pair
   if (currentKey && currentValue.length > 0) {
-    result[currentKey] = currentValue.join("\n").trim();
+    (result as Record<string, string>)[currentKey] = currentValue.join("\n").trim();
   }
   
   return result as ExecutiveSummaryTemplates;
@@ -112,11 +132,23 @@ function parseTemplatesFile(content: string): ExecutiveSummaryTemplates {
 /**
  * Get default templates with fallback values
  */
+const FOCUS_DEFAULTS = {
+  RISK_FOCUSED:
+    "This summary emphasises safety, liability, and compliance risks. Key risks and recommended actions are prioritised to protect the property, tenants, and asset value.",
+  ENERGY_FOCUSED:
+    "This summary emphasises energy efficiency, running costs, and sustainability. Findings are interpreted in terms of energy consumption, bill impact, and upgrade opportunities.",
+  BALANCED:
+    "This summary balances risk management with upgrade planning and cost efficiency. A holistic view supports both near-term risk control and longer-term asset improvements.",
+};
+
 function getDefaultTemplates(parsed: Partial<ExecutiveSummaryTemplates>): ExecutiveSummaryTemplates {
   return {
     LOW: parsed.LOW || "This property presents a low electrical risk profile at the time of inspection. No immediate safety hazards or compliance-critical issues were identified.",
     MODERATE: parsed.MODERATE || "This property presents a moderate electrical risk profile based on the findings identified during the assessment. While no immediate safety hazards were identified, several items were noted that require attention in the short to medium term.",
     HIGH: parsed.HIGH || "This property presents a high electrical risk profile at the time of inspection. One or more issues were identified that may pose safety, compliance, or operational risks if left unaddressed. Immediate attention is recommended.",
+    RISK_FOCUSED: parsed.RISK_FOCUSED || FOCUS_DEFAULTS.RISK_FOCUSED,
+    ENERGY_FOCUSED: parsed.ENERGY_FOCUSED || FOCUS_DEFAULTS.ENERGY_FOCUSED,
+    BALANCED: parsed.BALANCED || FOCUS_DEFAULTS.BALANCED,
   };
 }
 

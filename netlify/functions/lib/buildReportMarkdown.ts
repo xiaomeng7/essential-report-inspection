@@ -18,6 +18,7 @@ import { sanitizeForClientReport, replaceMockTextForProduction } from "./sanitiz
 import { generateFindingPages, type Finding, type Response } from "./generateFindingPages";
 import { buildComputedFields } from "./buildComputedFields";
 import { dedupeSentences } from "./textDedupe";
+import { loadExecutiveSummaryTemplates } from "./executiveSummaryLoader";
 import { markdownToHtml } from "./markdownToHtml";
 import type { HandlerEvent } from "@netlify/functions";
 import type { StructuredReport } from "./reportContract";
@@ -1254,7 +1255,18 @@ const REPORT_SKELETON = `{{COVER_SECTION}}
 ### Overall risk position
 {{OVERALL_STATUS_BADGE}} {{OVERALL_STATUS}}
 
+{{#isFocusRisk}}
+{{EXEC_SUMMARY_RISK_FOCUSED}}
+{{/isFocusRisk}}
+{{#isFocusEnergy}}
+{{EXEC_SUMMARY_ENERGY_FOCUSED}}
+{{/isFocusEnergy}}
+{{#isFocusBalanced}}
+{{EXEC_SUMMARY_BALANCED}}
+{{/isFocusBalanced}}
+{{#isFocusDefault}}
 {{EXECUTIVE_DECISION_SIGNALS}}
+{{/isFocusDefault}}
 
 ### Priority snapshot
 {{PRIORITY_SNAPSHOT_TABLE}}
@@ -1341,10 +1353,23 @@ SENTINEL_DECISION_V1
 `;
 
 /**
+ * Process handlebars-style {{#key}}...{{/key}} conditional blocks.
+ * When report[key] is truthy, replace block with inner content; otherwise replace with empty string.
+ */
+function processConditionalBlocks(text: string, report: Record<string, unknown>): string {
+  return text.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, inner) => {
+    const val = report[key];
+    return val ? inner : "";
+  });
+}
+
+/**
  * Render Markdown from StructuredReport using slot-only skeleton
+ * Supports {{#key}}...{{/key}} conditionals; then replaces {{slot}} placeholders.
  */
 export function renderReportFromSlots(report: StructuredReport): string {
-  let out = REPORT_SKELETON;
+  const reportRecord = report as Record<string, unknown>;
+  let out = processConditionalBlocks(REPORT_SKELETON, reportRecord);
   for (const [key, val] of Object.entries(report)) {
     const slot = `{{${key}}}`;
     out = out.split(slot).join(String(val ?? ""));
@@ -1352,11 +1377,18 @@ export function renderReportFromSlots(report: StructuredReport): string {
   return out;
 }
 
+/** primaryGoal from snapshot: risk|reduce_risk|energy|reduce_bill|balanced|plan_upgrade */
+export type ReportFocusParams = {
+  primaryGoal?: string;
+};
+
 export type BuildStructuredReportParams = BuildReportMarkdownParams & {
   coverData: Record<string, string>;
   reportData: Record<string, unknown>;
   baseUrl?: string;
   signingSecret?: string;
+  /** Optional: scoring focus from primaryGoal for focus-based Executive Summary */
+  reportFocus?: ReportFocusParams;
 };
 
 /**
@@ -1367,7 +1399,7 @@ export async function buildStructuredReport(
   params: BuildStructuredReportParams
 ): Promise<StructuredReport> {
   console.log("[report] buildReportMarkdown VERSION=" + VERSION);
-  const { inspection, canonical, findings, responses, computed, event, coverData, reportData, baseUrl, signingSecret } =
+  const { inspection, canonical, findings, responses, computed, event, coverData, reportData, baseUrl, signingSecret, reportFocus } =
     params;
   const defaultText = await loadDefaultText(event);
 
@@ -1451,6 +1483,30 @@ export async function buildStructuredReport(
   const methodologySection = buildMethodologySection(defaultText);
   const coverSection = buildCoverSection(canonical, defaultText);
 
+  // Derive focus flags from primaryGoal for focus-based Executive Summary
+  const pg = (reportFocus?.primaryGoal ?? "").toString().toLowerCase().trim();
+  const isFocusRisk = /^(risk|reduce_risk)$/.test(pg);
+  const isFocusEnergy = /^(energy|reduce_bill)$/.test(pg);
+  const isFocusBalanced = /^(balanced|plan_upgrade)$/.test(pg);
+  const isFocusDefault = !isFocusRisk && !isFocusEnergy && !isFocusBalanced;
+  const execSignalsFinal = (() => {
+    const v =
+      reportData.EXECUTIVE_DECISION_SIGNALS ??
+      execCore ??
+      computed.EXECUTIVE_DECISION_SIGNALS ??
+      computed.EXECUTIVE_SUMMARY ??
+      defaultText.EXECUTIVE_SUMMARY ??
+      "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
+    const s = String(v ?? "");
+    return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
+  })();
+  const focusTemplates = await loadExecutiveSummaryTemplates(event);
+  const execSummaryRiskFocused = isFocusRisk
+    ? (focusTemplates.RISK_FOCUSED || "") + (execSignalsFinal ? "\n\n" + execSignalsFinal : "")
+    : "";
+  const execSummaryEnergyFocused = isFocusEnergy ? (focusTemplates.ENERGY_FOCUSED || "") : "";
+  const execSummaryBalanced = isFocusBalanced ? (focusTemplates.BALANCED || "") : "";
+
   const reportObject = {
     COVER_SECTION: coverSection,
     INSPECTION_ID: coverData.INSPECTION_ID || canonical.inspection_id || "-",
@@ -1465,17 +1521,14 @@ export async function buildStructuredReport(
     PRIORITY_SNAPSHOT_TABLE: prioritySnapshotTable,
     OVERALL_STATUS: String(reportData.OVERALL_STATUS ?? computed.OVERALL_STATUS ?? "MODERATE RISK"),
     OVERALL_STATUS_BADGE: String(reportData.OVERALL_STATUS_BADGE ?? computed.RISK_RATING ?? "🟡 Moderate"),
-    EXECUTIVE_DECISION_SIGNALS: (() => {
-      const v =
-        reportData.EXECUTIVE_DECISION_SIGNALS ??
-        execCore ??
-        computed.EXECUTIVE_DECISION_SIGNALS ??
-        computed.EXECUTIVE_SUMMARY ??
-        defaultText.EXECUTIVE_SUMMARY ??
-        "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
-      const s = String(v ?? "");
-      return s && !s.toLowerCase().includes("undefined") && s !== "null" ? s : "• No immediate safety hazards detected. Conditions can be managed within standard asset planning cycles.";
-    })(),
+    EXECUTIVE_DECISION_SIGNALS: execSignalsFinal,
+    isFocusRisk: isFocusRisk || undefined,
+    isFocusEnergy: isFocusEnergy || undefined,
+    isFocusBalanced: isFocusBalanced || undefined,
+    isFocusDefault: isFocusDefault || undefined,
+    EXEC_SUMMARY_RISK_FOCUSED: execSummaryRiskFocused || undefined,
+    EXEC_SUMMARY_ENERGY_FOCUSED: execSummaryEnergyFocused || undefined,
+    EXEC_SUMMARY_BALANCED: execSummaryBalanced || undefined,
     CAPEX_SNAPSHOT: (() => {
       const raw = reportData.CAPEX_SNAPSHOT ?? computed.CAPEX_SNAPSHOT ?? computed.CAPEX_RANGE ?? "AUD $0 – $0 (indicative, planning only)";
       const s = String(raw);

@@ -2463,6 +2463,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         reportData: reportData as Record<string, unknown>,
         baseUrl: baseUrlForMerged,
         signingSecret: signingSecretForMerged,
+        reportFocus: { primaryGoal: snapshotSignals.primaryGoal },
       });
       assertReportReady(structuredReport);
       reportHtml = markdownToHtml(renderReportFromSlots(structuredReport));

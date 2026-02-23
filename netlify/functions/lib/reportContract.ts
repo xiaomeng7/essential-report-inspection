@@ -23,6 +23,15 @@ export type StructuredReport = {
   OVERALL_STATUS: string;
   OVERALL_STATUS_BADGE: string;
   EXECUTIVE_DECISION_SIGNALS: string;
+  /** Focus-based Executive Summary (docxtemplater-style conditionals) */
+  isFocusRisk?: boolean;
+  isFocusEnergy?: boolean;
+  isFocusBalanced?: boolean;
+  /** true when none of the above; use EXECUTIVE_DECISION_SIGNALS */
+  isFocusDefault?: boolean;
+  EXEC_SUMMARY_RISK_FOCUSED?: string;
+  EXEC_SUMMARY_ENERGY_FOCUSED?: string;
+  EXEC_SUMMARY_BALANCED?: string;
   PRIORITY_SNAPSHOT_TABLE?: string;
   CAPEX_SNAPSHOT: string;
 
