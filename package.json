@@ -58,6 +58,8 @@
     "smoke:sanitize": "tsx scripts/smoke-sanitize-anchor.ts",
     "test:docx-e2e": "npx tsx scripts/test-report-engine-phase7-preflight-docx-e2e.ts",
     "test:report-engine": "npm run test:submit-raw-e2e && npm run test:canonical-extractors && npm run test:assets-energy-engine && npm run test:unified-engines-architecture && npx tsx scripts/test-report-engine-phase3.ts && npx tsx scripts/test-report-engine-phase4-energy.ts && npx tsx scripts/test-report-engine-phase5-lifecycle.ts && npx tsx scripts/test-report-engine-phase6-injection.ts && npx tsx scripts/test-report-engine-phase6.5-capex-injection.ts && npx tsx scripts/test-report-engine-phase7A-merged-findings-html.ts && npx tsx scripts/test-report-engine-phase7B-findings-injection.ts && npx tsx scripts/test-report-engine-phase7C-density-profile-release.ts && npx tsx scripts/test-report-engine-phase8-telemetry.ts",
+    "test:lite-selection": "npx tsx scripts/test-lite-selection-flow.ts",
+    "test:lite-render-trimming": "npx tsx scripts/test-lite-render-trimming.ts",
     "markdown-to-word": "node scripts/markdown-to-word.ts",
     "markdown-to-word-pandoc": "node scripts/markdown-to-word-pandoc.ts",
     "preview": "vite preview",

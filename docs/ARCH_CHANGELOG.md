@@ -334,3 +334,19 @@
   - **Energy Focused**：强调能效与成本；电费、全电、光伏、EV、账单校准等条件子块。
   - **Balanced**：综合风险与能效；电路测量是否完成、电费、账单校准等。
 - **测试**：`test:executive-summary-focus` 覆盖 risk-heavy / energy-heavy / balanced / default 四种场景。
+
+## StepLite - Lite product flow（三层架构 lite/pro/essential 原语）
+
+- **目标**：新增 Lite 产品路径，与现有 pipeline 兼容（extractSnapshotSignals → resolveReportSelection → buildReportPlan → render → Blob/email），不改 Word 模板与渲染链，不改 submitInspection。
+- **productIntent 原语**：
+  - 类型 `ProductIntent = "lite" | "pro" | "essential"`（`reportEngine/types.ts`）。
+  - 在 `resolveReportSelection` 中计算并返回；v1 规则：`raw.source === "lite_landing"` 或 `raw.product_intent === "lite"` → lite；否则 primaryGoal 为 energy/reduce_bill 且无 on-site 测量块 → lite；否则有 on-site → essential，否则 pro。
+  - 辅助函数 `hasOnSiteMeasurementBlock(raw)` 用于判断是否存在 energy_v2 现场数据。
+  - 日志：`[report-engine] resolved selection: { productIntent, modules, profile, ... }`。
+- **productModuleMapping**：`netlify/functions/lib/report/productModuleMapping.ts` 导出 `getModulesForProductIntent(productIntent, selection)`；v1 对 lite 仍使用与 selection 相同的 modules，裁剪在 profileRenderer 通过 isLite 完成。
+- **template data 产品层标志**：在 `buildTemplateDataWithLegacyPath` 返回的 templateData 中注入 `productIntent`、`isLite`、`isPro`、`isEssential`（模板暂不修改，供后续条件块使用）。
+- **Lite 内容裁剪**：在 `profileRenderer.profileRenderMerged` 当 `productIntent === "lite"` 时：findings 仅保留 LOAD_STRESS_TEST_RESULT、ESTIMATED_COST_BAND、DISTRIBUTED_ENERGY_ASSETS_OVERVIEW、CONTINUOUS_MONITORING_UPGRADE_JUSTIFICATION；executive 压至 2–4 条并追加固定 CTA（升级 Pro/Essential 文案）；仅 lite 时生效，不改变 owner/investor 行为。
+- **generateLiteReport 端点**：`netlify/functions/generateLiteReport.ts`；POST 接收 customer（name/email）、snapshot_intake、payment（paid、paymentRef）、可选 bill_upload_ref；创建 LiteLead 形态的 inspection（raw.snapshot_intake、product_intent、source: lite_landing），调用与 generateWordReport 相同的生成流程（通过调用 generateWordReport handler）；docx 存 Blob `reports/{inspection_id}.docx`，发邮件带下载链接，返回 `{ inspection_id, download_url, status }`。
+- **Lite 漏斗埋点**：结构化日志 `[lite-funnel] { inspection_id, productIntent, paid, emailProvided, hasBillUpload, primaryGoal, devices, billBand }`。
+- **测试**：`scripts/test-lite-selection-flow.ts`（productIntent lite 判定）、`scripts/test-lite-render-trimming.ts`（lite findings 过滤与 executive CTA）；`test:report-engine` 保持不变，新增 `test:lite-selection`、`test:lite-render-trimming` 并纳入 CI 建议。
+- **可回滚**：Lite 为纯增路径；移除 generateLiteReport、productIntent 分支与 productModuleMapping 即可恢复原行为。
