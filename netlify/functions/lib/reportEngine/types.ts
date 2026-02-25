@@ -4,6 +4,9 @@ export type ReportProfileId = "investor" | "owner" | "tenant";
 
 export type ModuleId = "safety" | "capacity" | "energy" | "lifecycle";
 
+/** Product tier for funnel: lite (snapshot-only) / pro (advisory) / essential (full onsite). */
+export type ProductIntent = "lite" | "pro" | "essential";
+
 export type ReportEngineOptions = {
   narrativeDensity?: "compact" | "standard" | "detailed";
   budgetBias?: "conservative" | "balanced" | "proactive";
@@ -27,6 +30,8 @@ export type ReportRequest = {
   profile?: ReportProfileId;
   modules?: ModuleId[];
   options?: ReportEngineOptions;
+  /** When set, overrides selection-derived productIntent (e.g. for Lite landing). */
+  productIntent?: ProductIntent;
 };
 
 export type FindingBlock = {
@@ -71,6 +76,7 @@ export type ModuleComputeOutput = {
 export type ReportPlan = {
   profile: ReportProfileId;
   modules: ModuleId[];
+  productIntent?: ProductIntent;
   sectionWeights: Record<string, number>;
   summaryFocus: ContentContribution[];
   whatThisMeansFocus: ContentContribution[];
