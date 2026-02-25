@@ -14,6 +14,7 @@ import type {
   ReportRequest,
   ReportProfileId,
   TemplateData,
+  ProductIntent,
 } from "./types";
 
 function resolveModules(profile: ReportProfileId, requestedModules?: ModuleId[]): ModuleId[] {
@@ -232,10 +233,12 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
   const profile = resolveProfile(request.profile).id;
   const modules = resolveModules(profile, request.modules);
   const density = request.options?.narrativeDensity ?? "standard";
+  const productIntent: ProductIntent = request.productIntent ?? "essential";
 
   const plan: ReportPlan = {
     profile,
     modules,
+    productIntent,
     sectionWeights: {
       executiveSummary: 1,
       whatThisMeans: 1,
@@ -350,7 +353,7 @@ export function buildReportPlan(request: ReportRequest): ReportPlan {
    * 4) Findings: sorted by module order, then by internal priority (IMMEDIATE -> RECOMMENDED -> PLAN),
    *    and clipped by narrative density (compact/standard/detailed).
    */
-  plan.merged = profileRenderMerged(profile, mergeModuleOutput(profile, density, outputs));
+  plan.merged = profileRenderMerged(profile, mergeModuleOutput(profile, density, outputs), productIntent);
   const preflight = assertReportInputs(request.inspection.raw, plan.merged, {
     stressLevel: baselineOutput.metrics.stressLevel,
     profile,
@@ -375,7 +378,15 @@ export async function buildTemplateDataWithLegacyPath<T extends TemplateData>(
 ): Promise<{ templateData: T; plan: ReportPlan }> {
   const plan = buildReportPlan(request);
   const templateData = await legacyBuilder();
-  return { templateData, plan };
+  const productIntent = plan.productIntent ?? "essential";
+  const withTier = {
+    ...templateData,
+    productIntent,
+    isLite: productIntent === "lite",
+    isPro: productIntent === "pro",
+    isEssential: productIntent === "essential",
+  } as T;
+  return { templateData: withTier, plan };
 }
 
 /**
