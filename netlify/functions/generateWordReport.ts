@@ -2284,13 +2284,16 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
       paths: snapshotSignals.sources || {},
       coverage: snapshotSignals.coverage || "unknown",
     });
-    const resolvedSelection = resolveReportSelection(snapshotSignals, {
-      profile: requestProfileOverride,
-      modules: requestModulesOverride,
-    });
+    const resolvedSelection = resolveReportSelection(
+      snapshotSignals,
+      { profile: requestProfileOverride, modules: requestModulesOverride },
+      { raw: (inspection.raw || {}) as Record<string, unknown> }
+    );
     const resolvedProfile = resolvedSelection.profile;
     const resolvedModules = resolvedSelection.modules;
+    const productIntent = resolvedSelection.productIntent;
     console.log("[report-engine] resolved selection:", {
+      productIntent,
       source: resolvedSelection.source,
       resolvedProfile,
       resolvedModules: resolvedModules || [],
@@ -2310,6 +2313,7 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         inspection,
         profile: resolvedProfile,
         modules: resolvedModules,
+        productIntent,
       },
       () => buildReportData(inspection, event)
     );
